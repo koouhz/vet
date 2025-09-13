@@ -1,8 +1,6 @@
 <!-- src/views/Equipo.vue -->
 <template>
   <div class="equipo">
-    <AppNavbar />
-
     <!-- Hero -->
     <section class="hero">
       <h1>Nuestro Equipo</h1>
@@ -23,31 +21,22 @@
     <!-- Testimonio interno -->
     <section class="testimonial">
       <blockquote>
-        “Lo que nos distingue no es solo la tecnología, sino el corazón con el que tratamos a cada mascota y a cada dueño.”
+        "Lo que nos distingue no es solo la tecnología, sino el corazón con el que tratamos a cada mascota y a cada dueño."
       </blockquote>
       <cite>— Dra. María López, Directora Médica</cite>
     </section>
-
-    <AppFooter />
   </div>
 </template>
 
 <script>
-import AppNavbar from '@/components/layouts/AppNavbar.vue'
-import AppFooter from '@/components/layouts/AppFooter.vue'
-
-// Importar imágenes con import (evita ESLint)
+// Importar imágenes
 import vet1 from '@/assets/logo.png'
 import vet2 from '@/assets/logo.png'
 import vet3 from '@/assets/logo.png'
 import vet4 from '@/assets/logo.png'
 
 export default {
-  name: 'EquipoSection',
-  components: {
-    AppNavbar,
-    AppFooter
-  },
+  name: 'EquipoView',
   data() {
     return {
       veterinarios: [
@@ -92,13 +81,14 @@ export default {
 <style scoped>
 .equipo {
   background-color: #f8f9fa;
+  min-height: calc(100vh - 120px);
 }
 
 .hero {
   text-align: center;
   padding: 6rem 2rem;
-  background: #03252b;
-  color: #2c3e50;
+  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
+  color: white;
 }
 
 .hero h1 {
@@ -204,6 +194,7 @@ export default {
 
   .team-grid {
     padding: 3rem 1rem;
+    gap: 2rem;
   }
 
   .team-card img {

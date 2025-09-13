@@ -1,12 +1,9 @@
 <template>
   <div id="app">
-    <!-- Navbar fija en todas las vistas -->
     <AppNavbar />
 
-    <!-- Aquí se renderiza el contenido dinámico de cada ruta -->
     <router-view />
 
-    <!-- Footer fijo en todas las vistas -->
     <AppFooter />
   </div>
 </template>

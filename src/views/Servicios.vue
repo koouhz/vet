@@ -1,8 +1,6 @@
 <!-- src/views/Servicios.vue -->
 <template>
   <div class="servicios">
-    <AppNavbar />
-
     <!-- Hero section personalizada -->
     <section class="hero">
       <h1>Nuestros Servicios</h1>
@@ -24,15 +22,11 @@
       <p>Agenda una cita hoy y recibe un chequeo gratuito en tu primera visita.</p>
       <button class="btn-primary">Agendar ahora</button>
     </section>
-
-    <AppFooter />
   </div>
 </template>
 
 <script>
-import AppNavbar from '@/components/layouts/AppNavbar.vue'
-import AppFooter from '@/components/layouts/AppFooter.vue'
-
+// Importar imágenes
 import imgVacunas from '@/assets/logo.png'
 import imgConsultas from '@/assets/logo.png'
 import imgPeluqueria from '@/assets/logo.png'
@@ -41,11 +35,7 @@ import imgCirugias from '@/assets/logo.png'
 import imgNutricion from '@/assets/logo.png'
 
 export default {
-  name: 'ServiciosSection',
-  components: {
-    AppNavbar,
-    AppFooter
-  },
+  name: 'ServiciosView',
   data() {
     return {
       servicios: [
@@ -94,13 +84,14 @@ export default {
 <style scoped>
 .servicios {
   background-color: #f8f9fa;
+  min-height: calc(100vh - 120px);
 }
 
 .hero {
   text-align: center;
   padding: 6rem 2rem;
-  background: #03252b;
-  color: #2c3e50;
+  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
+  color: white;
 }
 
 .hero h1 {
@@ -189,7 +180,7 @@ export default {
   border: none;
   border-radius: 50px;
   cursor: pointer;
-  transition: background-color 0.3s, transform 0.2s;
+  transition: all 0.3s ease;
   font-weight: 600;
   box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
 }
@@ -208,6 +199,7 @@ export default {
   }
   .services-list {
     padding: 3rem 1rem;
+    gap: 2rem;
   }
   .service-item h3 {
     font-size: 1.4rem;
@@ -220,6 +212,29 @@ export default {
   }
   .cta p {
     font-size: 1.1rem;
+  }
+  .btn-primary {
+    padding: 0.9rem 2rem;
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 4rem 1rem;
+  }
+  .hero h1 {
+    font-size: 2.2rem;
+  }
+  .services-list {
+    grid-template-columns: 1fr;
+    padding: 2rem 1rem;
+  }
+  .cta {
+    padding: 4rem 1rem;
+  }
+  .cta h2 {
+    font-size: 1.8rem;
   }
 }
 </style>

@@ -1,7 +1,6 @@
+<!-- src/views/Contacto.vue -->
 <template>
   <div class="contacto">
-    <AppNavbar />
-
     <!-- Hero -->
     <section class="hero">
       <div class="hero-content">
@@ -70,14 +69,10 @@
 </template>
 
 <script>
-import AppNavbar from '@/components/layouts/AppNavbar.vue'
 import mapaImg from '@/assets/logo.png'
 
 export default {
-  name: 'ContactoSection',
-  components: {
-    AppNavbar,
-  },
+  name: 'ContactoView',
   data() {
     return {
       form: {
@@ -95,8 +90,17 @@ export default {
     enviarMensaje() {
       console.log('Formulario enviado:', this.form)
       this.mensajeEnviado = true
-      this.form = { nombre: '', email: '', telefono: '', mascota: '', mensaje: '' }
 
+      // Resetear formulario
+      Object.assign(this.form, {
+        nombre: '',
+        email: '',
+        telefono: '',
+        mascota: '',
+        mensaje: ''
+      })
+
+      // Ocultar mensaje después de 5 segundos
       setTimeout(() => {
         this.mensajeEnviado = false
       }, 5000)
@@ -108,15 +112,15 @@ export default {
 <style scoped>
 .contacto {
   background-color: #f8f9fa;
-  min-height: 100vh;
+  min-height: calc(100vh - 120px);
   font-family: 'Inter', sans-serif;
 }
 
-/* Hero Section */
+/* Hero Section - Ajustado para coincidir con otras vistas */
 .hero {
-  background: #03252b;
-  color: #fbfdff;
-  padding: 4rem 1rem;
+  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
+  color: white;
+  padding: 6rem 2rem; /* Aumentado de 4rem a 6rem para coincidir */
   text-align: center;
 }
 
@@ -126,15 +130,14 @@ export default {
 }
 
 .hero h1 {
-  font-size: 2.5rem;
+  font-size: 3rem; /* Aumentado de 2.5rem a 3rem para coincidir */
   margin-bottom: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 700; /* Aumentado de 600 a 700 para coincidir */
 }
 
 .hero p {
-  font-size: 1.2rem;
-  max-width: 600px;
+  font-size: 1.4rem; /* Aumentado de 1.2rem a 1.4rem para coincidir */
+  max-width: 800px; /* Aumentado de 600px a 800px para coincidir */
   margin: 0 auto;
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
@@ -144,10 +147,10 @@ export default {
 .contact-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0;
   max-width: 1200px;
   margin: 0 auto;
   padding: 4rem 1rem;
+  gap: 0;
 }
 
 .contact-form,
@@ -179,7 +182,6 @@ export default {
   margin-bottom: 0.6rem;
   color: #2c3e50;
   font-weight: 500;
-  font-size: 0.95rem;
 }
 
 .form-group input,
@@ -261,7 +263,7 @@ export default {
   color: #2c3e50;
 }
 
-/* Map Styles */
+/* Map Styles - Reducido de 450px a 300px pero manteniendo propiedades */
 .map-placeholder {
   margin: 1.5rem 0;
   border-radius: 10px;
@@ -271,7 +273,7 @@ export default {
 
 .map-placeholder img {
   width: 100%;
-  height: 250px;
+  height: 300px; /* Reducido de 450px a 300px */
   object-fit: cover;
   display: block;
 }
@@ -311,15 +313,15 @@ export default {
 
 @media (max-width: 768px) {
   .hero {
-    padding: 3rem 1rem;
+    padding: 3rem 1rem; /* Ajustado para vista móvil */
   }
 
   .hero h1 {
-    font-size: 2.2rem;
+    font-size: 2.5rem; /* Ajustado para vista móvil */
   }
 
   .hero p {
-    font-size: 1.1rem;
+    font-size: 1.2rem; /* Ajustado para vista móvil */
   }
 
   .contact-grid {
@@ -338,7 +340,7 @@ export default {
   }
 
   .map-placeholder img {
-    height: 220px;
+    height: 220px; /* Ajustado para vista móvil */
   }
 }
 
@@ -367,7 +369,7 @@ export default {
   }
 
   .map-placeholder img {
-    height: 200px;
+    height: 200px; /* Ajustado para vista móvil */
   }
 
   .info-item {

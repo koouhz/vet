@@ -60,6 +60,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 
+// Datos estáticos para mejor rendimiento
 const slides = ref([
   {
     title: 'Cuidamos lo que amas',
@@ -77,8 +78,9 @@ const slides = ref([
 
 const currentIndex = ref(0)
 let intervalId = null
-const autoPlayDelay = 5000
+const AUTO_PLAY_DELAY = 5000 // Constante para mejor legibilidad
 
+// Navegación
 const next = () => {
   currentIndex.value = (currentIndex.value + 1) % slides.value.length
   resetAutoPlay()
@@ -90,18 +92,24 @@ const prev = () => {
 }
 
 const goTo = (index) => {
-  currentIndex.value = index
-  resetAutoPlay()
+  if (index >= 0 && index < slides.value.length) {
+    currentIndex.value = index
+    resetAutoPlay()
+  }
 }
 
+// Control de autoplay
 const play = () => {
   if (slides.value.length <= 1) return
   pause()
-  intervalId = setInterval(next, autoPlayDelay)
+  intervalId = setInterval(next, AUTO_PLAY_DELAY)
 }
 
 const pause = () => {
-  clearInterval(intervalId)
+  if (intervalId) {
+    clearInterval(intervalId)
+    intervalId = null
+  }
 }
 
 const resetAutoPlay = () => {
@@ -109,6 +117,7 @@ const resetAutoPlay = () => {
   play()
 }
 
+// Lifecycle hooks
 onMounted(() => {
   play()
 })
@@ -117,15 +126,15 @@ onUnmounted(() => {
   pause()
 })
 
-watch(slides, () => {
-  if (currentIndex.value >= slides.value.length) {
+// Watcher optimizado
+watch(slides, (newSlides) => {
+  if (currentIndex.value >= newSlides.length) {
     currentIndex.value = 0
   }
-})
+}, { deep: false }) // deep: false para mejor rendimiento
 </script>
 
 <style scoped>
-
 .carousel {
   position: relative;
   width: 100%;
@@ -133,7 +142,7 @@ watch(slides, () => {
   overflow: hidden;
   border-radius: 16px;
   margin: 0 auto;
-  background: #03252b;
+  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
   isolation: isolate;
   box-shadow: 0 8px 32px rgba(3, 37, 43, 0.15);
 }
