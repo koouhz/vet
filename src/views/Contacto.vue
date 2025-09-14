@@ -69,7 +69,7 @@
 </template>
 
 <script>
-import mapaImg from '@/assets/logo.png'
+import mapaImg from '@/assets/img/map.png'
 
 export default {
   name: 'ContactoView',

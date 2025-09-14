@@ -1,14 +1,13 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <!-- Logo / Branding -->
       <div class="branding">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M12 8V16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M8 12H16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <h1 class="title">PawCare</h1>
+        <h1 class="title">VET</h1>
         <p class="subtitle">Bienvenido de nuevo</p>
       </div>
 
@@ -277,18 +276,18 @@ const handleLogin = async () => {
     // 5️⃣ Mostrar mensaje de bienvenida
     successMessage.value = `¡Bienvenido de vuelta, ${userData.nombre_completo}!`;
 
-    // 6️⃣ Redirigir según el rol
+    // 6️⃣ Redirigir según el rol — ✅ CAMBIOS AQUÍ
     setTimeout(() => {
       switch (userData.rol) {
         case 'admin':
-          router.push('/admin/dashboard');
+          router.push('/dashboard-admin'); // ✅ Solo admin va al dashboard admin
           break;
         case 'veterinario':
-          router.push('/veterinario/dashboard');
+          router.push('/dashboard-vet');   // ✅ Solo veterinario va al dashboard vet
           break;
         case 'cliente':
         default:
-          router.push('/dashboard');
+          router.push('/');                // ✅ ¡CLIENTE VA DIRECTO A LA PÁGINA PRINCIPAL!
           break;
       }
     }, 1500);
@@ -335,13 +334,14 @@ onMounted(async () => {
       if (userData?.is_activo) {
         switch (userData.rol) {
           case 'admin':
-            router.push('/admin/dashboard');
+            router.push('/dashboard-admin'); // ✅ Admin va a su dashboard
             break;
           case 'veterinario':
-            router.push('/veterinario/dashboard');
+            router.push('/dashboard-vet');   // ✅ Veterinario va a su dashboard
             break;
+          case 'cliente':
           default:
-            router.push('/dashboard');
+            router.push('/');                // ✅ ¡CLIENTE VA DIRECTO A AppHome.vue (RAÍZ)!
             break;
         }
       }

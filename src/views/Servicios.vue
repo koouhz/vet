@@ -27,12 +27,12 @@
 
 <script>
 // Importar imágenes
-import imgVacunas from '@/assets/logo.png'
-import imgConsultas from '@/assets/logo.png'
-import imgPeluqueria from '@/assets/logo.png'
-import imgEmergencias from '@/assets/logo.png'
-import imgCirugias from '@/assets/logo.png'
-import imgNutricion from '@/assets/logo.png'
+import imgVacunas from '@/assets/img/servicio1.png'
+import imgConsultas from '@/assets/img/servicio2.png'
+import imgPeluqueria from '@/assets/img/servicio3.png'
+import imgEmergencias from '@/assets/img/servicio4.png'
+import imgCirugias from '@/assets/img/servicio5.png'
+import imgNutricion from '@/assets/img/servicio6.png'
 
 export default {
   name: 'ServiciosView',

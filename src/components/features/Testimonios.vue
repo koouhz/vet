@@ -31,7 +31,7 @@ export default {
           nombre: "María G.",
           mascota: "Leo, Pastor Alemán",
           fecha: "Enero 2025",
-          foto: new URL('@/assets/logo.png', import.meta.url).href
+          foto: new URL('@/assets/img/testimonio.png', import.meta.url).href
         },
         {
           id: 2,
@@ -39,7 +39,7 @@ export default {
           nombre: "Carlos R.",
           mascota: "Whiskers, Persa",
           fecha: "Diciembre 2024",
-          foto: new URL('@/assets/logo.png', import.meta.url).href
+          foto: new URL('@/assets/img/testimonio3.jpeg', import.meta.url).href
         },
         {
           id: 3,
@@ -47,7 +47,7 @@ export default {
           nombre: "Ana M.",
           mascota: "Buddy, Golden Retriever",
           fecha: "Noviembre 2024",
-          foto: new URL('@/assets/logo.png', import.meta.url).href
+          foto: new URL('@/assets/img/testimonio2.png', import.meta.url).href
         }
       ]
     }

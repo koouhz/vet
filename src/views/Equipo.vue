@@ -23,17 +23,18 @@
       <blockquote>
         "Lo que nos distingue no es solo la tecnología, sino el corazón con el que tratamos a cada mascota y a cada dueño."
       </blockquote>
-      <cite>— Dra. María López, Directora Médica</cite>
+      <cite>— Dr. Jhosmar Alejandro Nina Cordova</cite>
     </section>
   </div>
 </template>
 
 <script>
 // Importar imágenes
-import vet1 from '@/assets/logo.png'
-import vet2 from '@/assets/logo.png'
-import vet3 from '@/assets/logo.png'
-import vet4 from '@/assets/logo.png'
+import vet1 from '@/assets/img/personal4.png'
+import vet2 from '@/assets/img/personal3.png'
+import vet3 from '@/assets/img/personal1.png'
+import vet4 from '@/assets/img/personal2.png'
+import vet5 from '@/assets/img/personal5.png'
 
 export default {
   name: 'EquipoView',
@@ -42,7 +43,7 @@ export default {
       veterinarios: [
         {
           id: 1,
-          nombre: 'Dra. María López',
+          nombre: 'Dr. Jhosmar Nina Cordova',
           especialidad: 'Cirugía Veterinaria',
           experiencia: '12 años de experiencia',
           bio: 'Especialista en cirugía ortopédica y laparoscópica. Ha realizado más de 2000 procedimientos exitosos.',
@@ -50,7 +51,7 @@ export default {
         },
         {
           id: 2,
-          nombre: 'Dr. Carlos Ruiz',
+          nombre: 'Dr. Ricardo Limachi',
           especialidad: 'Medicina Interna',
           experiencia: '10 años de experiencia',
           bio: 'Experto en enfermedades crónicas, endocrinología y manejo de diabetes en mascotas. Apasionado por la prevención.',
@@ -58,7 +59,7 @@ export default {
         },
         {
           id: 3,
-          nombre: 'Dra. Ana Torres',
+          nombre: 'Dr. Samuel Jimenez',
           especialidad: 'Emergencias y Urgencias',
           experiencia: '8 años de experiencia',
           bio: 'Líder del equipo de urgencias 24/7. Entrenada en RCP canino y manejo de toxicologías complejas.',
@@ -66,11 +67,19 @@ export default {
         },
         {
           id: 4,
-          nombre: 'Dr. Luis García',
+          nombre: 'Dr. Gabriel Haches',
           especialidad: 'Peluquería y Cuidado Estético',
           experiencia: '6 años de experiencia',
           bio: 'Certificado en grooming avanzado y salud cutánea. Conoce a fondo las necesidades de cada raza.',
           imagen: vet4
+        },
+        {
+          id: 5,
+          nombre: 'Dr. Juan Calani',
+          especialidad: 'Tratamientos y Fisioterapia',
+          experiencia: '3 años de experiencia',
+          bio: 'Certificado en fisiología y cuidado animal.',
+          imagen: vet5
         }
       ]
     }

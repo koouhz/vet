@@ -8,7 +8,7 @@
           <path d="M12 8V16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M8 12H16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <h1 class="title">PawCare</h1>
+        <h1 class="title">VET</h1>
         <p class="subtitle">Cuida a tu mascota, con confianza.</p>
       </div>
 

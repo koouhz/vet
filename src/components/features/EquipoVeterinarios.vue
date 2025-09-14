@@ -15,10 +15,11 @@
 
 <script setup>
 // ✅ Importamos las imágenes usando ES Modules
-import vet1 from '@/assets/logo.png'
-import vet2 from '@/assets/logo.png'
-import vet3 from '@/assets/logo.png'
-import vet4 from '@/assets/logo.png'
+import vet1 from '@/assets/img/personal4.png'
+import vet2 from '@/assets/img/personal3.png'
+import vet3 from '@/assets/img/personal1.png'
+import vet4 from '@/assets/img/personal2.png'
+import vet5 from '@/assets/img/personal5.png'
 
 // ✅ Creamos el array de veterinarios directamente
 const veterinarios = [
@@ -55,7 +56,7 @@ const veterinarios = [
     nombre: 'Dr. Juan Calani',
     especialidad: 'Tratamientos y Fisioterapia',
     experiencia: '3 años de experiencia',
-    imagen: vet4
+    imagen: vet5
   }
 ]
 </script>
