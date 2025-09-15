@@ -21,7 +21,6 @@ const routes = [
     ]
   },
 
-  // === DASHBOARDS (requieren autenticación y roles) ===
   {
     path: '/dashboard-admin',
     component: DashboardLayout,
@@ -43,7 +42,7 @@ const routes = [
   {
     path: '/perfil',
     name: 'Perfil',
-    component: () => import('@/views/verPerfil.vue'),
+    component: () => import('@/views/viewProfile.vue'),
     meta: { requiresAuth: true }
   }
 ]
