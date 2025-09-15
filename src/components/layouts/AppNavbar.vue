@@ -194,30 +194,22 @@ const logout = async () => {
 </script>
 
 <style scoped>
-/* ===== VARIABLES CSS ===== */
-:root {
-  --nav-height: 64px;
-  --nav-height-mobile: 56px;
-  --primary-color: #2563eb;
-  --text-primary: #111827; /* Negro oscuro — ahora usado para todo texto visible */
-  --text-secondary: #374151;
-  --text-disabled: #6b7280;
-  --border-color: #e5e7eb;
-  --bg-hover: #f9fafb;
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --transition-fast: 0.2s ease;
-  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+/* ============================================= */
+/* 🟢 NAVBAR — ESTILOS AISLADOS Y RESISTENTES A main.css */
+/* Nada depende de variables globales. Todo explícito. */
+/* ============================================= */
+
+/* === Fuentes externas (garantizadas) === */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 
 .navbar {
   background: #fff;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
   width: 100%;
   z-index: 1000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
 }
 
 .nav-container {
@@ -227,7 +219,7 @@ const logout = async () => {
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 1.5rem;
-  height: var(--nav-height);
+  height: 64px;
   gap: 1.5rem;
 }
 
@@ -236,7 +228,8 @@ const logout = async () => {
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: var(--text-primary); /* Texto del logo también en negro oscuro */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
+  font-weight: 700;
 }
 
 .logo-img {
@@ -244,7 +237,7 @@ const logout = async () => {
   height: 40px;
   border-radius: 10px;
   object-fit: cover;
-  transition: transform var(--transition-fast);
+  transition: transform 0.2s ease;
 }
 
 .logo-img:hover {
@@ -254,8 +247,9 @@ const logout = async () => {
 .logo-text {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   letter-spacing: -0.02em;
+  font-family: 'Inter', sans-serif;
 }
 
 .nav-links {
@@ -267,30 +261,29 @@ const logout = async () => {
   padding: 0;
 }
 
-/* 👇 CLAVE: Texto visible y con altura completa */
 .nav-link {
   text-decoration: none;
-  color: var(--text-primary); /* ¡Ahora es negro oscuro! */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   font-size: 0.95rem;
   font-weight: 500;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
-  transition: color var(--transition-fast), background var(--transition-fast);
-  display: inline-block; /* Evita colapso */
-  height: 100%; /* Ocupa toda la altura del navbar */
-  line-height: var(--nav-height); /* Alinea verticalmente */
+  transition: color 0.2s ease, background 0.2s ease;
+  display: inline-block;
+  height: 100%;
+  line-height: 64px;
   position: relative;
 }
 
 .nav-link:hover,
 .nav-link.active {
-  color: var(--primary-color);
+  color: #2563eb !important; /* Azul eléctrico directo */
   font-weight: 600;
-  background: var(--bg-hover);
+  background: #f9fafb !important; /* Fondo claro directo */
 }
 
 .nav-link.active {
-  box-shadow: inset 0 -2px 0 var(--primary-color);
+  box-shadow: inset 0 -2px 0 #2563eb !important;
 }
 
 /* === Profile Button === */
@@ -304,23 +297,24 @@ const logout = async () => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: #fff;
-  border: 1px solid var(--border-color);
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
   border-radius: 9999px;
   padding: 0.5rem 1rem;
   cursor: pointer;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   font-size: 0.9rem;
   font-weight: 500;
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-fast);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s ease;
   min-height: 36px;
+  font-family: 'Inter', sans-serif;
 }
 
 .btn-user:hover {
-  background: var(--bg-hover);
-  border-color: #d1d5db;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: #f9fafb !important;
+  border-color: #d1d5db !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
 }
 
 .user-name {
@@ -328,8 +322,9 @@ const logout = async () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-primary); /* ¡Negro oscuro siempre! */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   font-weight: 500;
+  font-family: 'Inter', sans-serif;
 }
 
 /* === Dropdown Menu === */
@@ -337,18 +332,18 @@ const logout = async () => {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: #fff;
-  border: 1px solid var(--border-color);
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
   border-radius: 12px;
   padding: 0.5rem 0;
   min-width: 180px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
   list-style: none;
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
-  z-index: 1001;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1002 !important; /* Más alto que cualquier cosa */
 }
 
 .navbar .dropdown-menu {
@@ -360,29 +355,30 @@ const logout = async () => {
 .dropdown-item {
   display: block;
   padding: 0.6rem 1rem;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
   border-radius: 8px;
-  background: none;
-  border: none;
+  background: none !important;
+  border: none !important;
   width: 100%;
   text-align: left;
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background 0.2s ease, color 0.2s ease;
   margin: 0;
+  font-family: 'Inter', sans-serif;
 }
 
 .dropdown-item:hover,
 .logout-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: #f9fafb !important;
+  color: #111827 !important;
 }
 
 .logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #dc2626 !important;
 }
 
 /* === Mobile Toggle === */
@@ -392,29 +388,30 @@ const logout = async () => {
   border: none;
   padding: 0.75rem;
   cursor: pointer;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   border-radius: 8px;
-  transition: background var(--transition-fast);
+  transition: background 0.2s ease;
+  font-family: 'Inter', sans-serif;
 }
 
 .mobile-toggle:hover {
-  background: var(--bg-hover);
+  background: #f9fafb !important;
 }
 
 /* === Mobile Menu === */
 .mobile-menu {
-  background: #fff;
-  border-top: 1px solid var(--border-color);
+  background: #fff !important;
+  border-top: 1px solid #e5e7eb !important;
   padding: 1rem;
   position: absolute;
-  top: var(--nav-height);
+  top: 64px;
   left: 0;
   right: 0;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
   transform: translateY(-10px);
   opacity: 0;
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
-  z-index: 1000;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1001 !important;
   overflow: hidden;
 }
 
@@ -434,27 +431,28 @@ const logout = async () => {
 
 .mobile-nav-link {
   text-decoration: none;
-  color: var(--text-primary);
+  color: #111827 !important; /* ¡Fuerza negro oscuro! */
   font-size: 1rem;
   font-weight: 500;
   padding: 0.75rem;
   border-radius: 8px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: background 0.2s ease, color 0.2s ease;
   display: block;
+  font-family: 'Inter', sans-serif;
 }
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
-  color: var(--primary-color);
+  color: #2563eb !important;
   font-weight: 600;
-  background: var(--bg-hover);
+  background: #f9fafb !important;
 }
 
 /* === MEDIA QUERIES === */
 @media (max-width: 768px) {
   .nav-container {
     padding: 0 1rem;
-    height: var(--nav-height-mobile);
+    height: 56px;
     gap: 1rem;
   }
 
@@ -488,19 +486,5 @@ const logout = async () => {
   .mobile-nav-link {
     font-size: 1rem;
   }
-}
-
-.navbar,
-.nav-link,
-.user-name,
-.dropdown-item,
-.mobile-nav-link,
-.nav-logo,
-.logo-text,
-.btn-user,
-.mobile-toggle {
-  filter: none !important;
-  -webkit-filter: none !important;
-  color: var(--text-primary) !important;
 }
 </style>
