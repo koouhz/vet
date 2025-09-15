@@ -66,7 +66,6 @@ router.beforeEach(async (to, from, next) => {
       .select('rol')
       .eq('id', user.id)
       .single()
-
     if (error || userData.rol !== to.meta.role) return next({ name: 'Home' })
   }
 
