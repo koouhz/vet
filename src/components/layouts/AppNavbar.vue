@@ -434,13 +434,13 @@ const logout = async () => {
 
 .mobile-nav-link {
   text-decoration: none;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 500;
   padding: 0.75rem;
   border-radius: 8px;
   transition: background var(--transition-fast), color var(--transition-fast);
-  display: block; /* Asegura bloque completo */
+  display: block;
 }
 
 .mobile-nav-link:hover,
@@ -490,8 +490,6 @@ const logout = async () => {
   }
 }
 
-/* 🔥 SOLUCIÓN DEFINITIVA PARA EXTENSIONES COMO DARK READER */
-/* 👇 Esto evita que cualquier filtro externo altere los colores del navbar */
 .navbar,
 .nav-link,
 .user-name,
