@@ -1,13 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '@/lib/supabaseClient'
 
-// Layouts
 import PublicLayout from '@/components/layouts/PublicLayout.vue'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 
-// Rutas
 const routes = [
-  // === PÚBLICAS ===
   {
     path: '/',
     component: PublicLayout,
@@ -38,12 +35,20 @@ const routes = [
     ]
   },
 
-  // === PERFIL ===
   {
     path: '/perfil',
     name: 'Perfil',
     component: () => import('@/views/viewProfile.vue'),
     meta: { requiresAuth: true }
+  },
+
+  {
+    path: '/usuarios',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'UsuarioAdmin', component: () => import('@/views/Admin/usuarioAdmin.vue') }
+    ]
   }
 ]
 
@@ -52,14 +57,10 @@ const router = createRouter({
   routes
 })
 
-// Middleware global: protege rutas y valida rol
 router.beforeEach(async (to, from, next) => {
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Si la ruta requiere autenticación y no hay usuario → redirigir a login
   if (to.meta.requiresAuth && !user) return next({ name: 'Login' })
-
-  // Si la ruta tiene un rol específico y el usuario está logueado, validar su rol
   if (to.meta.role && user) {
     const { data: userData, error } = await supabase
       .from('usuarios')

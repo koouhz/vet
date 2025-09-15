@@ -65,9 +65,9 @@ const saveUser = async () => {
 
 const toggleUserStatus = async (usuario) => {
   const action = usuario.is_activo ? 'desactivar' : 'reactivar'
-  const message = usuario.is_activo
-    ? `¿Deseas desactivar a ${usuario.nombre_completo}? No podrá iniciar sesión.`
-    : `¿Deseas reactivar a ${usuario.nombre_completo}? Tendrá acceso nuevamente.`
+  const message = `¿Deseas ${action} a ${usuario.nombre_completo}? ${
+    usuario.is_activo ? 'No podrá iniciar sesión.' : 'Tendrá acceso nuevamente.'
+  }`
 
   if (!confirm(message)) return
 
@@ -81,9 +81,10 @@ const toggleUserStatus = async (usuario) => {
       .eq('id', usuario.id)
     if (error) throw error
 
-    const notifMessage = usuario.is_activo ? '🚫 Usuario desactivado' : '🟢 Usuario reactivado'
-    const notifType = usuario.is_activo ? 'warning' : 'success'
-    showNotification(notifMessage, notifType)
+    showNotification(
+      action === 'desactivar' ? '🚫 Usuario desactivado' : '🟢 Usuario reactivado',
+      action === 'desactivar' ? 'warning' : 'success'
+    )
     fetchUsuarios()
   } catch {
     showNotification('❌ Error al cambiar estado', 'error')
@@ -100,7 +101,7 @@ onMounted(() => { fetchUsuarios() })
 
 <template>
   <div class="admin-container">
-    <!-- Notificación -->
+    <!-- Notificación (fixed, no se ve afectada por sidebar) -->
     <div v-if="notification.visible" :class="`notification ${notification.type}`">
       {{ notification.message }}
     </div>
@@ -205,12 +206,38 @@ onMounted(() => { fetchUsuarios() })
 </template>
 
 <style scoped>
+/* ✅ Ajuste principal: Contenedor con padding condicional para sidebar */
 .admin-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
   padding: 2rem;
   color: #e0f7fa;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* ✅ Padding responsivo para sidebar */
+  padding-left: calc(2rem + 80px); /* espacio para sidebar colapsado */
+  transition: padding-left 0.3s ease;
+}
+
+/* ✅ Desktop: sidebar expandido (260px) */
+@media (min-width: 1024px) {
+  .admin-container {
+    padding-left: calc(2rem + 260px);
+  }
+}
+
+/* ✅ Tablet: sidebar colapsado (80px) */
+@media (max-width: 1023px) and (min-width: 769px) {
+  .admin-container {
+    padding-left: calc(2rem + 80px);
+  }
+}
+
+/* ✅ Móvil: sin sidebar o overlay, padding normal */
+@media (max-width: 768px) {
+  .admin-container {
+    padding: 1rem;
+    padding-left: 1rem;
+  }
 }
 
 .page-header h1 {
@@ -494,7 +521,6 @@ onMounted(() => { fetchUsuarios() })
   box-shadow: 0 0 0 2px rgba(128, 222, 234, 0.2);
 }
 
-/* Select estilizado — ¡CORREGIDO! */
 .select-wrapper {
   position: relative;
   width: 100%;
@@ -506,17 +532,16 @@ onMounted(() => { fetchUsuarios() })
   border-radius: 12px;
   border: 1px solid rgba(77, 208, 225, 0.3);
   background: rgba(255, 255, 255, 0.05);
-  color: #ffffff; /* ✅ Color visible por defecto */
+  color: #ffffff;
   font-size: 1rem;
   appearance: none;
   cursor: pointer;
   transition: border 0.2s;
 }
 
-/* ✅ Forzar color en las opciones del select */
 .fancy-select option {
-  color: #0a4a56; /* Texto oscuro para contraste en el dropdown nativo */
-  background-color: #ffffff; /* Fondo blanco para mejor legibilidad */
+  color: #0a4a56;
+  background-color: #ffffff;
 }
 
 .fancy-select:focus {
@@ -571,7 +596,7 @@ onMounted(() => { fetchUsuarios() })
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Notificación */
+/* Notificación (fixed, no depende del contenedor) */
 .notification {
   position: fixed;
   top: 24px;
@@ -596,11 +621,33 @@ onMounted(() => { fetchUsuarios() })
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Responsive */
+/* ✅ Responsive final */
 @media (max-width: 768px) {
-  .admin-container { padding: 1rem; }
-  .users-grid { grid-template-columns: 1fr; }
-  .user-card { flex-direction: column; text-align: center; }
-  .user-actions { flex-direction: row; justify-content: center; margin-left: 0; }
+  .admin-container {
+    padding: 1rem;
+  }
+
+  .users-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .user-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .user-actions {
+    flex-direction: row;
+    justify-content: center;
+    margin-left: 0;
+    margin-top: 1rem;
+  }
+
+  .modal {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
 }
 </style>

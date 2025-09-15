@@ -1,590 +1,1141 @@
 <template>
-  <div class="profile-container">
-    <!-- Header del perfil -->
-    <header class="profile-header">
-      <div class="header-content">
-        <div class="user-section">
-          <div class="user-icon">
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#E0F2FE" stroke-width="2">
-              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
-            </svg>
+  <div class="profile-container container">
+    <!-- Toast emergente -->
+    <Transition name="toast">
+      <div
+        v-if="toast.message"
+        :class="['toast', toast.type]"
+        class="toast"
+      >
+        {{ toast.message }}
+      </div>
+    </Transition>
+
+    <!-- Loading Overlay -->
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="profile-header card">
+      <div class="avatar-section">
+        <div class="avatar-wrapper" @click="triggerFileInput" v-if="isEditing">
+          <img
+            :src="userForm.avatar_url || defaultAvatar"
+            alt="Avatar del usuario"
+            class="avatar"
+          />
+          <div class="overlay">
+            <i class="ph ph-camera"></i>
           </div>
-          <div class="user-info">
-            <h1 class="user-name">{{ user.name }}</h1>
-            <p class="user-email">{{ user.email }}</p>
-            <span class="user-role">{{ roleDisplayName }}</span>
-          </div>
+          <input
+            type="file"
+            ref="fileInput"
+            @change="handleAvatarUpload"
+            accept="image/*"
+            class="file-input"
+          />
         </div>
-        <button class="edit-profile-btn" @click="toggleEditMode">
-          {{ editMode ? 'Cancelar' : 'Editar Perfil' }}
+        <img
+          :src="userForm.avatar_url || defaultAvatar"
+          alt="Avatar del usuario"
+          class="avatar-static"
+          v-else
+        />
+        <div class="user-info">
+          <h2 class="user-name">{{ userForm.nombre_completo }}</h2>
+          <p class="user-role">{{ getRoleLabel(userForm.rol) }}</p>
+        </div>
+
+        <!-- Botón condicional al Dashboard -->
+        <div v-if="userForm.rol === 'admin' || userForm.rol === 'veterinario'" class="dashboard-access">
+          <router-link
+            :to="userForm.rol === 'admin' ? '/dashboard-admin' : '/dashboard-vet'"
+            class="btn-dashboard"
+          >
+            <i :class="userForm.rol === 'admin' ? 'ph ph-chart-bar' : 'ph ph-stethoscope'"></i>
+            <span>Dashboard</span>
+          </router-link>
+        </div>
+      </div>
+    </div>
+
+    <Transition name="fade">
+      <div class="profile-tabs" v-show="!isLoading">
+        <button
+          :class="{ active: activeTab === 'datos' }"
+          @click="activeTab = 'datos'"
+          class="tab-btn"
+        >
+          <i class="ph ph-user"></i>
+          <span>Personal</span>
+        </button>
+        <button
+          :class="{ active: activeTab === 'mascotas' }"
+          @click="activeTab = 'mascotas'"
+          class="tab-btn"
+          v-if="userForm.rol === 'cliente'"
+        >
+          <i class="ph ph-paw-print"></i>
+          <span>Mascotas</span>
+        </button>
+        <button
+          :class="{ active: activeTab === 'veterinario' }"
+          @click="activeTab = 'veterinario'"
+          class="tab-btn"
+          v-if="userForm.rol === 'veterinario'"
+        >
+          <i class="ph ph-stethoscope"></i>
+          <span>Profesional</span>
+        </button>
+        <button
+          :class="{ active: activeTab === 'seguridad' }"
+          @click="activeTab = 'seguridad'"
+          class="tab-btn"
+        >
+          <i class="ph ph-lock-key"></i>
+          <span>Seguridad</span>
         </button>
       </div>
-    </header>
+    </Transition>
 
-    <!-- Contenido principal -->
-    <main class="profile-content">
-      <div class="content-grid">
-        <!-- Información Personal -->
-        <ProfileInfoCard
-          :user="user"
-          :editableUser="editableUser"
-          :editMode="editMode"
-          @save="saveProfile"
-          @cancel="cancelEdit"
-        />
+    <Transition name="slide">
+      <div class="profile-content card" v-show="!isLoading">
+        <!-- DATOS PERSONALES -->
+        <div v-if="activeTab === 'datos'" class="section">
+          <div class="section-header">
+            <h3><i class="ph ph-user"></i> Información Personal</h3>
+            <button @click="toggleEdit" class="btn-primary" :disabled="isUpdating">
+              <i :class="isEditing ? 'ph ph-check' : 'ph ph-pencil'"></i>
+              {{ isEditing ? 'Guardar' : 'Editar' }}
+            </button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Nombre Completo</label>
+              <input
+                v-model="userForm.nombre_completo"
+                :disabled="!isEditing"
+                type="text"
+                :class="{ 'editing': isEditing }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Email</label>
+              <input
+                v-model="userForm.email"
+                :disabled="!isEditing"
+                type="email"
+                :class="{ 'editing': isEditing }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Teléfono</label>
+              <input
+                v-model="userForm.telefono"
+                :disabled="!isEditing"
+                type="tel"
+                :class="{ 'editing': isEditing }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Dirección</label>
+              <input
+                v-model="userForm.direccion"
+                :disabled="!isEditing"
+                type="text"
+                :class="{ 'editing': isEditing }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Fecha de Nacimiento</label>
+              <input
+                v-model="userForm.fecha_nacimiento"
+                :disabled="!isEditing"
+                type="date"
+                :class="{ 'editing': isEditing }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Género</label>
+              <select
+                v-model="userForm.genero"
+                :disabled="!isEditing"
+                :class="{ 'editing': isEditing }"
+              >
+                <option value="femenino">Femenino</option>
+                <option value="masculino">Masculino</option>
+                <option value="otro">Otro</option>
+                <option value="prefiero-no-decir">Prefiero no decir</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-        <!-- Mascotas del Usuario -->
-        <PetsCard
-          :pets="user.pets"
-          @add-pet="showAddPet = true"
-        />
+        <!-- MASCOTAS (solo clientes) -->
+        <div v-if="activeTab === 'mascotas' && userForm.rol === 'cliente'" class="section">
+          <div class="section-header">
+            <h3><i class="ph ph-paw-print"></i> Mis Mascotas</h3>
+            <button @click="goToMascotas" class="btn-primary">
+              <i class="ph ph-plus"></i> Agregar
+            </button>
+          </div>
+          <div v-if="mascotas.length === 0" class="empty-state">
+            <div class="empty-icon">
+              <i class="ph ph-paw-print"></i>
+            </div>
+            <h4>Sin mascotas registradas</h4>
+            <p>Registra tu primera mascota para comenzar</p>
+            <button @click="goToMascotas" class="btn-primary">Registrar Mascota</button>
+          </div>
+          <div v-else class="mascotas-grid">
+            <div
+              v-for="mascota in mascotas"
+              :key="mascota.id"
+              class="mascota-card card"
+            >
+              <img
+                :src="mascota.foto_url || defaultPetAvatar"
+                :alt="mascota.nombre"
+                class="mascota-avatar"
+              />
+              <div class="mascota-info">
+                <h4>{{ mascota.nombre }}</h4>
+                <p class="especie">{{ mascota.especie }}{{ mascota.raza ? ` · ${mascota.raza}` : '' }}</p>
+                <span class="sexo" :class="mascota.sexo">
+                  {{ mascota.sexo }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <!-- Historial de Citas -->
-        <AppointmentsCard
-          :appointments="appointments"
-        />
+        <!-- PERFIL VETERINARIO (solo veterinarios) -->
+        <div v-if="activeTab === 'veterinario' && userForm.rol === 'veterinario'" class="section">
+          <div class="section-header">
+            <h3><i class="ph ph-stethoscope"></i> Información Profesional</h3>
+            <button @click="toggleEditVet" class="btn-primary" :disabled="isUpdating">
+              <i :class="isEditingVet ? 'ph ph-check' : 'ph ph-pencil'"></i>
+              {{ isEditingVet ? 'Guardar' : 'Editar' }}
+            </button>
+          </div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Especialidad</label>
+              <select
+                v-model="veterinarioForm.especialidad_id"
+                :disabled="!isEditingVet"
+                :class="{ 'editing': isEditingVet }"
+              >
+                <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
+                  {{ esp.nombre }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Número de Licencia</label>
+              <input
+                v-model="veterinarioForm.numero_licencia"
+                :disabled="!isEditingVet"
+                type="text"
+                :class="{ 'editing': isEditingVet }"
+              />
+            </div>
+            <div class="form-group">
+              <label>Años de Experiencia</label>
+              <input
+                v-model.number="veterinarioForm.anos_experiencia"
+                :disabled="!isEditingVet"
+                type="number"
+                :class="{ 'editing': isEditingVet }"
+              />
+            </div>
+            <div class="form-group full-width">
+              <label>Biografía</label>
+              <textarea
+                v-model="veterinarioForm.bio"
+                :disabled="!isEditingVet"
+                rows="4"
+                :class="{ 'editing': isEditingVet }"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEGURIDAD -->
+        <div v-if="activeTab === 'seguridad'" class="section">
+          <div class="section-header">
+            <h3><i class="ph ph-lock-key"></i> Cambiar Contraseña</h3>
+          </div>
+          <div class="form-grid security-grid">
+            <div class="form-group">
+              <label>Contraseña Actual</label>
+              <input
+                v-model="passwordForm.currentPassword"
+                type="password"
+                placeholder="••••••••"
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label>Nueva Contraseña</label>
+              <input
+                v-model="passwordForm.newPassword"
+                type="password"
+                placeholder="••••••••"
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label>Confirmar Nueva Contraseña</label>
+              <input
+                v-model="passwordForm.confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                class="editing"
+              />
+            </div>
+            <div class="form-group full-width">
+              <button @click="updatePassword" class="btn-primary btn-security" :disabled="isUpdatingPassword">
+                <i class="ph ph-lock-key"></i>
+                {{ isUpdatingPassword ? 'Actualizando...' : 'Actualizar Contraseña' }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </main>
-
-    <!-- Modal para agregar mascota -->
-    <AddPetModal
-      v-if="showAddPet"
-      @close="showAddPet = false"
-      @save="handleAddPet"
-    />
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { supabase } from '@/lib/supabaseClient'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { supabase } from '@/lib/supabaseClient.js'
 
-// Componentes
-const ProfileInfoCard = {
-  props: ['user', 'editableUser', 'editMode'],
-  emits: ['save', 'cancel'],
-  template: `
-    <div class="info-card">
-      <div class="card-header">
-        <h2>Información Personal</h2>
-      </div>
-      <div class="card-body">
-        <div class="info-grid">
-          <div class="info-item">
-            <label>Nombre completo</label>
-            <input
-              v-if="editMode"
-              v-model="editableUser.name"
-              type="text"
-              class="form-input"
-              placeholder="Tu nombre completo"
-            />
-            <span v-else class="info-value">{{ user.name }}</span>
-          </div>
-          <div class="info-item">
-            <label>Email</label>
-            <input
-              v-if="editMode"
-              v-model="editableUser.email"
-              type="email"
-              class="form-input"
-              placeholder="Tu email"
-            />
-            <span v-else class="info-value">{{ user.email }}</span>
-          </div>
-        </div>
-        <div v-if="editMode" class="form-actions">
-          <button @click="$emit('save')" class="btn-primary" :disabled="saving">
-            <span>{{ saving ? 'Guardando...' : 'Guardar' }}</span>
-          </button>
-          <button @click="$emit('cancel')" class="btn-secondary">Cancelar</button>
-        </div>
-      </div>
-    </div>
-  `
-}
+const router = useRouter()
 
-const PetsCard = {
-  props: ['pets'],
-  emits: ['add-pet'],
-  template: `
-    <div class="info-card">
-      <div class="card-header">
-        <h2>Mis Mascotas</h2>
-        <button @click="$emit('add-pet')" class="btn-small">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          </svg>
-          Agregar
-        </button>
-      </div>
-      <div class="card-body">
-        <p v-if="!pets || pets.length === 0">No hay mascotas registradas.</p>
-        <ul v-else class="pet-list">
-          <li v-for="pet in pets" :key="pet.id">{{ pet.name }} ({{ pet.species }})</li>
-        </ul>
-      </div>
-    </div>
-  `
-}
+// Toast
+const toast = ref({
+  message: '',
+  type: 'success'
+})
 
-const AppointmentsCard = {
-  props: ['appointments'],
-  template: `
-    <div class="info-card full-width">
-      <div class="card-header">
-        <h2>Historial de Citas</h2>
-      </div>
-      <div class="card-body">
-        <p v-if="!appointments || appointments.length === 0">No hay citas registradas.</p>
-        <ul v-else class="appointment-list">
-          <li v-for="appt in appointments" :key="appt.id">{{ appt.date }} - {{ appt.description }}</li>
-        </ul>
-      </div>
-    </div>
-  `
-}
+// Estados
+const isLoading = ref(true)
+const isUpdating = ref(false)
+const activeTab = ref('datos')
+const isEditing = ref(false)
+const isEditingVet = ref(false)
+const isUpdatingPassword = ref(false)
 
-const AddPetModal = {
-  emits: ['close', 'save'],
-  template: `
-    <div class="modal-overlay" @click="$emit('close')">
-      <div class="modal" @click.stop>
-        <h3>Agregar Mascota</h3>
-        <div class="form-group">
-          <label>Nombre</label>
-          <input v-model="newPet.name" type="text" class="form-input" placeholder="Nombre de la mascota" />
-        </div>
-        <div class="form-group">
-          <label>Especie</label>
-          <input v-model="newPet.species" type="text" class="form-input" placeholder="Ej. Perro, Gato" />
-        </div>
-        <div class="modal-actions">
-          <button @click="$emit('save', newPet)" class="btn-primary">Guardar</button>
-          <button @click="$emit('close')" class="btn-secondary">Cancelar</button>
-        </div>
-      </div>
-    </div>
-  `,
-  setup() {
-    return {
-      newPet: reactive({ name: '', species: '' })
-    }
-  }
-}
-
-// Estados reactivos
-const editMode = ref(false)
-const saving = ref(false)
-const showAddPet = ref(false)
-const user = reactive({
-  name: '',
+// Formularios
+const userForm = reactive({
+  id: '',
+  nombre_completo: '',
   email: '',
-  role: '',
-  pets: []
+  telefono: '',
+  direccion: '',
+  fecha_nacimiento: '',
+  genero: '',
+  rol: '',
+  avatar_url: ''
 })
-const editableUser = reactive({})
-const appointments = ref([])
 
-// Mapeo de roles para UX
-const roleDisplayName = computed(() => {
-  const roles = {
-    admin: 'Administrador',
-    veterinario: 'Veterinario',
-    cliente: 'Cliente'
-  }
-  return roles[user.role] || user.role
+const veterinarioForm = reactive({
+  id: null,
+  especialidad_id: null,
+  numero_licencia: '',
+  anos_experiencia: null,
+  bio: ''
 })
+
+const passwordForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const mascotas = ref([])
+const especialidades = ref([])
+
+// Imágenes por defecto
+const defaultAvatar = 'https://placehold.co/120x120/DBEAFE/1D4ED8?text=AV'
+const defaultPetAvatar = 'https://placehold.co/80x80/F3F4F6/6B7280?text=🐾'
+
+// Referencia
+const fileInput = ref(null)
 
 // Métodos
-const toggleEditMode = () => {
-  editMode.value = !editMode.value
-  if (!editMode.value) cancelEdit()
+const showToast = (message, type = 'success') => {
+  toast.value = { message, type }
+  setTimeout(() => {
+    toast.value.message = ''
+  }, 3000)
 }
 
-const copyUserData = () => {
-  Object.assign(editableUser, { name: user.name, email: user.email })
+const toggleEdit = async () => {
+  if (isEditing.value) {
+    isUpdating.value = true
+    await updateUser()
+    isUpdating.value = false
+  }
+  isEditing.value = !isEditing.value
 }
 
-const saveProfile = async () => {
-  saving.value = true
+const toggleEditVet = async () => {
+  if (isEditingVet.value) {
+    isUpdating.value = true
+    await updateVeterinario()
+    isUpdating.value = false
+  }
+  isEditingVet.value = !isEditingVet.value
+}
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const handleAvatarUpload = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  try {
+    isUpdating.value = true
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${userForm.id}-${Date.now()}.${fileExt}`
+    const filePath = `avatars/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true })
+
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    userForm.avatar_url = publicUrl
+
+    const { error: updateError } = await supabase
+      .from('usuarios')
+      .update({ avatar_url: publicUrl })
+      .eq('id', userForm.id)
+
+    if (updateError) throw updateError
+
+    showToast('Avatar actualizado correctamente')
+  } catch (error) {
+    console.error('Error uploading avatar:', error.message)
+    showToast('No se pudo actualizar el avatar', 'error')
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+const updateUser = async () => {
   try {
     const { error } = await supabase
       .from('usuarios')
-      .update({ nombre_completo: editableUser.name, email: editableUser.email })
-      .eq('id', (await supabase.auth.getUser()).data.user.id)
+      .update({
+        nombre_completo: userForm.nombre_completo,
+        email: userForm.email,
+        telefono: userForm.telefono,
+        direccion: userForm.direccion,
+        fecha_nacimiento: userForm.fecha_nacimiento,
+        genero: userForm.genero,
+        avatar_url: userForm.avatar_url,
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', userForm.id)
+
     if (error) throw error
-    Object.assign(user, { name: editableUser.name, email: editableUser.email })
-    editMode.value = false
+
+    showToast('Perfil actualizado correctamente')
   } catch (error) {
-    console.error('Error saving profile:', error)
-    alert('Error al actualizar el perfil')
-  } finally {
-    saving.value = false
+    console.error('Error updating user:', error.message)
+    showToast('Error al actualizar el perfil', 'error')
   }
 }
 
-const cancelEdit = () => {
-  copyUserData()
-  editMode.value = false
-}
-
-const handleAddPet = async (newPet) => {
-  if (newPet.name && newPet.species) {
+const updateVeterinario = async () => {
+  try {
     const { error } = await supabase
-      .from('pets')
-      .insert({ name: newPet.name, species: newPet.species, user_id: (await supabase.auth.getUser()).data.user.id })
-    if (!error) {
-      user.pets.push({ id: Date.now(), name: newPet.name, species: newPet.species })
-      showAddPet.value = false
-      newPet.name = ''
-      newPet.species = ''
-    } else {
-      console.error('Error adding pet:', error)
-      alert('Error al agregar mascota')
-    }
+      .from('veterinarios')
+      .update({
+        especialidad_id: veterinarioForm.especialidad_id,
+        numero_licencia: veterinarioForm.numero_licencia,
+        anos_experiencia: veterinarioForm.anos_experiencia,
+        bio: veterinarioForm.bio,
+        actualizado_en: new Date().toISOString()
+      })
+      .eq('id', veterinarioForm.id)
+
+    if (error) throw error
+
+    showToast('Perfil profesional actualizado')
+  } catch (error) {
+    console.error('Error updating vet profile:', error.message)
+    showToast('Error al actualizar el perfil profesional', 'error')
   }
 }
 
-// Inicialización
-onMounted(async () => {
-  const { data: { user: authUser } } = await supabase.auth.getUser()
-  if (authUser) {
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('nombre_completo, email, rol')
-      .eq('id', authUser.id)
-      .single()
-    if (!error && data) {
-      user.name = data.nombre_completo
-      user.email = data.email
-      user.role = data.rol
-      copyUserData()
-    }
-    // Cargar mascotas
-    const { data: petsData } = await supabase
-      .from('pets')
-      .select('id, name, species')
-      .eq('user_id', authUser.id)
-    if (petsData) user.pets = petsData
-    // Cargar citas (simulado)
-    appointments.value = [
-      { id: 1, date: '2025-09-15', description: 'Consulta general' },
-      { id: 2, date: '2025-09-20', description: 'Vacunación' }
-    ]
+const updatePassword = async () => {
+  if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
+    showToast('Completa todos los campos', 'error')
+    return
   }
-})
 
-onUnmounted(() => {
-  // Limpiar cualquier timeout o suscripción si se implementa
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    showToast('Las contraseñas no coinciden', 'error')
+    return
+  }
+
+  isUpdatingPassword.value = true
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      password: passwordForm.newPassword
+    })
+
+    if (error) throw error
+
+    Object.assign(passwordForm, {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    })
+
+    showToast('Contraseña actualizada correctamente')
+  } catch (error) {
+    console.error('Error updating password:', error.message)
+    showToast('Error al actualizar la contraseña', 'error')
+  } finally {
+    isUpdatingPassword.value = false
+  }
+}
+
+const loadUserData = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    const { data: userData, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (error) throw error
+
+    Object.assign(userForm, userData)
+
+    if (userData.rol === 'veterinario') {
+      const { data: vetData } = await supabase
+        .from('veterinarios')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .single()
+
+      if (vetData) Object.assign(veterinarioForm, vetData)
+
+      const { data: espData } = await supabase
+        .from('especialidades')
+        .select('id, nombre')
+        .eq('is_activa', true)
+
+      especialidades.value = espData || []
+    }
+
+    if (userData.rol === 'cliente') {
+      const { data } = await supabase
+        .from('mascotas')
+        .select('*')
+        .eq('usuario_id', userForm.id)
+        .eq('is_activa', true)
+        .order('nombre', { ascending: true })
+
+      mascotas.value = data || []
+    }
+  } catch (error) {
+    console.error('Error loading user ', error.message)
+    showToast('Error al cargar los datos del perfil', 'error')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const goToMascotas = () => {
+  router.push('/mascotas')
+}
+
+const getRoleLabel = (rol) => {
+  const roles = {
+    cliente: 'Cliente',
+    veterinario: 'Veterinario',
+    admin: 'Administrador'
+  }
+  return roles[rol] || rol
+}
+
+onMounted(() => {
+  loadUserData()
 })
 </script>
 
 <style scoped>
+/* --- Solo estilos específicos del componente --- */
+
 .profile-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
-  color: #E0F2FE;
-  padding: 80px 1rem 2rem;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
 }
 
-.profile-header {
-  position: sticky;
-  top: 64px;
-  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
-  padding: 2rem 0;
-  z-index: 10;
+/* Transiciones */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.header-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
-.user-section {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+.slide-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.user-icon {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.slide-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
 }
 
-.user-info {
-  text-align: left;
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.user-name {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.toast-enter-from {
+  opacity: 0;
+  transform: translateX(100%);
 }
 
-.user-email {
-  margin: 0.25rem 0 0.5rem;
-  font-size: 1rem;
-  opacity: 0.9;
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(100%);
 }
 
-.user-role {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.15);
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.edit-profile-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #E0F2FE;
-  padding: 0.5rem 1.25rem;
-  border-radius: 9999px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.edit-profile-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-.profile-content {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1.5rem 3rem;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 1.5rem;
-}
-
-.info-card {
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  color: #111827;
-}
-
-.card-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.card-header h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.card-body {
-  padding: 1.5rem;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.info-item label {
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.info-value {
-  font-size: 0.95rem;
-  color: #111827;
-}
-
-.form-input {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0.75rem;
-  font-size: 0.9rem;
-  transition: border-color 0.2s ease;
-}
-
-.form-input:focus {
-  border-color: #2563eb;
-  outline: none;
-}
-
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.btn-primary {
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-primary:hover {
-  background: #1e40af;
-}
-
-.btn-primary:disabled {
-  background: #93c5fd;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background: #f9fafb;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-}
-
-.btn-small {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: #2563eb;
-  color: #fff;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.btn-small:hover {
-  background: #1e40af;
-}
-
-.pet-list, .appointment-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.pet-list li, .appointment-list li {
-  padding: 0.75rem;
-  background: #f9fafb;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-
-.modal-overlay {
+/* Loading */
+.loading-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(240, 249, 249, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
-.modal {
-  background: #fff;
-  border-radius: 10px;
-  padding: 1.5rem;
-  max-width: 400px;
-  width: 90%;
-  color: #111827;
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top: 3px solid var(--color-accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
 }
 
-.modal h3 {
-  margin: 0 0 1rem;
-  font-size: 1.25rem;
-  font-weight: 600;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Header */
+.profile-header {
+  padding: 2.5rem;
+  margin-bottom: 2.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+}
+
+.avatar-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.avatar-wrapper {
+  position: relative;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar,
+.avatar-static {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 128, 150, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.avatar:hover {
+  border-color: var(--color-accent);
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 128, 150, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  font-size: 1.5rem;
+}
+
+.avatar-wrapper:hover .overlay {
+  opacity: 1;
+}
+
+.file-input {
+  display: none;
+}
+
+.user-info {
+  text-align: center;
+}
+
+.user-name {
+  font-size: 2.2rem;
+  font-weight: 400;
+  color: var(--color-text);
+  margin: 0 0 0.5rem;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 1.1rem;
+  color: var(--color-accent);
+  font-weight: 400;
+  background: rgba(0, 128, 150, 0.1);
+  padding: 0.5rem 1.2rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(0, 128, 150, 0.2);
+  display: inline-block;
+}
+
+/* Dashboard Button */
+.dashboard-access {
+  margin-top: 1.5rem;
+}
+
+.btn-dashboard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--color-accent);
+  text-decoration: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 400;
+  cursor: pointer;
+  letter-spacing: -0.1px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-dashboard:hover {
+  background: rgba(0, 128, 150, 0.1);
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+}
+
+/* Tabs */
+.profile-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.75rem;
+  border-radius: var(--radius);
+  margin-bottom: 2.5rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius) - 2px);
+  font-weight: 400;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 1rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.tab-btn.active {
+  background: rgba(0, 128, 150, 0.15);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.tab-btn span {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .tab-btn span {
+    display: inline;
+  }
+}
+
+/* Content */
+.profile-content {
+  padding: 2.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.section-header h3 {
+  font-size: 1.8rem;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-text);
+  font-weight: 400;
+}
+
+.btn-security {
+  width: 100%;
+  justify-content: center;
+  padding: 0.9rem;
+}
+
+/* Forms */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.security-grid {
+  max-width: 500px;
 }
 
 .form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  font-weight: 600;
-  color: #374151;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.modal-actions {
   display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+label {
+  font-weight: 400;
+  color: var(--color-gray);
+  font-size: 1rem;
+}
+
+input.editing,
+textarea.editing,
+select.editing {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 2px solid var(--color-border);
+}
+
+input.editing:focus,
+textarea.editing:focus,
+select.editing:focus {
+  border-bottom-color: var(--color-accent);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--color-gray);
+}
+
+.empty-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.empty-icon i {
+  font-size: 2rem;
+  color: var(--color-gray);
+}
+
+.empty-state h4 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.empty-state p {
+  margin: 0 0 2rem;
+  color: var(--color-gray);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* Mascotas Grid */
+.mascotas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.mascota-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mascota-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 128, 150, 0.15);
+  border-color: var(--color-accent);
+}
+
+.mascota-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--color-border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mascota-card:hover .mascota-avatar {
+  border-color: var(--color-accent);
+}
+
+.mascota-info h4 {
+  margin: 0 0 0.5rem;
+  color: var(--color-text);
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1.3;
+}
+
+.especie {
+  font-size: 1rem;
+  color: var(--color-gray);
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.sexo {
+  font-size: 0.9rem;
+  font-weight: 400;
+  padding: 0.35rem 0.75rem;
+  border-radius: calc(var(--radius) - 4px);
+  display: inline-block;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sexo.macho {
+  background: rgba(238, 77, 77, 0.1);
+  color: #ee4d4d;
+  border-color: rgba(238, 77, 77, 0.3);
+}
+
+.sexo.hembra {
+  background: rgba(187, 107, 217, 0.1);
+  color: #bb6bd9;
+  border-color: rgba(187, 107, 217, 0.3);
+}
+
+.sexo.castrado,
+.sexo.esterilizado {
+  background: rgba(0, 128, 150, 0.1);
+  color: var(--color-accent);
+  border-color: rgba(0, 128, 150, 0.3);
+}
+
+/* Responsive */
 @media (max-width: 768px) {
   .profile-container {
-    padding-top: 64px;
+    padding: 1.5rem;
   }
 
-  .profile-header {
-    top: 56px;
+  .profile-header,
+  .profile-content {
+    padding: 1.8rem;
   }
 
-  .header-content {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-
-  .user-section {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .content-grid {
+  .form-grid,
+  .mascotas-grid {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
+
+  .avatar,
+  .avatar-static {
+    width: 90px;
+    height: 90px;
+  }
+
+  .user-name {
+    font-size: 1.8rem;
+  }
+
+  .profile-tabs {
+    flex-direction: column;
+    gap: 6px;
+    padding: 0.5rem;
+  }
+
+  .tab-btn {
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    justify-content: center;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .section-header h3 {
+    font-size: 1.5rem;
+  }
+
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mascota-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .mascota-avatar {
+    width: 90px;
+    height: 90px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 1rem;
+  }
+
+  .profile-header,
+  .profile-content {
+    padding: 1.5rem;
+  }
+
+  .user-name {
+    font-size: 1.6rem;
+  }
+
+  .tab-btn span {
+    display: none;
+  }
+
+  .form-grid {
+
+    gap: 1.25rem;
+  }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  color: white;
+  font-weight: 400;
+  font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toast.success {
+  background: #10b981;
+}
+
+.toast.error {
+  background: #ef4444;
 }
 </style>
