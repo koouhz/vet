@@ -1,61 +1,57 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from '@/lib/supabaseClient'
 
+// Layouts
+import PublicLayout from '@/components/layouts/PublicLayout.vue'
+import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
+
+// Rutas
 const routes = [
   // === PÚBLICAS ===
   {
     path: '/',
-    name: 'Home',
-    component: () => import('../views/AppHome.vue')
-  },
-  {
-    path: '/servicios',
-    name: 'Servicios',
-    component: () => import('../views/Servicios.vue')
-  },
-  {
-    path: '/equipo',
-    name: 'Equipo',
-    component: () => import('../views/Equipo.vue')
-  },
-  {
-    path: '/contacto',
-    name: 'Contacto',
-    component: () => import('../views/Contacto.vue')
+    component: PublicLayout,
+    children: [
+      { path: '', name: 'Home', component: () => import('@/views/AppHome.vue') },
+      { path: 'servicios', name: 'Servicios', component: () => import('@/views/Servicios.vue') },
+      { path: 'equipo', name: 'Equipo', component: () => import('@/views/Equipo.vue') },
+      { path: 'contacto', name: 'Contacto', component: () => import('@/views/Contacto.vue') },
+      { path: 'login', name: 'Login', component: () => import('@/views/loginView.vue') },
+      { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') }
+    ]
   },
 
-  // === PRIVADAS (requieren autenticación) ===
+  // === DASHBOARD ADMIN ===
+  {
+    path: '/dashboard-admin',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', redirect: { name: 'usuarioAdmin' } }, // 👈 Opcional: redirige a usuarios por defecto
+      { 
+        path: 'usuarios', 
+        name: 'usuarioAdmin', 
+        component: () => import('@/views/featuresAdmin/usuarioAdmin.vue') 
+      }
+    ]
+  },
+
+  // === DASHBOARD VET ===
+  {
+    path: '/dashboard-vet',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'veterinario' },
+    children: [
+      { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') }
+    ]
+  },
+
+  // === PERFIL ===
   {
     path: '/perfil',
     name: 'Perfil',
-    component: () => import('../views/verPerfil.vue'),
+    component: () => import('@/views/verPerfil.vue'),
     meta: { requiresAuth: true }
-  },
-
-  // === DASHBOARDS (para roles específicos) ===
-  {
-    path: '/dashboard-admin',
-    name: 'DashboardAdmin',
-    component: () => import('@/views/DashboardAdmin.vue'),
-    meta: { requiresAuth: true, role: 'admin' }
-  },
-  {
-    path: '/dashboard-vet',
-    name: 'DashboardVet',
-    component: () => import('@/views/DashboardVet.vue'),
-    meta: { requiresAuth: true, role: 'veterinario' }
-  },
-
-  // === SESIÓN ===
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/loginView.vue')
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: () => import('../views/registerView.vue')
   }
 ]
 
@@ -69,9 +65,7 @@ router.beforeEach(async (to, from, next) => {
   const { data: { user } } = await supabase.auth.getUser()
 
   // Si la ruta requiere autenticación y no hay usuario → redirigir a login
-  if (to.meta.requiresAuth && !user) {
-    return next({ name: 'Login' })
-  }
+  if (to.meta.requiresAuth && !user) return next({ name: 'Login' })
 
   // Si la ruta tiene un rol específico y el usuario está logueado, validar su rol
   if (to.meta.role && user) {
@@ -81,13 +75,9 @@ router.beforeEach(async (to, from, next) => {
       .eq('id', user.id)
       .single()
 
-    if (error || userData.rol !== to.meta.role) {
-      // Si no tiene el rol correcto, redirigir a home (no permitir acceso)
-      return next({ name: 'Home' })
-    }
+    if (error || !userData || userData.rol !== to.meta.role) return next({ name: 'Home' })
   }
 
-  // Permitir acceso si pasa todas las validaciones
   next()
 })
 
