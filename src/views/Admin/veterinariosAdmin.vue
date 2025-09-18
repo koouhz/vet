@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 
 const veterinarios = ref([])
@@ -9,8 +9,10 @@ const loading = ref(false)
 const editingVet = ref(null)
 const showEditModal = ref(false)
 const showCreateModal = ref(false)
+const showCreateUserVetModal = ref(false) // ✅ Nuevo modal combinado
 const notification = ref({ message: '', type: '', visible: false })
 
+// Formularios
 const createForm = ref({
   usuario_id: '',
   especialidad_id: '',
@@ -30,6 +32,43 @@ const formData = ref({
   is_activo: true
 })
 
+// ✅ Nuevo: Form para crear usuario + veterinario
+const createUserVetForm = ref({
+  nombre_completo: '',
+  email: '',
+  password: '',
+  especialidad_id: '',
+  numero_licencia: '',
+  anos_experiencia: 0,
+  bio: '',
+  foto_url: ''
+})
+
+// Estados de validación
+const createErrors = ref({})
+const editErrors = ref({})
+const createUserVetErrors = ref({})
+
+// Filtros de búsqueda
+const searchUsuario = ref('')
+const searchEspecialidad = ref('')
+
+const filteredUsuarios = computed(() => {
+  if (!searchUsuario.value) return usuariosVet.value
+  return usuariosVet.value.filter(u =>
+    u.nombre_completo.toLowerCase().includes(searchUsuario.value.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchUsuario.value.toLowerCase())
+  )
+})
+
+const filteredEspecialidades = computed(() => {
+  if (!searchEspecialidad.value) return especialidades.value
+  return especialidades.value.filter(e =>
+    e.nombre.toLowerCase().includes(searchEspecialidad.value.toLowerCase())
+  )
+})
+
+// Cargar datos
 const fetchVeterinarios = async () => {
   loading.value = true
   try {
@@ -37,63 +76,49 @@ const fetchVeterinarios = async () => {
       .from('veterinarios')
       .select('id, usuario_id, especialidad_id, numero_licencia, anos_experiencia, bio, foto_url, is_activo, creado_en')
       .order('creado_en', { ascending: false })
-      .limit(100)
 
     if (vetError) throw vetError
 
     const veterinariosList = vets || []
 
-    const espIds = veterinariosList.length > 0
-      ? [...new Set(veterinariosList.map(v => v.especialidad_id))]
-      : []
-
-    const { data: espData, error: espError } = await supabase
+    // Cargar especialidades
+    const espIds = [...new Set(veterinariosList.map(v => v.especialidad_id).filter(Boolean))]
+    const { data: espData } = await supabase
       .from('especialidades')
       .select('id, nombre')
-      .in('id', espIds)
+      .in('id', espIds.length ? espIds : [0])
       .eq('is_activa', true)
 
-    if (espError) throw espError
+    const espMap = Object.fromEntries(espData?.map(e => [e.id, e]) || [])
 
-    const espMap = {}
-    espData?.forEach(e => { espMap[e.id] = e })
-
-    const userIds = veterinariosList.length > 0
-      ? [...new Set(veterinariosList.map(v => v.usuario_id))]
-      : []
-
-    const { data: userData, error: userError } = await supabase
+    // Cargar usuarios
+    const userIds = [...new Set(veterinariosList.map(v => v.usuario_id))]
+    const { data: userData } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email')
-      .in('id', userIds)
+      .in('id', userIds.length ? userIds : ['00000000-0000-0000-0000-000000000000'])
 
-    if (userError) throw userError
-
-    const userMap = {}
-    userData?.forEach(u => { userMap[u.id] = u })
+    const userMap = Object.fromEntries(userData?.map(u => [u.id, u]) || [])
 
     veterinarios.value = veterinariosList.map(vet => ({
       ...vet,
-      especialidad: espMap[vet.especialidad_id] || { nombre: 'Sin especialidad' },
-      usuario: userMap[vet.usuario_id] || { nombre_completo: 'Usuario no encontrado', email: '' }
+      especialidad: espMap[vet.especialidad_id] || { nombre: 'Sin asignar' },
+      usuario: userMap[vet.usuario_id] || { nombre_completo: 'Desconocido', email: '' }
     }))
 
-    const { data: allEsp, error: allEspError } = await supabase
+    // Cargar todas las especialidades activas
+    const { data: allEsp } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .eq('is_activa', true)
       .order('nombre')
-
-    if (!allEspError) {
-      especialidades.value = allEsp || []
-    }
+    especialidades.value = allEsp || []
 
     await fetchUsuariosVetDisponibles()
-
-    showNotification('✅ Veterinarios cargados correctamente', 'success')
+    showNotification('✅ Veterinarios cargados', 'success')
   } catch (err) {
-    console.error('❌ Error al cargar veterinarios:', err.message)
-    showNotification('⚠️ Error al cargar veterinarios', 'error')
+    console.error('Error:', err.message)
+    showNotification('⚠️ Error al cargar', 'error')
   } finally {
     loading.value = false
   }
@@ -101,34 +126,45 @@ const fetchVeterinarios = async () => {
 
 const fetchUsuariosVetDisponibles = async () => {
   try {
-    const { data: usuarios, error } = await supabase
+    const { data: usuarios } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email')
       .eq('rol', 'veterinario')
       .eq('is_activo', true)
 
-    if (error) throw error
-
-    if (!usuarios || usuarios.length === 0) {
-      usuariosVet.value = []
-      return
-    }
-
-    const { data: vetsExistentes, error: vetsError } = await supabase
+    const { data: vetsExistentes } = await supabase
       .from('veterinarios')
       .select('usuario_id')
 
-    if (vetsError) throw vetsError
-
     const vetIds = vetsExistentes?.map(v => v.usuario_id) || []
-
-    usuariosVet.value = usuarios.filter(u => !vetIds.includes(u.id))
+    usuariosVet.value = usuarios?.filter(u => !vetIds.includes(u.id)) || []
   } catch (err) {
-    console.error('❌ Error al cargar usuarios veterinarios disponibles:', err.message)
+    console.error('Error:', err.message)
     usuariosVet.value = []
   }
 }
 
+// Validación en tiempo real
+const validateCreate = () => {
+  createErrors.value = {}
+  if (!createForm.value.usuario_id) createErrors.value.usuario_id = 'Requerido'
+  if (!createForm.value.especialidad_id) createErrors.value.especialidad_id = 'Requerido'
+}
+
+const validateEdit = () => {
+  editErrors.value = {}
+  if (!formData.value.especialidad_id) editErrors.value.especialidad_id = 'Requerido'
+}
+
+const validateCreateUserVet = () => {
+  createUserVetErrors.value = {}
+  if (!createUserVetForm.value.nombre_completo) createUserVetErrors.value.nombre_completo = 'Requerido'
+  if (!createUserVetForm.value.email) createUserVetErrors.value.email = 'Requerido'
+  if (!createUserVetForm.value.password) createUserVetErrors.value.password = 'Requerido'
+  if (!createUserVetForm.value.especialidad_id) createUserVetErrors.value.especialidad_id = 'Requerido'
+}
+
+// Acciones
 const openEditModal = (vet) => {
   editingVet.value = vet
   formData.value = {
@@ -143,21 +179,23 @@ const openEditModal = (vet) => {
 }
 
 const openCreateModal = () => {
-  createForm.value = {
-    usuario_id: '',
-    especialidad_id: '',
-    numero_licencia: '',
-    anos_experiencia: 0,
-    bio: '',
-    foto_url: '',
-    is_activo: true
-  }
+  createForm.value = { usuario_id: '', especialidad_id: '', numero_licencia: '', anos_experiencia: 0, bio: '', foto_url: '', is_activo: true }
+  searchUsuario.value = ''
+  searchEspecialidad.value = ''
   showCreateModal.value = true
   fetchUsuariosVetDisponibles()
 }
 
+const openCreateUserVetModal = () => {
+  createUserVetForm.value = { nombre_completo: '', email: '', password: '', especialidad_id: '', numero_licencia: '', anos_experiencia: 0, bio: '', foto_url: '' }
+  searchEspecialidad.value = ''
+  showCreateUserVetModal.value = true
+}
+
 const saveVet = async () => {
-  if (!editingVet.value) return
+  validateEdit()
+  if (Object.keys(editErrors.value).length > 0) return
+
   try {
     const { error } = await supabase
       .from('veterinarios')
@@ -166,66 +204,109 @@ const saveVet = async () => {
         actualizado_en: new Date().toISOString()
       })
       .eq('id', editingVet.value.id)
+
     if (error) throw error
-    showNotification('✅ Veterinario actualizado', 'success')
+    showNotification('✅ Actualizado', 'success')
     showEditModal.value = false
     fetchVeterinarios()
   } catch (err) {
-    console.error('❌ Error al guardar:', err.message)
     showNotification('❌ Error al guardar', 'error')
   }
 }
 
 const createVet = async () => {
-  if (!createForm.value.usuario_id) {
-    showNotification('⚠️ Selecciona un usuario', 'error')
-    return
-  }
-  if (!createForm.value.especialidad_id) {
-    showNotification('⚠️ Selecciona una especialidad', 'error')
-    return
-  }
+  validateCreate()
+  if (Object.keys(createErrors.value).length > 0) return
 
   try {
     const { error } = await supabase
       .from('veterinarios')
       .insert({
-        usuario_id: createForm.value.usuario_id,
-        especialidad_id: createForm.value.especialidad_id,
-        numero_licencia: createForm.value.numero_licencia || null,
-        anos_experiencia: createForm.value.anos_experiencia || 0,
-        bio: createForm.value.bio || null,
-        foto_url: createForm.value.foto_url || null,
-        is_activo: createForm.value.is_activo,
+        ...createForm.value,
         creado_en: new Date().toISOString(),
         actualizado_en: new Date().toISOString()
       })
 
     if (error) {
       if (error.code === '23505') {
-        showNotification('⚠️ Este usuario ya tiene perfil de veterinario', 'error')
+        showNotification('⚠️ Ya existe perfil para este usuario', 'error')
       } else {
         throw error
       }
       return
     }
 
-    showNotification('✅ Veterinario creado correctamente', 'success')
+    showNotification('✅ Veterinario creado', 'success')
     showCreateModal.value = false
     fetchVeterinarios()
   } catch (err) {
-    console.error('❌ Error al crear veterinario:', err.message)
-    showNotification('❌ Error al crear veterinario', 'error')
+    showNotification('❌ Error al crear', 'error')
+  }
+}
+
+// ✅ NUEVO: Crear usuario + veterinario en un solo paso
+const createUsuarioVeterinario = async () => {
+  validateCreateUserVet()
+  if (Object.keys(createUserVetErrors.value).length > 0) return
+
+  try {
+    // 1. Crear usuario en Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: createUserVetForm.value.email,
+      password: createUserVetForm.value.password,
+      options: {
+        data: {
+          nombre_completo: createUserVetForm.value.nombre_completo
+        }
+      }
+    })
+
+    if (authError) throw authError
+    if (!authData?.user) throw new Error('No se creó el usuario')
+
+    // 2. Insertar en tabla usuarios
+    const { error: userError } = await supabase
+      .from('usuarios')
+      .insert({
+        id: authData.user.id,
+        nombre_completo: createUserVetForm.value.nombre_completo,
+        email: createUserVetForm.value.email,
+        rol: 'veterinario',
+        is_activo: true,
+        creado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString()
+      })
+
+    if (userError) throw userError
+
+    // 3. Crear perfil de veterinario
+    const { error: vetError } = await supabase
+      .from('veterinarios')
+      .insert({
+        usuario_id: authData.user.id,
+        especialidad_id: createUserVetForm.value.especialidad_id,
+        numero_licencia: createUserVetForm.value.numero_licencia || null,
+        anos_experiencia: createUserVetForm.value.anos_experiencia || 0,
+        bio: createUserVetForm.value.bio || null,
+        foto_url: createUserVetForm.value.foto_url || null,
+        is_activo: true,
+        creado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString()
+      })
+
+    if (vetError) throw vetError
+
+    showNotification('✅ Usuario y perfil creados', 'success')
+    showCreateUserVetModal.value = false
+    fetchVeterinarios()
+  } catch (err) {
+    console.error('Error completo:', err)
+    showNotification('❌ Error al crear usuario', 'error')
   }
 }
 
 const toggleVetStatus = async (vet) => {
-  const action = vet.is_activo ? 'desactivar' : 'reactivar'
-  const message = `¿Deseas ${action} al Dr. ${vet.usuario.nombre_completo}? ${
-    vet.is_activo ? 'No podrá atender citas.' : 'Podrá atender citas nuevamente.'
-  }`
-
-  if (!confirm(message)) return
+  if (!confirm(`¿${vet.is_activo ? 'Desactivar' : 'Activar'} a ${vet.usuario.nombre_completo}?`)) return
 
   try {
     const { error } = await supabase
@@ -235,15 +316,11 @@ const toggleVetStatus = async (vet) => {
         actualizado_en: new Date().toISOString()
       })
       .eq('id', vet.id)
-    if (error) throw error
 
-    showNotification(
-      action === 'desactivar' ? '🚫 Veterinario desactivado' : '🟢 Veterinario reactivado',
-      action === 'desactivar' ? 'warning' : 'success'
-    )
+    if (error) throw error
+    showNotification(vet.is_activo ? '🚫 Desactivado' : '🟢 Activado', vet.is_activo ? 'warning' : 'success')
     fetchVeterinarios()
   } catch (err) {
-    console.error('❌ Error al cambiar estado:', err.message)
     showNotification('❌ Error al cambiar estado', 'error')
   }
 }
@@ -263,172 +340,204 @@ onMounted(() => { fetchVeterinarios() })
       {{ notification.message }}
     </div>
 
-    <!-- Encabezado -->
+    <!-- Header -->
     <div class="page-header">
-      <h1>🩺 Gestión de Veterinarios</h1>
-      <p class="subtitle">Administra perfiles, especialidades y estado de los profesionales.</p>
-      <button @click="openCreateModal" class="btn-primary" style="margin-top: 1rem; margin-left: auto; display: block;">
-        ➕ Añadir Veterinario
-      </button>
+      <h1>🩺 Veterinarios</h1>
+      <p class="subtitle">Gestiona perfiles profesionales</p>
     </div>
 
-    <!-- Cargando -->
-    <div v-if="loading" class="loading-state">
+    <!-- Loading -->
+    <div v-if="loading" class="loading">
       <div class="spinner"></div>
-      <p>Cargando lista de veterinarios...</p>
     </div>
 
-    <!-- Lista de veterinarios -->
-    <div v-else class="users-grid">
-      <div v-if="veterinarios.length === 0" class="no-data">
-        🚫 No hay veterinarios registrados.
-        <button @click="openCreateModal" class="btn-primary" style="margin-top: 1rem;">
-          ➕ Añadir Veterinario
-        </button>
+    <!-- Lista -->
+    <div v-else>
+      <div v-if="veterinarios.length === 0" class="empty-state">
+        <div>🩺 No hay veterinarios registrados</div>
       </div>
 
-      <div
-        v-for="vet in veterinarios"
-        :key="vet.id"
-        class="user-card"
-        :class="{ 'inactive': !vet.is_activo }"
-      >
-        <div class="user-initial">
-          {{ vet.usuario?.nombre_completo?.charAt(0).toUpperCase() || 'V' }}
-        </div>
-        <div class="user-details">
-          <h3 class="user-name">{{ vet.usuario?.nombre_completo || 'Nombre no disponible' }}</h3>
-          <p class="user-email">{{ vet.usuario?.email || 'Email no disponible' }}</p>
-          <div class="user-meta">
-            <span class="badge" v-if="vet.especialidad">
-              {{ vet.especialidad.nombre || 'Sin especialidad' }}
-            </span>
-            <span v-if="!vet.is_activo" class="badge badge-inactive">Inactivo</span>
+      <div class="grid">
+        <div
+          v-for="vet in veterinarios"
+          :key="vet.id"
+          class="card"
+          :class="{ inactive: !vet.is_activo }"
+        >
+          <div class="card-header">
+            <div class="avatar">{{ vet.usuario.nombre_completo.charAt(0).toUpperCase() }}</div>
+            <div class="status" :class="{ active: vet.is_activo }"></div>
           </div>
-          <p class="user-license">🆔 Lic: {{ vet.numero_licencia || 'No asignada' }}</p>
-          <p class="user-exp">🎓 {{ vet.anos_experiencia || 0 }} años</p>
-        </div>
-        <div class="user-actions">
-          <button @click="openEditModal(vet)" class="btn-icon" title="Editar veterinario">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-          </button>
-          <button
-            @click="toggleVetStatus(vet)"
-            class="btn-toggle"
-            :class="{ 'active': vet.is_activo }"
-            :title="vet.is_activo ? 'Desactivar veterinario' : 'Reactivar veterinario'"
-          >
-            <span v-if="vet.is_activo">🟢 Activo</span>
-            <span v-else>🔴 Inactivo</span>
-          </button>
+          <div class="card-body">
+            <h3 class="name">{{ vet.usuario.nombre_completo }}</h3>
+            <p class="email">{{ vet.usuario.email }}</p>
+            <div class="meta">
+              <span class="badge">{{ vet.especialidad.nombre }}</span>
+              <span v-if="vet.numero_licencia" class="licencia">Lic: {{ vet.numero_licencia }}</span>
+            </div>
+            <p class="exp">{{ vet.anos_experiencia }} años de experiencia</p>
+          </div>
+          <div class="card-footer">
+            <button @click="openEditModal(vet)" class="btn-icon" title="Editar">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </button>
+            <button
+              @click="toggleVetStatus(vet)"
+              class="btn-toggle"
+              :class="{ active: vet.is_activo }"
+              :title="vet.is_activo ? 'Desactivar' : 'Activar'"
+            >
+              {{ vet.is_activo ? '🟢' : '🔴' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal de edición -->
+    <!-- Botón flotante de acción -->
+    <div class="fab-container">
+      <button class="fab" @click="showCreateModal = true" title="Asignar a usuario existente">➕</button>
+      <button class="fab secondary" @click="showCreateUserVetModal = true" title="Crear nuevo usuario + perfil">🧑‍⚕️</button>
+    </div>
+
+    <!-- Modal: Editar -->
     <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
       <div class="modal">
         <div class="modal-header">
           <h2>✏️ Editar Veterinario</h2>
-          <button class="close-btn" @click="showEditModal = false">×</button>
+          <button @click="showEditModal = false" class="close">×</button>
         </div>
         <div class="modal-body">
-          <div class="form-row">
+          <div class="form-group">
             <label>Especialidad</label>
-            <div class="select-wrapper">
-              <select v-model="formData.especialidad_id" class="fancy-select">
-                <option value="">Seleccionar especialidad</option>
-                <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
-                  {{ esp.nombre }}
-                </option>
-              </select>
-              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </div>
+            <select v-model="formData.especialidad_id" @blur="validateEdit" class="input" :class="{ error: editErrors.especialidad_id }">
+              <option value="">Seleccionar</option>
+              <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+            </select>
+            <div v-if="editErrors.especialidad_id" class="error-text">{{ editErrors.especialidad_id }}</div>
           </div>
-          <div class="form-row">
-            <label>Número de Licencia</label>
-            <input v-model="formData.numero_licencia" type="text" />
+          <div class="form-group">
+            <label>Licencia</label>
+            <input v-model="formData.numero_licencia" class="input" placeholder="Número de licencia">
           </div>
-          <div class="form-row">
-            <label>Años de Experiencia</label>
-            <input v-model="formData.anos_experiencia" type="number" min="0" />
+          <div class="form-group">
+            <label>Años de experiencia</label>
+            <input v-model.number="formData.anos_experiencia" type="number" min="0" class="input">
           </div>
-          <div class="form-row">
+          <div class="form-group">
             <label>Biografía</label>
-            <textarea v-model="formData.bio" rows="3" placeholder="Descripción profesional..."></textarea>
+            <textarea v-model="formData.bio" class="input textarea" placeholder="Breve descripción..."></textarea>
           </div>
-          <div class="form-row">
-            <label>URL de Foto</label>
-            <input v-model="formData.foto_url" type="url" placeholder="https://ejemplo.com/foto.jpg  " />
+          <div class="form-group">
+            <label>URL de foto</label>
+            <input v-model="formData.foto_url" type="url" class="input" placeholder="https://ejemplo.com/foto.jpg">
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-secondary" @click="showEditModal = false">Cancelar</button>
-          <button class="btn-primary" @click="saveVet">Guardar Cambios</button>
+          <button @click="showEditModal = false" class="btn-secondary">Cancelar</button>
+          <button @click="saveVet" class="btn-primary">Guardar</button>
         </div>
       </div>
     </div>
 
-    <!-- Modal de creación -->
+    <!-- Modal: Crear (asignar a usuario existente) -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal">
         <div class="modal-header">
-          <h2>➕ Añadir Nuevo Veterinario</h2>
-          <button class="close-btn" @click="showCreateModal = false">×</button>
+          <h2>➕ Asignar Perfil</h2>
+          <button @click="showCreateModal = false" class="close">×</button>
         </div>
         <div class="modal-body">
-          <div class="form-row">
-            <label>Seleccionar Usuario (rol: veterinario)</label>
-            <div class="select-wrapper">
-              <select v-model="createForm.usuario_id" class="fancy-select">
-                <option value="">Seleccionar usuario</option>
-                <option v-for="user in usuariosVet" :key="user.id" :value="user.id">
-                  {{ user.nombre_completo }} ({{ user.email }})
-                </option>
-              </select>
-              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </div>
+          <div class="form-group">
+            <label>Usuario</label>
+            <input v-model="searchUsuario" class="input" placeholder="Buscar usuario..." @input="validateCreate">
+            <select v-model="createForm.usuario_id" @blur="validateCreate" class="input" :class="{ error: createErrors.usuario_id }">
+              <option value="">Seleccionar</option>
+              <option v-for="user in filteredUsuarios" :key="user.id" :value="user.id">
+                {{ user.nombre_completo }} ({{ user.email }})
+              </option>
+            </select>
+            <div v-if="createErrors.usuario_id" class="error-text">{{ createErrors.usuario_id }}</div>
           </div>
-          <div class="form-row">
+          <div class="form-group">
             <label>Especialidad</label>
-            <div class="select-wrapper">
-              <select v-model="createForm.especialidad_id" class="fancy-select">
-                <option value="">Seleccionar especialidad</option>
-                <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
-                  {{ esp.nombre }}
-                </option>
-              </select>
-              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </div>
+            <input v-model="searchEspecialidad" class="input" placeholder="Buscar especialidad..." @input="validateCreate">
+            <select v-model="createForm.especialidad_id" @blur="validateCreate" class="input" :class="{ error: createErrors.especialidad_id }">
+              <option value="">Seleccionar</option>
+              <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+            </select>
+            <div v-if="createErrors.especialidad_id" class="error-text">{{ createErrors.especialidad_id }}</div>
           </div>
-          <div class="form-row">
-            <label>Número de Licencia</label>
-            <input v-model="createForm.numero_licencia" type="text" />
+          <div class="form-group">
+            <label>Licencia</label>
+            <input v-model="createForm.numero_licencia" class="input" placeholder="Número de licencia">
           </div>
-          <div class="form-row">
-            <label>Años de Experiencia</label>
-            <input v-model="createForm.anos_experiencia" type="number" min="0" />
+          <div class="form-group">
+            <label>Años de experiencia</label>
+            <input v-model.number="createForm.anos_experiencia" type="number" min="0" class="input">
           </div>
-          <div class="form-row">
+          <div class="form-group">
             <label>Biografía</label>
-            <textarea v-model="createForm.bio" rows="3" placeholder="Descripción profesional..."></textarea>
-          </div>
-          <div class="form-row">
-            <label>URL de Foto</label>
-            <input v-model="createForm.foto_url" type="url" placeholder="https://ejemplo.com/foto.jpg  " />
+            <textarea v-model="createForm.bio" class="input textarea" placeholder="Breve descripción..."></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-secondary" @click="showCreateModal = false">Cancelar</button>
-          <button class="btn-primary" @click="createVet">Crear Veterinario</button>
+          <button @click="showCreateModal = false" class="btn-secondary">Cancelar</button>
+          <button @click="createVet" class="btn-primary">Crear Perfil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Crear Usuario + Veterinario -->
+    <div v-if="showCreateUserVetModal" class="modal-overlay" @click.self="showCreateUserVetModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>🧑‍⚕️ Nuevo Veterinario</h2>
+          <button @click="showCreateUserVetModal = false" class="close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nombre completo</label>
+            <input v-model="createUserVetForm.nombre_completo" @blur="validateCreateUserVet" class="input" :class="{ error: createUserVetErrors.nombre_completo }" placeholder="Nombre y apellido">
+            <div v-if="createUserVetErrors.nombre_completo" class="error-text">{{ createUserVetErrors.nombre_completo }}</div>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input v-model="createUserVetForm.email" @blur="validateCreateUserVet" type="email" class="input" :class="{ error: createUserVetErrors.email }" placeholder="usuario@ejemplo.com">
+            <div v-if="createUserVetErrors.email" class="error-text">{{ createUserVetErrors.email }}</div>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input v-model="createUserVetForm.password" @blur="validateCreateUserVet" type="password" class="input" :class="{ error: createUserVetErrors.password }" placeholder="••••••••">
+            <div v-if="createUserVetErrors.password" class="error-text">{{ createUserVetErrors.password }}</div>
+          </div>
+          <div class="form-group">
+            <label>Especialidad</label>
+            <input v-model="searchEspecialidad" class="input" placeholder="Buscar especialidad..." @input="validateCreateUserVet">
+            <select v-model="createUserVetForm.especialidad_id" @blur="validateCreateUserVet" class="input" :class="{ error: createUserVetErrors.especialidad_id }">
+              <option value="">Seleccionar</option>
+              <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+            </select>
+            <div v-if="createUserVetErrors.especialidad_id" class="error-text">{{ createUserVetErrors.especialidad_id }}</div>
+          </div>
+          <div class="form-group">
+            <label>Número de licencia</label>
+            <input v-model="createUserVetForm.numero_licencia" class="input" placeholder="Número de licencia">
+          </div>
+          <div class="form-group">
+            <label>Años de experiencia</label>
+            <input v-model.number="createUserVetForm.anos_experiencia" type="number" min="0" class="input">
+          </div>
+          <div class="form-group">
+            <label>Biografía</label>
+            <textarea v-model="createUserVetForm.bio" class="input textarea" placeholder="Breve descripción profesional..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showCreateUserVetModal = false" class="btn-secondary">Cancelar</button>
+          <button @click="createUsuarioVeterinario" class="btn-primary">Crear Usuario + Perfil</button>
         </div>
       </div>
     </div>
@@ -437,461 +546,454 @@ onMounted(() => { fetchVeterinarios() })
 
 <style scoped>
 .admin-container {
+  padding: 1.5rem;
+  background: #f8fafc;
   min-height: 100vh;
-  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
-  padding: 2rem;
-  color: #e0f7fa;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding-left: calc(2rem + 80px);
-  transition: padding-left 0.3s ease;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-@media (min-width: 1024px) {
-  .admin-container {
-    padding-left: calc(2rem + 260px);
-  }
-}
-
-@media (max-width: 1023px) and (min-width: 769px) {
-  .admin-container {
-    padding-left: calc(2rem + 80px);
-  }
-}
-
-@media (max-width: 768px) {
-  .admin-container {
-    padding: 1rem;
-    padding-left: 1rem;
-  }
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
 }
 
 .page-header h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
+  color: #0f172a;
   margin: 0 0 0.5rem;
-  letter-spacing: -0.5px;
-  background: linear-gradient(to right, #80deea, #4dd0e1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-align: center;
 }
 
 .subtitle {
-  text-align: center;
-  font-size: 1rem;
-  opacity: 0.85;
-  margin: 0 0 2.5rem;
+  color: #64748b;
+  margin: 0;
 }
 
-.loading-state {
+.loading {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  justify-content: center;
   padding: 4rem 0;
-  color: #b2ebf2;
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(128, 222, 234, 0.3);
-  border-top: 3px solid #4dd0e1;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e2e8f0;
+  border-top: 2px solid #0ea5e9;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 1rem;
+  animation: spin 0.6s linear infinite;
 }
 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-.users-grid {
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+/* Grid */
+.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
-  padding: 1rem 0;
 }
 
-.user-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  border-radius: 18px;
+/* Card */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   padding: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(77, 208, 225, 0.15);
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
+  border: 1px solid #e2e8f0;
 }
 
-.user-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-  background: rgba(255, 255, 255, 0.08);
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .inactive {
   opacity: 0.6;
-  background: rgba(100, 100, 100, 0.08);
+  border-color: #fca5a5;
 }
 
-.user-initial {
-  width: 52px;
-  height: 52px;
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(77, 208, 225, 0.2);
-  border: 2px solid #4dd0e1;
+  background: #dbeafe;
+  color: #1d4ed8;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #4dd0e1;
-  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 1.1rem;
 }
 
-.user-details {
-  flex: 1;
-  min-width: 0;
+.status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fca5a5;
 }
 
-.user-name {
-  margin: 0 0 0.25rem;
+.status.active {
+  background: #86efac;
+}
+
+.card-body h3.name {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #ffffff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #0f172a;
+  margin: 0 0 0.25rem;
 }
 
-.user-email {
-  margin: 0 0 0.5rem;
+.card-body .email {
+  color: #64748b;
   font-size: 0.875rem;
-  color: #b2ebf2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin: 0 0 0.5rem;
 }
 
-.user-license,
-.user-exp {
-  font-size: 0.85rem;
-  color: #80deea;
-  margin: 0.25rem 0;
-}
-
-.user-meta {
+.meta {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-bottom: 0.5rem;
 }
 
 .badge {
-  padding: 0.25rem 0.75rem;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 0.25rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
+  font-weight: 500;
 }
 
-.badge-inactive { background: rgba(176, 190, 197, 0.2); color: #b0bec5; }
+.licencia {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
 
-.user-actions {
+.card-body .exp {
+  color: #64748b;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.card-footer {
   display: flex;
+  justify-content: flex-end;
   gap: 0.5rem;
-  margin-left: auto;
+  margin-top: 1rem;
 }
 
+/* Botones */
 .btn-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  color: #475569;
   transition: all 0.2s;
-  color: #80deea;
 }
 
 .btn-icon:hover {
-  background: rgba(128, 222, 234, 0.2);
-  transform: scale(1.05);
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .btn-toggle {
-  padding: 0.5rem 1rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
   cursor: pointer;
-  border: none;
-  transition: all 0.2s;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
 .btn-toggle.active {
-  background: rgba(165, 214, 167, 0.2);
-  color: #a5d6a7;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+  color: #16a34a;
 }
 
 .btn-toggle:not(.active) {
-  background: rgba(255, 138, 128, 0.2);
-  color: #ff8a80;
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #dc2626;
 }
 
-.btn-toggle:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.1);
+/* FAB */
+.fab-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-end;
 }
 
+.fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
+}
+
+.fab.secondary {
+  background: #8b5cf6;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.fab.secondary:hover {
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
   padding: 1rem;
+  z-index: 1000;
 }
 
 .modal {
-  background: #0a4a56;
-  border-radius: 20px;
+  background: white;
+  border-radius: 16px;
   width: 100%;
-  max-width: 480px;
-  padding: 2rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(77, 208, 225, 0.3);
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-header h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
+  color: #0f172a;
+  margin: 0;
 }
 
-.close-btn {
+.close {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #ffffff;
   cursor: pointer;
-  padding: 0;
+  color: #64748b;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: background 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.close:hover {
+  background: #f1f5f9;
 }
 
 .modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+  padding: 1.5rem;
 }
 
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.form-group {
+  margin-bottom: 1.25rem;
 }
 
-.form-row label {
-  font-weight: 600;
-  color: #b2ebf2;
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #334155;
   font-size: 0.9rem;
 }
 
-.form-row input,
-.form-row textarea {
+.input {
+  width: 100%;
   padding: 0.75rem;
-  border-radius: 12px;
-  border: 1px solid rgba(77, 208, 225, 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  font-size: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
   transition: border 0.2s;
 }
 
-.form-row input:focus,
-.form-row textarea:focus {
+.input:focus {
   outline: none;
-  border-color: #80deea;
-  box-shadow: 0 0 0 2px rgba(128, 222, 234, 0.2);
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
 }
 
-.form-row textarea {
-  resize: vertical;
+.input.error {
+  border-color: #ef4444;
+}
+
+.textarea {
   min-height: 80px;
+  resize: vertical;
 }
 
-.select-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.fancy-select {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border-radius: 12px;
-  border: 1px solid rgba(77, 208, 225, 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  font-size: 1rem;
-  appearance: none;
-  cursor: pointer;
-  transition: border 0.2s;
-}
-
-.fancy-select option {
-  color: #0a4a56;
-  background-color: #ffffff;
-}
-
-.fancy-select:focus {
-  outline: none;
-  border-color: #80deea;
-  box-shadow: 0 0 0 2px rgba(128, 222, 234, 0.2);
-}
-
-.select-icon {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: #80deea;
+.error-text {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 .modal-footer {
   display: flex;
   gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e2e8f0;
   justify-content: flex-end;
-  margin-top: 1.5rem;
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
   cursor: pointer;
   border: none;
-  font-size: 0.95rem;
   transition: all 0.2s;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #4dd0e1, #80deea);
-  color: #0277bd;
+  background: #0ea5e9;
+  color: white;
 }
 
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(77, 208, 225, 0.4);
+  background: #0284c7;
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #e2e8f0;
 }
 
+/* Notificación */
 .notification {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: 1rem;
+  right: 1rem;
   padding: 0.75rem 1.25rem;
-  border-radius: 12px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
   z-index: 2000;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  animation: slideIn 0.3s ease;
 }
 
-.notification.success { background: rgba(165, 214, 167, 0.9); color: #1b5e20; }
-.notification.error { background: rgba(255, 138, 128, 0.9); color: #b71c1c; }
-.notification.warning { background: rgba(255, 204, 128, 0.9); color: #ef6c00; }
+.notification.success { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.notification.error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.notification.warning { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; }
 
 @keyframes slideIn {
   from { transform: translateX(120%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-.no-data {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 3rem 1rem;
-  font-size: 1.2rem;
-  color: #ff8a80;
-  background: rgba(255, 138, 128, 0.1);
-  border-radius: 16px;
-  border: 1px dashed rgba(255, 138, 128, 0.3);
-}
-
+/* Responsive */
 @media (max-width: 768px) {
   .admin-container {
     padding: 1rem;
   }
 
-  .users-grid {
+  .grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
 
-  .user-card {
-    flex-direction: column;
-    text-align: center;
+  .card {
     padding: 1rem;
   }
 
-  .user-actions {
-    flex-direction: row;
-    justify-content: center;
-    margin-left: 0;
-    margin-top: 1rem;
+  .fab-container {
+    bottom: 1.5rem;
+    right: 1.5rem;
+  }
+
+  .fab {
+    width: 48px;
+    height: 48px;
+    font-size: 1.25rem;
   }
 
   .modal {
-    padding: 1.5rem;
     margin: 1rem;
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-footer {
+    justify-content: space-between;
+  }
+
+  .btn-toggle {
+    font-size: 1rem;
   }
 }
 </style>
