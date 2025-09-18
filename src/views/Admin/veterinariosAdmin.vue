@@ -4,10 +4,22 @@ import { supabase } from '@/lib/supabaseClient'
 
 const veterinarios = ref([])
 const especialidades = ref([])
+const usuariosVet = ref([])
 const loading = ref(false)
 const editingVet = ref(null)
 const showEditModal = ref(false)
+const showCreateModal = ref(false)
 const notification = ref({ message: '', type: '', visible: false })
+
+const createForm = ref({
+  usuario_id: '',
+  especialidad_id: '',
+  numero_licencia: '',
+  anos_experiencia: 0,
+  bio: '',
+  foto_url: '',
+  is_activo: true
+})
 
 const formData = ref({
   especialidad_id: '',
@@ -21,8 +33,7 @@ const formData = ref({
 const fetchVeterinarios = async () => {
   loading.value = true
   try {
-    // 1. Cargar veterinarios
-    const {  vets, error: vetError } = await supabase
+    const { data: vets, error: vetError } = await supabase
       .from('veterinarios')
       .select('id, usuario_id, especialidad_id, numero_licencia, anos_experiencia, bio, foto_url, is_activo, creado_en')
       .order('creado_en', { ascending: false })
@@ -32,12 +43,11 @@ const fetchVeterinarios = async () => {
 
     const veterinariosList = vets || []
 
-    // 2. Cargar especialidades
     const espIds = veterinariosList.length > 0
       ? [...new Set(veterinariosList.map(v => v.especialidad_id))]
       : []
 
-    const {  espData, espError } = await supabase
+    const { data: espData, error: espError } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .in('id', espIds)
@@ -48,12 +58,11 @@ const fetchVeterinarios = async () => {
     const espMap = {}
     espData?.forEach(e => { espMap[e.id] = e })
 
-    // 3. Cargar usuarios
     const userIds = veterinariosList.length > 0
       ? [...new Set(veterinariosList.map(v => v.usuario_id))]
       : []
 
-    const {  userData, userError } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email')
       .in('id', userIds)
@@ -63,18 +72,13 @@ const fetchVeterinarios = async () => {
     const userMap = {}
     userData?.forEach(u => { userMap[u.id] = u })
 
-    // 4. Combinar datos
     veterinarios.value = veterinariosList.map(vet => ({
       ...vet,
       especialidad: espMap[vet.especialidad_id] || { nombre: 'Sin especialidad' },
       usuario: userMap[vet.usuario_id] || { nombre_completo: 'Usuario no encontrado', email: '' }
     }))
 
-    // ✅ DEBUG: Ver qué hay en veterinarios.value
-    console.log('🔍 Veterinarios cargados:', veterinarios.value)
-
-    // 5. Cargar especialidades para el select
-    const {  allEsp, allEspError } = await supabase
+    const { data: allEsp, error: allEspError } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .eq('is_activa', true)
@@ -84,13 +88,44 @@ const fetchVeterinarios = async () => {
       especialidades.value = allEsp || []
     }
 
-    showNotification('✅ Veterinarios cargados correctamente', 'success')
+    await fetchUsuariosVetDisponibles()
 
+    showNotification('✅ Veterinarios cargados correctamente', 'success')
   } catch (err) {
     console.error('❌ Error al cargar veterinarios:', err.message)
     showNotification('⚠️ Error al cargar veterinarios', 'error')
   } finally {
     loading.value = false
+  }
+}
+
+const fetchUsuariosVetDisponibles = async () => {
+  try {
+    const { data: usuarios, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre_completo, email')
+      .eq('rol', 'veterinario')
+      .eq('is_activo', true)
+
+    if (error) throw error
+
+    if (!usuarios || usuarios.length === 0) {
+      usuariosVet.value = []
+      return
+    }
+
+    const { data: vetsExistentes, error: vetsError } = await supabase
+      .from('veterinarios')
+      .select('usuario_id')
+
+    if (vetsError) throw vetsError
+
+    const vetIds = vetsExistentes?.map(v => v.usuario_id) || []
+
+    usuariosVet.value = usuarios.filter(u => !vetIds.includes(u.id))
+  } catch (err) {
+    console.error('❌ Error al cargar usuarios veterinarios disponibles:', err.message)
+    usuariosVet.value = []
   }
 }
 
@@ -105,6 +140,20 @@ const openEditModal = (vet) => {
     is_activo: vet.is_activo
   }
   showEditModal.value = true
+}
+
+const openCreateModal = () => {
+  createForm.value = {
+    usuario_id: '',
+    especialidad_id: '',
+    numero_licencia: '',
+    anos_experiencia: 0,
+    bio: '',
+    foto_url: '',
+    is_activo: true
+  }
+  showCreateModal.value = true
+  fetchUsuariosVetDisponibles()
 }
 
 const saveVet = async () => {
@@ -124,6 +173,49 @@ const saveVet = async () => {
   } catch (err) {
     console.error('❌ Error al guardar:', err.message)
     showNotification('❌ Error al guardar', 'error')
+  }
+}
+
+const createVet = async () => {
+  if (!createForm.value.usuario_id) {
+    showNotification('⚠️ Selecciona un usuario', 'error')
+    return
+  }
+  if (!createForm.value.especialidad_id) {
+    showNotification('⚠️ Selecciona una especialidad', 'error')
+    return
+  }
+
+  try {
+    const { error } = await supabase
+      .from('veterinarios')
+      .insert({
+        usuario_id: createForm.value.usuario_id,
+        especialidad_id: createForm.value.especialidad_id,
+        numero_licencia: createForm.value.numero_licencia || null,
+        anos_experiencia: createForm.value.anos_experiencia || 0,
+        bio: createForm.value.bio || null,
+        foto_url: createForm.value.foto_url || null,
+        is_activo: createForm.value.is_activo,
+        creado_en: new Date().toISOString(),
+        actualizado_en: new Date().toISOString()
+      })
+
+    if (error) {
+      if (error.code === '23505') {
+        showNotification('⚠️ Este usuario ya tiene perfil de veterinario', 'error')
+      } else {
+        throw error
+      }
+      return
+    }
+
+    showNotification('✅ Veterinario creado correctamente', 'success')
+    showCreateModal.value = false
+    fetchVeterinarios()
+  } catch (err) {
+    console.error('❌ Error al crear veterinario:', err.message)
+    showNotification('❌ Error al crear veterinario', 'error')
   }
 }
 
@@ -175,6 +267,9 @@ onMounted(() => { fetchVeterinarios() })
     <div class="page-header">
       <h1>🩺 Gestión de Veterinarios</h1>
       <p class="subtitle">Administra perfiles, especialidades y estado de los profesionales.</p>
+      <button @click="openCreateModal" class="btn-primary" style="margin-top: 1rem; margin-left: auto; display: block;">
+        ➕ Añadir Veterinario
+      </button>
     </div>
 
     <!-- Cargando -->
@@ -185,12 +280,13 @@ onMounted(() => { fetchVeterinarios() })
 
     <!-- Lista de veterinarios -->
     <div v-else class="users-grid">
-      <!-- ✅ Mensaje si no hay veterinarios -->
       <div v-if="veterinarios.length === 0" class="no-data">
-        🚫 No hay veterinarios registrados. Agrega uno desde la consola de Supabase.
+        🚫 No hay veterinarios registrados.
+        <button @click="openCreateModal" class="btn-primary" style="margin-top: 1rem;">
+          ➕ Añadir Veterinario
+        </button>
       </div>
 
-      <!-- ✅ Lista de veterinarios -->
       <div
         v-for="vet in veterinarios"
         :key="vet.id"
@@ -267,7 +363,7 @@ onMounted(() => { fetchVeterinarios() })
           </div>
           <div class="form-row">
             <label>URL de Foto</label>
-            <input v-model="formData.foto_url" type="url" placeholder="https://ejemplo.com/foto.jpg" />
+            <input v-model="formData.foto_url" type="url" placeholder="https://ejemplo.com/foto.jpg  " />
           </div>
         </div>
         <div class="modal-footer">
@@ -276,11 +372,70 @@ onMounted(() => { fetchVeterinarios() })
         </div>
       </div>
     </div>
+
+    <!-- Modal de creación -->
+    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>➕ Añadir Nuevo Veterinario</h2>
+          <button class="close-btn" @click="showCreateModal = false">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label>Seleccionar Usuario (rol: veterinario)</label>
+            <div class="select-wrapper">
+              <select v-model="createForm.usuario_id" class="fancy-select">
+                <option value="">Seleccionar usuario</option>
+                <option v-for="user in usuariosVet" :key="user.id" :value="user.id">
+                  {{ user.nombre_completo }} ({{ user.email }})
+                </option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Especialidad</label>
+            <div class="select-wrapper">
+              <select v-model="createForm.especialidad_id" class="fancy-select">
+                <option value="">Seleccionar especialidad</option>
+                <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
+                  {{ esp.nombre }}
+                </option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Número de Licencia</label>
+            <input v-model="createForm.numero_licencia" type="text" />
+          </div>
+          <div class="form-row">
+            <label>Años de Experiencia</label>
+            <input v-model="createForm.anos_experiencia" type="number" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Biografía</label>
+            <textarea v-model="createForm.bio" rows="3" placeholder="Descripción profesional..."></textarea>
+          </div>
+          <div class="form-row">
+            <label>URL de Foto</label>
+            <input v-model="createForm.foto_url" type="url" placeholder="https://ejemplo.com/foto.jpg  " />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="showCreateModal = false">Cancelar</button>
+          <button class="btn-primary" @click="createVet">Crear Veterinario</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* ✅ ESTILOS COPIADOS DIRECTAMENTE DE TU usuarioAdmin.vue - SIN CAMBIOS */
 .admin-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
@@ -700,7 +855,6 @@ onMounted(() => { fetchVeterinarios() })
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* ✅ Nuevo estilo: Mensaje "No hay datos" */
 .no-data {
   grid-column: 1 / -1;
   text-align: center;

@@ -523,15 +523,21 @@ const loadUserData = async () => {
       return
     }
 
-    const { data: userData, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', user.id)
-      .single()
+const { data: userData, error } = await supabase
+  .from('usuarios')
+  .select('*')
+  .eq('id', user.id)
+  .maybeSingle()  // <-- usa maybeSingle en lugar de single
 
-    if (error) throw error
+if (error) throw error
+if (!userData) {
+  console.warn('Usuario no encontrado en la base de datos')
+  router.push('/login') // o mostrar un mensaje
+  return
+}
 
-    Object.assign(userForm, userData)
+Object.assign(userForm, userData)
+
 
     if (userData.rol === 'veterinario') {
       const { data: vetData } = await supabase
