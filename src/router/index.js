@@ -49,7 +49,15 @@ const routes = [
     children: [
       { path: '', name: 'UsuarioAdmin', component: () => import('@/views/Admin/usuarioAdmin.vue') }
     ]
-  }
+  },
+  {
+  path: '/veterinarios',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    { path: '', name: 'VeterinariosAdmin', component: () => import('@/views/Admin/veterinariosAdmin.vue') }
+  ]
+}
 ]
 
 const router = createRouter({
