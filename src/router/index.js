@@ -14,7 +14,8 @@ const routes = [
       { path: 'equipo', name: 'Equipo', component: () => import('@/views/Equipo.vue') },
       { path: 'contacto', name: 'Contacto', component: () => import('@/views/Contacto.vue') },
       { path: 'login', name: 'Login', component: () => import('@/views/loginView.vue') },
-      { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') }
+      { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') },
+       { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') } // ← nueva
     ]
   },
 
@@ -31,10 +32,12 @@ const routes = [
     component: DashboardLayout,
     meta: { requiresAuth: true, role: 'veterinario' },
     children: [
-      { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') }
+      { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') },
+      { path: 'mis-citas', name: 'MisCitas', component: () => import('@/views/Vet/MisCitas.vue') },
+      { path: 'mis-mascotas', name: 'MisMascotas', component: () => import('@/views/Vet/MisMascotas.vue') },
+      { path: 'mis-servicios', name: 'MisServicios', component: () => import('@/views/Vet/MisServicios.vue') }
     ]
   },
-
   {
     path: '/perfil',
     name: 'Perfil',
