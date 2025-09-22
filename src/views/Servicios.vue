@@ -20,12 +20,14 @@
     <section class="cta">
       <h2>¿Listo para cuidar de tu mascota?</h2>
       <p>Agenda una cita hoy y recibe un chequeo gratuito en tu primera visita.</p>
-      <button class="btn-primary">Agendar ahora</button>
+      <button class="btn-primary" @click="irAgendarCita">Agendar ahora</button>
     </section>
   </div>
 </template>
 
 <script>
+import { supabase } from '@/lib/supabaseClient'  // ← IMPORT CORRECTO
+
 // Importar imágenes
 import imgVacunas from '@/assets/img/servicio1.png'
 import imgConsultas from '@/assets/img/servicio2.png'
@@ -75,10 +77,22 @@ export default {
           descripcion: 'Asesoría personalizada por veterinarios nutricionistas. Planes dietéticos para sobrepeso, alergias, enfermedades renales y más.',
           imagen: imgNutricion
         }
-      ]
+      ],
+      mostrarAgendar:false
+    }
+  },
+  methods: {
+    async irAgendarCita() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        this.$router.push({ name: 'AgendarCita' }) // Redirige al formulario
+      } else {
+        this.$router.push({ name: 'Login' }) // Redirige a login si no está logeado
+      }
     }
   }
 }
+
 </script>
 
 <style scoped>
