@@ -9,7 +9,7 @@ const loading = ref(false)
 const editingVet = ref(null)
 const showEditModal = ref(false)
 const showCreateModal = ref(false)
-const showCreateUserVetModal = ref(false) // ✅ Nuevo modal combinado
+const showCreateUserVetModal = ref(false)
 const notification = ref({ message: '', type: '', visible: false })
 
 // Formularios
@@ -32,7 +32,6 @@ const formData = ref({
   is_activo: true
 })
 
-// ✅ Nuevo: Form para crear usuario + veterinario
 const createUserVetForm = ref({
   nombre_completo: '',
   email: '',
@@ -68,6 +67,24 @@ const filteredEspecialidades = computed(() => {
   )
 })
 
+const fetchEspecialidades = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('especialidades')
+      .select('id, nombre')
+      .eq('is_activa', true)
+      .order('nombre')
+
+    console.log('🔍 Especialidades cargadas:', data)
+
+    if (error) throw error
+    especialidades.value = data || []
+  } catch (err) {
+    console.error('❌ Error al cargar especialidades:', err.message)
+    especialidades.value = []
+  }
+}
+
 // Cargar datos
 const fetchVeterinarios = async () => {
   loading.value = true
@@ -82,6 +99,8 @@ const fetchVeterinarios = async () => {
     const veterinariosList = vets || []
 
     // Cargar especialidades
+    await fetchEspecialidades()
+
     const espIds = [...new Set(veterinariosList.map(v => v.especialidad_id).filter(Boolean))]
     const { data: espData } = await supabase
       .from('especialidades')
@@ -105,14 +124,6 @@ const fetchVeterinarios = async () => {
       especialidad: espMap[vet.especialidad_id] || { nombre: 'Sin asignar' },
       usuario: userMap[vet.usuario_id] || { nombre_completo: 'Desconocido', email: '' }
     }))
-
-    // Cargar todas las especialidades activas
-    const { data: allEsp } = await supabase
-      .from('especialidades')
-      .select('id, nombre')
-      .eq('is_activa', true)
-      .order('nombre')
-    especialidades.value = allEsp || []
 
     await fetchUsuariosVetDisponibles()
     showNotification('✅ Veterinarios cargados', 'success')
@@ -144,7 +155,7 @@ const fetchUsuariosVetDisponibles = async () => {
   }
 }
 
-// Validación en tiempo real
+// Validación
 const validateCreate = () => {
   createErrors.value = {}
   if (!createForm.value.usuario_id) createErrors.value.usuario_id = 'Requerido'
@@ -184,12 +195,14 @@ const openCreateModal = () => {
   searchEspecialidad.value = ''
   showCreateModal.value = true
   fetchUsuariosVetDisponibles()
+  fetchEspecialidades()
 }
 
 const openCreateUserVetModal = () => {
   createUserVetForm.value = { nombre_completo: '', email: '', password: '', especialidad_id: '', numero_licencia: '', anos_experiencia: 0, bio: '', foto_url: '' }
   searchEspecialidad.value = ''
   showCreateUserVetModal.value = true
+  fetchEspecialidades()
 }
 
 const saveVet = async () => {
@@ -244,7 +257,6 @@ const createVet = async () => {
   }
 }
 
-// ✅ NUEVO: Crear usuario + veterinario en un solo paso
 const createUsuarioVeterinario = async () => {
   validateCreateUserVet()
   if (Object.keys(createUserVetErrors.value).length > 0) return
@@ -412,10 +424,15 @@ onMounted(() => { fetchVeterinarios() })
         <div class="modal-body">
           <div class="form-group">
             <label>Especialidad</label>
-            <select v-model="formData.especialidad_id" @blur="validateEdit" class="input" :class="{ error: editErrors.especialidad_id }">
-              <option value="">Seleccionar</option>
-              <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
-            </select>
+            <div class="select-wrapper">
+              <select v-model="formData.especialidad_id" @blur="validateEdit" class="fancy-select" :class="{ error: editErrors.especialidad_id }">
+                <option value="">Seleccionar</option>
+                <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
             <div v-if="editErrors.especialidad_id" class="error-text">{{ editErrors.especialidad_id }}</div>
           </div>
           <div class="form-group">
@@ -453,21 +470,31 @@ onMounted(() => { fetchVeterinarios() })
           <div class="form-group">
             <label>Usuario</label>
             <input v-model="searchUsuario" class="input" placeholder="Buscar usuario..." @input="validateCreate">
-            <select v-model="createForm.usuario_id" @blur="validateCreate" class="input" :class="{ error: createErrors.usuario_id }">
-              <option value="">Seleccionar</option>
-              <option v-for="user in filteredUsuarios" :key="user.id" :value="user.id">
-                {{ user.nombre_completo }} ({{ user.email }})
-              </option>
-            </select>
+            <div class="select-wrapper">
+              <select v-model="createForm.usuario_id" @blur="validateCreate" class="fancy-select" :class="{ error: createErrors.usuario_id }">
+                <option value="">Seleccionar</option>
+                <option v-for="user in filteredUsuarios" :key="user.id" :value="user.id">
+                  {{ user.nombre_completo }} ({{ user.email }})
+                </option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
             <div v-if="createErrors.usuario_id" class="error-text">{{ createErrors.usuario_id }}</div>
           </div>
           <div class="form-group">
             <label>Especialidad</label>
             <input v-model="searchEspecialidad" class="input" placeholder="Buscar especialidad..." @input="validateCreate">
-            <select v-model="createForm.especialidad_id" @blur="validateCreate" class="input" :class="{ error: createErrors.especialidad_id }">
-              <option value="">Seleccionar</option>
-              <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
-            </select>
+            <div class="select-wrapper">
+              <select v-model="createForm.especialidad_id" @blur="validateCreate" class="fancy-select" :class="{ error: createErrors.especialidad_id }">
+                <option value="">Seleccionar</option>
+                <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
             <div v-if="createErrors.especialidad_id" class="error-text">{{ createErrors.especialidad_id }}</div>
           </div>
           <div class="form-group">
@@ -516,10 +543,15 @@ onMounted(() => { fetchVeterinarios() })
           <div class="form-group">
             <label>Especialidad</label>
             <input v-model="searchEspecialidad" class="input" placeholder="Buscar especialidad..." @input="validateCreateUserVet">
-            <select v-model="createUserVetForm.especialidad_id" @blur="validateCreateUserVet" class="input" :class="{ error: createUserVetErrors.especialidad_id }">
-              <option value="">Seleccionar</option>
-              <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
-            </select>
+            <div class="select-wrapper">
+              <select v-model="createUserVetForm.especialidad_id" @blur="validateCreateUserVet" class="fancy-select" :class="{ error: createUserVetErrors.especialidad_id }">
+                <option value="">Seleccionar</option>
+                <option v-for="esp in filteredEspecialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+              </select>
+              <svg class="select-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
             <div v-if="createUserVetErrors.especialidad_id" class="error-text">{{ createUserVetErrors.especialidad_id }}</div>
           </div>
           <div class="form-group">
@@ -546,10 +578,56 @@ onMounted(() => { fetchVeterinarios() })
 
 <style scoped>
 .admin-container {
-  padding: 1.5rem;
+  padding-left: calc(1.5rem + 240px) !important;
+  padding-right: 1.5rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
   background: #f8fafc;
   min-height: 100vh;
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ✅ Estilo para el select */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.fancy-select {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(77, 208, 225, 0.3);
+  /* Cambia estas dos líneas: */
+  background: white; /* Usa un fondo blanco sólido */
+  color: #334155; /* Usa un color de texto oscuro y legible */
+  font-size: 1rem;
+  appearance: none;
+  cursor: pointer;
+  transition: border 0.2s;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
+
+.select-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #80deea;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+}
+
+@media (max-width: 768px) {
+  .admin-container {
+    padding-left: 1rem !important;
+    padding-right: 1rem;
+  }
 }
 
 .page-header {
@@ -595,14 +673,12 @@ onMounted(() => { fetchVeterinarios() })
   font-size: 1.1rem;
 }
 
-/* Grid */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
-/* Card */
 .card {
   background: white;
   border-radius: 12px;
@@ -703,7 +779,6 @@ onMounted(() => { fetchVeterinarios() })
   margin-top: 1rem;
 }
 
-/* Botones */
 .btn-icon {
   width: 32px;
   height: 32px;
@@ -749,7 +824,6 @@ onMounted(() => { fetchVeterinarios() })
   color: #dc2626;
 }
 
-/* FAB */
 .fab-container {
   position: fixed;
   bottom: 2rem;
@@ -791,7 +865,6 @@ onMounted(() => { fetchVeterinarios() })
   box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
 }
 
-/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -932,7 +1005,6 @@ onMounted(() => { fetchVeterinarios() })
   background: #e2e8f0;
 }
 
-/* Notificación */
 .notification {
   position: fixed;
   top: 1rem;
@@ -955,7 +1027,6 @@ onMounted(() => { fetchVeterinarios() })
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .admin-container {
     padding: 1rem;
