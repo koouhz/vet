@@ -16,6 +16,7 @@
     "@phosphor-icons/vue": "^2.2.1",
     "@supabase/supabase-js": "^2.57.4",
     "pinia": "^3.0.3",
+    "uuid": "^13.0.0",
     "vue": "^3.5.18",
     "vue-router": "^4.5.1"
   },
