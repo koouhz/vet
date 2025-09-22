@@ -31,10 +31,12 @@ const routes = [
     component: DashboardLayout,
     meta: { requiresAuth: true, role: 'veterinario' },
     children: [
-      { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') }
+      { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') },
+      { path: 'mis-citas', name: 'MisCitas', component: () => import('@/views/Vet/MisCitas.vue') },
+      { path: 'mis-mascotas', name: 'MisMascotas', component: () => import('@/views/Vet/MisMascotas.vue') },
+      { path: 'mis-servicios', name: 'MisServicios', component: () => import('@/views/Vet/MisServicios.vue') }
     ]
   },
-
   {
     path: '/perfil',
     name: 'Perfil',
