@@ -18,6 +18,7 @@
       <p v-if="successMessage" class="status-message success-message">{{ successMessage }}</p>
     </div>
 
+<<<<<<< HEAD
     <div v-if="formularioVisible" class="form-overlay">
       <form @submit.prevent="handleSubmit" class="service-form">
         <h2>{{ servicioActual.id ? 'Editar Servicio' : 'Nuevo Servicio' }}</h2>
@@ -105,10 +106,18 @@
           </tr>
         </tbody>
       </table>
+=======
+    <!-- CTA -->
+    <section class="cta">
+      <h2>¿Listo para cuidar de tu mascota?</h2>
+      <p>Agenda una cita hoy y recibe un chequeo gratuito en tu primera visita.</p>
+      <button class="btn-primary" @click="irAgendarCita">Agendar ahora</button>
+>>>>>>> d20bac03013aeceeec71c87410d1655deecab390
     </section>
   </div>
 </template>
 
+<<<<<<< HEAD
 <script setup>
 import { ref, onMounted } from 'vue';
 import { supabase } from '@/lib/supabaseClient';
@@ -280,6 +289,76 @@ const eliminarServicio = async (servicio) => {
 onMounted(() => {
   fetchServices();
 });
+=======
+<script>
+import { supabase } from '@/lib/supabaseClient'  // ← IMPORT CORRECTO
+
+// Importar imágenes
+import imgVacunas from '@/assets/img/servicio1.png'
+import imgConsultas from '@/assets/img/servicio2.png'
+import imgPeluqueria from '@/assets/img/servicio3.png'
+import imgEmergencias from '@/assets/img/servicio4.png'
+import imgCirugias from '@/assets/img/servicio5.png'
+import imgNutricion from '@/assets/img/servicio6.png'
+
+export default {
+  name: 'ServiciosView',
+  data() {
+    return {
+      servicios: [
+        {
+          id: 1,
+          titulo: 'Vacunación',
+          descripcion: 'Programas completos de vacunación según edad, raza y riesgo epidemiológico. Incluye rabia, moquillo, parvovirus y más.',
+          imagen: imgVacunas
+        },
+        {
+          id: 2,
+          titulo: 'Consultas Generales',
+          descripcion: 'Evaluaciones médicas integrales, diagnóstico clínico, seguimiento de enfermedades crónicas y recomendaciones preventivas.',
+          imagen: imgConsultas
+        },
+        {
+          id: 3,
+          titulo: 'Peluquería y Higiene',
+          descripcion: 'Baño profesional, corte de pelo, recorte de uñas, limpieza de oídos y desparasitación externa. ¡Tu mascota lucirá impecable!',
+          imagen: imgPeluqueria
+        },
+        {
+          id: 4,
+          titulo: 'Emergencias 24/7',
+          descripcion: 'Atención inmediata las 24 horas, los 365 días del año. Equipo especializado en trauma, intoxicaciones y paradas cardiorrespiratorias.',
+          imagen: imgEmergencias
+        },
+        {
+          id: 5,
+          titulo: 'Cirugías',
+          descripcion: 'Procedimientos programados y de emergencia: esterilizaciones, castraciones, extracciones, cirugías abdominales y ortopédicas.',
+          imagen: imgCirugias
+        },
+        {
+          id: 6,
+          titulo: 'Nutrición y Dietética',
+          descripcion: 'Asesoría personalizada por veterinarios nutricionistas. Planes dietéticos para sobrepeso, alergias, enfermedades renales y más.',
+          imagen: imgNutricion
+        }
+      ],
+      mostrarAgendar:false
+    }
+  },
+  methods: {
+    async irAgendarCita() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        this.$router.push({ name: 'AgendarCita' }) // Redirige al formulario
+      } else {
+        this.$router.push({ name: 'Login' }) // Redirige a login si no está logeado
+      }
+    }
+  }
+}
+
+>>>>>>> d20bac03013aeceeec71c87410d1655deecab390
 </script>
 
 ---

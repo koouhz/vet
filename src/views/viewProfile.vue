@@ -1,6 +1,5 @@
-<template>
+}<template>
   <div class="profile-container container">
-    <!-- Toast emergente -->
     <Transition name="toast">
       <div
         v-if="toast.message"
@@ -11,7 +10,6 @@
       </div>
     </Transition>
 
-    <!-- Loading Overlay -->
     <div v-if="isLoading" class="loading-overlay">
       <div class="spinner"></div>
     </div>
@@ -46,7 +44,6 @@
           <p class="user-role">{{ getRoleLabel(userForm.rol) }}</p>
         </div>
 
-        <!-- Botón condicional al Dashboard -->
         <div v-if="userForm.rol === 'admin' || userForm.rol === 'veterinario'" class="dashboard-access">
           <router-link
             :to="userForm.rol === 'admin' ? '/dashboard-admin' : '/dashboard-vet'"
@@ -70,7 +67,7 @@
           <span>Personal</span>
         </button>
         <button
-          :class="{ active: activeTab === 'mascotas' }"
+          :class="{ active: activeTab === 'mascotas' || activeTab === 'agregar-mascota' }"
           @click="activeTab = 'mascotas'"
           class="tab-btn"
           v-if="userForm.rol === 'cliente'"
@@ -100,7 +97,6 @@
 
     <Transition name="slide">
       <div class="profile-content card" v-show="!isLoading">
-        <!-- DATOS PERSONALES -->
         <div v-if="activeTab === 'datos'" class="section">
           <div class="section-header">
             <h3><i class="ph ph-user"></i> Información Personal</h3>
@@ -171,11 +167,10 @@
           </div>
         </div>
 
-        <!-- MASCOTAS (solo clientes) -->
         <div v-if="activeTab === 'mascotas' && userForm.rol === 'cliente'" class="section">
           <div class="section-header">
             <h3><i class="ph ph-paw-print"></i> Mis Mascotas</h3>
-            <button @click="goToMascotas" class="btn-primary">
+            <button @click="isAddingPet = true" class="btn-primary">
               <i class="ph ph-plus"></i> Agregar
             </button>
           </div>
@@ -185,7 +180,7 @@
             </div>
             <h4>Sin mascotas registradas</h4>
             <p>Registra tu primera mascota para comenzar</p>
-            <button @click="goToMascotas" class="btn-primary">Registrar Mascota</button>
+            <button @click="isAddingPet = true" class="btn-primary">Registrar Mascota</button>
           </div>
           <div v-else class="mascotas-grid">
             <div
@@ -209,7 +204,118 @@
           </div>
         </div>
 
-        <!-- PERFIL VETERINARIO (solo veterinarios) -->
+        <div v-if="isAddingPet" class="section">
+          <div class="section-header">
+            <h3><i class="ph ph-paw-print"></i> Agregar Nueva Mascota</h3>
+            <button @click="cancelAddPet" class="btn-secondary">
+              <i class="ph ph-arrow-left"></i> Volver
+            </button>
+          </div>
+          <form @submit.prevent="addPet" class="form-grid">
+            <div class="form-group">
+              <label for="nombre">Nombre</label>
+              <input
+                id="nombre"
+                v-model="mascotaForm.nombre"
+                type="text"
+                required
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label for="especie">Especie</label>
+              <select
+                id="especie"
+                v-model="mascotaForm.especie"
+                required
+                class="editing"
+              >
+                <option value="" disabled>Selecciona una especie</option>
+                <option value="perro">Perro</option>
+                <option value="gato">Gato</option>
+                <option value="conejo">Conejo</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="raza">Raza</label>
+              <input
+                id="raza"
+                v-model="mascotaForm.raza"
+                type="text"
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label for="fecha_nacimiento">Fecha de Nacimiento</label>
+              <input
+                id="fecha_nacimiento"
+                v-model="mascotaForm.fecha_nacimiento"
+                type="date"
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label for="peso_kg">Peso (kg)</label>
+              <input
+                id="peso_kg"
+                v-model.number="mascotaForm.peso_kg"
+                type="number"
+                step="0.01"
+                class="editing"
+              />
+            </div>
+            <div class="form-group">
+              <label for="sexo">Sexo</label>
+              <select
+                id="sexo"
+                v-model="mascotaForm.sexo"
+                class="editing"
+              >
+                <option value="" disabled>Selecciona el sexo</option>
+                <option value="macho">Macho</option>
+                <option value="hembra">Hembra</option>
+                <option value="castrado">Castrado</option>
+                <option value="esterilizado">Esterilizado</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label for="alergias">Alergias</label>
+              <textarea
+                id="alergias"
+                v-model="mascotaForm.alergias"
+                rows="2"
+                class="editing"
+              ></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label for="notas_medicas">Notas Médicas</label>
+              <textarea
+                id="notas_medicas"
+                v-model="mascotaForm.notas_medicas"
+                rows="4"
+                class="editing"
+              ></textarea>
+            </div>
+            <div class="form-group full-width">
+              <label for="foto_url">URL de la Foto</label>
+              <input
+                id="foto_url"
+                v-model="mascotaForm.foto_url"
+                type="text"
+                class="editing"
+                placeholder="https://ejemplo.com/imagen.jpg"
+              />
+            </div>
+            <div class="form-group full-width">
+              <button type="submit" class="btn-primary" :disabled="isUpdating">
+                <i class="ph ph-plus-circle"></i>
+                {{ isUpdating ? 'Agregando...' : 'Agregar Mascota' }}
+              </button>
+            </div>
+          </form>
+        </div>
+
         <div v-if="activeTab === 'veterinario' && userForm.rol === 'veterinario'" class="section">
           <div class="section-header">
             <h3><i class="ph ph-stethoscope"></i> Información Profesional</h3>
@@ -261,7 +367,6 @@
           </div>
         </div>
 
-        <!-- SEGURIDAD -->
         <div v-if="activeTab === 'seguridad'" class="section">
           <div class="section-header">
             <h3><i class="ph ph-lock-key"></i> Cambiar Contraseña</h3>
@@ -327,6 +432,7 @@ const activeTab = ref('datos')
 const isEditing = ref(false)
 const isEditingVet = ref(false)
 const isUpdatingPassword = ref(false)
+const isAddingPet = ref(false) // Nuevo estado para el formulario de mascota
 
 // Formularios
 const userForm = reactive({
@@ -353,6 +459,18 @@ const passwordForm = reactive({
   currentPassword: '',
   newPassword: '',
   confirmPassword: ''
+})
+
+const mascotaForm = reactive({
+  nombre: '',
+  especie: '',
+  raza: '',
+  fecha_nacimiento: '',
+  peso_kg: null,
+  sexo: '',
+  alergias: '',
+  notas_medicas: '',
+  foto_url: '', // Ahora es un campo de texto para la URL
 })
 
 const mascotas = ref([])
@@ -396,42 +514,42 @@ const triggerFileInput = () => {
 }
 
 const handleAvatarUpload = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
+  const file = event.target.files[0];
+  if (!file) return;
 
   try {
-    isUpdating.value = true
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${userForm.id}-${Date.now()}.${fileExt}`
-    const filePath = `avatars/${fileName}`
+    isUpdating.value = true;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userForm.id}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(filePath, file, { upsert: true })
+      .upload(filePath, file, { upsert: true });
 
-    if (uploadError) throw uploadError
+    if (uploadError) throw uploadError;
 
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
-      .getPublicUrl(filePath)
+      .getPublicUrl(filePath);
 
-    userForm.avatar_url = publicUrl
+    userForm.avatar_url = publicUrl;
 
     const { error: updateError } = await supabase
       .from('usuarios')
       .update({ avatar_url: publicUrl })
-      .eq('id', userForm.id)
+      .eq('id', userForm.id);
 
-    if (updateError) throw updateError
+    if (updateError) throw updateError;
 
-    showToast('Avatar actualizado correctamente')
+    showToast('Avatar actualizado correctamente');
   } catch (error) {
-    console.error('Error uploading avatar:', error.message)
-    showToast('No se pudo actualizar el avatar', 'error')
+    console.error('Error uploading avatar:', error.message);
+    showToast('No se pudo actualizar el avatar', 'error');
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 const updateUser = async () => {
   try {
@@ -527,9 +645,14 @@ const loadUserData = async () => {
       .from('usuarios')
       .select('*')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
     if (error) throw error
+    if (!userData) {
+      console.warn('Usuario no encontrado en la base de datos')
+      router.push('/login')
+      return
+    }
 
     Object.assign(userForm, userData)
 
@@ -568,9 +691,65 @@ const loadUserData = async () => {
   }
 }
 
-const goToMascotas = () => {
-  router.push('/mascotas')
-}
+const addPet = async () => {
+  // Validación básica del formulario
+  if (!mascotaForm.nombre || !mascotaForm.especie) {
+    showToast('El nombre y la especie son obligatorios', 'error');
+    return;
+  }
+
+  isUpdating.value = true;
+
+  try {
+    // 1. Insertar la nueva mascota en la base de datos
+    const { error } = await supabase
+      .from('mascotas')
+      .insert({
+        usuario_id: userForm.id,
+        nombre: mascotaForm.nombre,
+        especie: mascotaForm.especie,
+        raza: mascotaForm.raza,
+        fecha_nacimiento: mascotaForm.fecha_nacimiento || null,
+        peso_kg: mascotaForm.peso_kg || null,
+        sexo: mascotaForm.sexo || null,
+        alergias: mascotaForm.alergias || null,
+        notas_medicas: mascotaForm.notas_medicas || null,
+        foto_url: mascotaForm.foto_url || null,
+        is_activa: true
+      });
+
+    if (error) throw error;
+
+    showToast('Mascota agregada correctamente');
+    isAddingPet.value = false; // Ocultar el formulario
+    resetMascotaForm(); // Limpiar el formulario
+    await loadUserData(); // Recargar la lista de mascotas
+  } catch (error) {
+    console.error('Error adding pet:', error.message);
+    showToast('Error al agregar la mascota', 'error');
+  } finally {
+    isUpdating.value = false;
+  }
+};
+
+const resetMascotaForm = () => {
+  Object.assign(mascotaForm, {
+    nombre: '',
+    especie: '',
+    raza: '',
+    fecha_nacimiento: '',
+    peso_kg: null,
+    sexo: '',
+    alergias: '',
+    notas_medicas: '',
+    foto_url: '',
+  });
+};
+
+const cancelAddPet = () => {
+  isAddingPet.value = false;
+  resetMascotaForm();
+};
 
 const getRoleLabel = (rol) => {
   const roles = {
@@ -899,6 +1078,28 @@ textarea {
   min-height: 120px;
 }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--color-gray);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 400;
+  cursor: pointer;
+  letter-spacing: -0.1px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
 /* Empty State */
 .empty-state {
   display: flex;
@@ -1077,6 +1278,11 @@ textarea {
     width: 100%;
     justify-content: center;
   }
+  
+  .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
 
   .mascota-card {
     flex-direction: column;
@@ -1109,7 +1315,6 @@ textarea {
   }
 
   .form-grid {
-
     gap: 1.25rem;
   }
 }
