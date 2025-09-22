@@ -7,7 +7,7 @@
 
     <section class="services-list">
       <div class="service-item" v-for="servicio in servicios" :key="servicio.id">
-        <img :src="servicio.foto_url || servicio.imagen" :alt="servicio.titulo" />
+        <img :src="servicio.foto_url" :alt="servicio.titulo" />
         <h3>{{ servicio.titulo }}</h3>
         <p>{{ servicio.descripcion }}</p>
         <button class="btn-primary" @click="irAgendarCita(servicio.id)">
@@ -21,14 +21,6 @@
 <script>
 import { supabase } from '@/lib/supabaseClient'
 
-// Imágenes por defecto
-import imgVacunas from '@/assets/img/servicio1.png'
-import imgConsultas from '@/assets/img/servicio2.png'
-import imgPeluqueria from '@/assets/img/servicio3.png'
-import imgEmergencias from '@/assets/img/servicio4.png'
-import imgCirugias from '@/assets/img/servicio5.png'
-import imgNutricion from '@/assets/img/servicio6.png'
-
 export default {
   name: 'ServiciosView',
   data() {
@@ -40,40 +32,37 @@ export default {
     await this.cargarServicios()
   },
   methods: {
-    asignarImagenPorDefecto(id) {
-      const imgs = [imgVacunas, imgConsultas, imgPeluqueria, imgEmergencias, imgCirugias, imgNutricion]
-      return imgs[id - 1] || ''
-    },
-
     async cargarServicios() {
-      // Trae servicios vinculados a veterinarios activos
-      const { data, error } = await supabase
-        .from('servicios_veterinarios')
-        .select(`
-          servicio_id,
-          servicios(id, titulo, descripcion, foto_url, is_activo),
-          veterinario:veterinarios(id, is_activo)
-        `)
-        .eq('is_activo', true)
+      try {
+        // Trae servicios vinculados a veterinarios activos
+        const { data, error } = await supabase
+          .from('servicios_veterinarios')
+          .select(`
+            servicio_id,
+            servicios(id, titulo, descripcion, foto_url, is_activo),
+            veterinario:veterinarios(id, is_activo)
+          `)
 
-      if (error) return console.error(error)
+        if (error) throw error
 
-      // Filtra duplicados y solo servicios activos con veterinarios activos
-      const serviciosValidos = []
-      const seen = new Set()
+        // Filtrar servicios válidos: activos y con al menos un veterinario activo
+        const serviciosValidos = []
+        const seen = new Set()
 
-      data.forEach(sv => {
-        const s = sv.servicios
-        const vetActivo = sv.veterinario?.is_activo
+        data.forEach(sv => {
+          const s = sv.servicios
+          const vetActivo = sv.veterinario?.is_activo
 
-        if (s.is_activo && vetActivo && !seen.has(s.id)) {
-          s.imagen = s.foto_url || this.asignarImagenPorDefecto(s.id)
-          serviciosValidos.push(s)
-          seen.add(s.id)
-        }
-      })
+          if (s?.is_activo && vetActivo && !seen.has(s.id)) {
+            serviciosValidos.push(s)
+            seen.add(s.id)
+          }
+        })
 
-      this.servicios = serviciosValidos
+        this.servicios = serviciosValidos
+      } catch (err) {
+        console.error('Error cargando servicios:', err.message)
+      }
     },
 
     async irAgendarCita(servicioId) {
