@@ -149,7 +149,7 @@ import AppSidebar from '@/components/layouts/AppSidebar.vue'
 const router = useRouter()
 const adminName = ref('')
 const stats = ref({
-  users: 0, // ✅ AHORA INCLUYE TODOS LOS USUARIOS (incluidos admins)
+  users: 0,
   appointments: 0,
   veterinarians: 0,
   services: 0,
@@ -157,96 +157,103 @@ const stats = ref({
   testimonials: 0,
   configs: 0,
   audits: 0,
-  totalUsers: 0, // ✅ IGUAL A users, para el resumen
+  totalUsers: 0,
   activeAppointments: 0,
   activeVeterinarians: 0,
   activeServices: 0,
 })
 
-// Verificar si el usuario es admin y cargar sus datos
+// Obtener nombre del admin logueado
 const fetchAdminData = async () => {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    router.push('/login')
-    return
-  }
+  if (!user) return
 
   const { data: userData, error } = await supabase
     .from('usuarios')
-    .select('nombre_completo, rol')
+    .select('nombre_completo')
     .eq('id', user.id)
     .single()
 
-  if (error || !userData) {
-    console.error('Error al obtener datos del usuario o usuario no encontrado')
-    router.push('/login')
-    return
+  if (!error && userData) {
+    adminName.value = userData.nombre_completo.split(' ')[0]
   }
-
-  if (userData.rol !== 'admin') {
-    console.warn('Acceso denegado: El usuario no tiene rol de administrador')
-    router.push('/') // redirigir a home o página de acceso denegado
-    return
-  }
-
-  adminName.value = userData.nombre_completo.split(' ')[0] || 'Administrador'
 }
 
 // Cargar todas las estadísticas desde la BD
 const fetchStats = async () => {
-  try {
-    const [
-      { data: allUsers, error: usersError },
-      { data: citas, error: citasError },
-      { data: citasActivas, error: citasActError },
-      { data: vets, error: vetsError },
-      { data: servicios, error: servError },
-      { data: equipos, error: eqError },
-      { data: testimonios, error: testError },
-      { data: configs, error: configError },
-      { data: audits, error: auditError }
-    ] = await Promise.all([
-      supabase.from('usuarios').select('id'), // ✅ Todos los usuarios, sin excluir admins
-      supabase.from('citasmascotas').select('id'),
-      supabase.from('citasmascotas').select('id').in('estado', ['programada', 'confirmada']),
-      supabase.from('veterinarios').select('id').eq('is_activo', true),
-      supabase.from('servicios').select('id').eq('is_activo', true),
-      supabase.from('equiposmedicos').select('id'),
-      supabase.from('testimonios').select('id').eq('publicado', false),
-      supabase.from('configuracionesistema').select('clave'),
-      supabase.from('bitacoracitas').select('id')
-    ])
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
 
-    // Manejo de errores (solo warnings, no bloquean)
-    if (usersError) console.warn('Error al cargar usuarios:', usersError.message)
-    if (citasError) console.warn('Error al cargar citas:', citasError.message)
-    if (citasActError) console.warn('Error al cargar citas activas:', citasActError.message)
-    if (vetsError) console.warn('Error al cargar veterinarios:', vetsError.message)
-    if (servError) console.warn('Error al cargar servicios:', servError.message)
-    if (eqError) console.warn('Error al cargar equipos:', eqError.message)
-    if (testError) console.warn('Error al cargar testimonios:', testError.message)
-    if (configError) console.warn('Error al cargar configuraciones:', configError.message)
-    if (auditError) console.warn('Error al cargar bitácora:', auditError.message)
+  // Usuarios (todos excepto admins)
+  const { data: users, error: usersError } = await supabase
+    .from('usuarios')
+    .select('id')
+    .neq('rol', 'admin')
+  if (usersError) console.warn('Error al cargar usuarios:', usersError.message)
+  stats.value.users = users?.length || 0
+  stats.value.totalUsers = users?.length || 0
 
-    // Asignar estadísticas
-    const totalUsersCount = allUsers?.length || 0
+  // Citas (todas)
+  const { data: citas, error: citasError } = await supabase
+    .from('citasmascotas')
+    .select('id')
+  if (citasError) console.warn('Error al cargar citas:', citasError.message)
+  stats.value.appointments = citas?.length || 0
 
-    stats.value.users = totalUsersCount // ✅ Total global de usuarios
-    stats.value.totalUsers = totalUsersCount // ✅ Igual, para el resumen general
-    stats.value.appointments = citas?.length || 0
-    stats.value.activeAppointments = citasActivas?.length || 0
-    stats.value.veterinarians = vets?.length || 0
-    stats.value.activeVeterinarians = vets?.length || 0
-    stats.value.services = servicios?.length || 0
-    stats.value.activeServices = servicios?.length || 0
-    stats.value.equipment = equipos?.length || 0
-    stats.value.testimonials = testimonios?.length || 0
-    stats.value.configs = configs?.length || 0
-    stats.value.audits = audits?.length || 0
+  // Veterinarios activos
+  const { data: vets, error: vetsError } = await supabase
+    .from('veterinarios')
+    .select('id')
+    .eq('is_activo', true)
+  if (vetsError) console.warn('Error al cargar veterinarios:', vetsError.message)
+  stats.value.veterinarians = vets?.length || 0
+  stats.value.activeVeterinarians = vets?.length || 0
 
-  } catch (err) {
-    console.error('Error inesperado al cargar estadísticas:', err)
-  }
+  // Servicios activos
+  const { data: servicios, error: servError } = await supabase
+    .from('servicios')
+    .select('id')
+    .eq('is_activo', true)
+  if (servError) console.warn('Error al cargar servicios:', servError.message)
+  stats.value.services = servicios?.length || 0
+  stats.value.activeServices = servicios?.length || 0
+
+  // Equipos médicos
+  const { data: equipos, error: eqError } = await supabase
+    .from('equiposmedicos')
+    .select('id')
+  if (eqError) console.warn('Error al cargar equipos:', eqError.message)
+  stats.value.equipment = equipos?.length || 0
+
+  // Testimonios pendientes
+  const { data: testimonios, error: testError } = await supabase
+    .from('testimonios')
+    .select('id')
+    .eq('publicado', false)
+  if (testError) console.warn('Error al cargar testimonios:', testError.message)
+  stats.value.testimonials = testimonios?.length || 0
+
+  // Configuraciones del sistema
+  const { data: configs, error: configError } = await supabase
+    .from('configuracionesistema')
+    .select('clave')
+  if (configError) console.warn('Error al cargar configuraciones:', configError.message)
+  stats.value.configs = configs?.length || 0
+
+  // Bitácora de acciones
+  const { data: audits, error: auditError } = await supabase
+    .from('bitacoracitas')
+    .select('id')
+  if (auditError) console.warn('Error al cargar bitácora:', auditError.message)
+  stats.value.audits = audits?.length || 0
+
+  // Citas activas
+  const { data: citasActivas, error: citasActError } = await supabase
+    .from('citasmascotas')
+    .select('id')
+    .in('estado', ['programada', 'confirmada', 'completada'])
+  if (citasActError) console.warn('Error al cargar citas activas:', citasActError.message)
+  stats.value.activeAppointments = citasActivas?.length || 0
 }
 
 onMounted(async () => {
@@ -259,6 +266,7 @@ const navigateTo = (path) => {
   router.push(path)
 }
 </script>
+
 <style scoped>
 .dashboard-admin-container {
   display: flex;
