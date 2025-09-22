@@ -267,10 +267,9 @@ const logout = async () => {
   padding: 0;
 }
 
-/* 👇 CLAVE: Texto visible y con altura completa */
 .nav-link {
   text-decoration: none;
-  color: var(--text-primary); /* ¡Ahora es negro oscuro! */
+  color: var(--text-primary);
   font-size: 0.95rem;
   font-weight: 500;
   padding: 0.5rem 0.75rem;

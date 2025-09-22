@@ -117,7 +117,7 @@ watch(userRole, (newRole) => {
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--color-text2);
+  color: var(--color-text);
   margin: 0;
   white-space: nowrap;
   transition: opacity 0.2s ease;
