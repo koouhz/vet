@@ -531,12 +531,16 @@ onMounted(() => { fetchUsuarios() })
   padding: 0.75rem 2.5rem 0.75rem 1rem;
   border-radius: 12px;
   border: 1px solid rgba(77, 208, 225, 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+  /* Change these lines: */
+  background: white; /* Use a solid background color */
+  color: #334155; /* Use a darker, readable text color */
   font-size: 1rem;
   appearance: none;
   cursor: pointer;
   transition: border 0.2s;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
 }
 
 .fancy-select option {

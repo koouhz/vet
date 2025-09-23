@@ -42,8 +42,9 @@ const routes = [
     meta: { requiresAuth: true }
   },
 
+  // 👇 RUTAS DE ADMIN — ACTUALIZADAS CON PREFIJO /admin/
   {
-    path: '/usuarios',
+    path: '/admin/usuarios',
     component: DashboardLayout,
     meta: { requiresAuth: true, role: 'admin' },
     children: [
@@ -51,19 +52,39 @@ const routes = [
     ]
   },
   {
-  path: '/veterinarios',
+    path: '/admin/veterinarios',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'VeterinariosAdmin', component: () => import('@/views/Admin/veterinariosAdmin.vue') }
+    ]
+  },
+  {
+    path: '/admin/citas',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'CitasAdmin', component: () => import('@/views/Admin/citasAdmin.vue') }
+    ]
+  },
+  {
+    path: '/admin/servicios',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'ServiciosAdmin', component: () => import('@/views/Admin/serviciosAdmin.vue') }
+    ]
+  },
+  {
+  path: '/admin/equipos',
   component: DashboardLayout,
   meta: { requiresAuth: true, role: 'admin' },
   children: [
-    { path: '', name: 'VeterinariosAdmin', component: () => import('@/views/Admin/veterinariosAdmin.vue') }
-  ]
-},
-{
-  path: '/citas',
-  component: DashboardLayout,
-  meta: { requiresAuth: true, role: 'admin' },
-  children: [
-    { path: '', name: 'CitasAdmin', component: () => import('@/views/Admin/citasAdmin.vue') }
+    {
+      path: '',
+      name: 'EquiposAdmin',
+      component: () => import('@/views/Admin/equiposAdmin.vue')
+    }
   ]
 }
 ]

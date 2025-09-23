@@ -11,7 +11,7 @@
       <!-- Tarjetas de gestión rápida -->
       <section class="quick-actions">
         <!-- Usuarios -->
-        <div class="action-card" @click="navigateTo('/usuarios')">
+        <div class="action-card" @click="navigateTo('UsuarioAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -23,7 +23,7 @@
         </div>
 
         <!-- Citas -->
-        <div class="action-card" @click="navigateTo('/citas')">
+        <div class="action-card" @click="navigateTo('CitasAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 2V5" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -38,7 +38,7 @@
         </div>
 
         <!-- Veterinarios -->
-        <div class="action-card" @click="navigateTo('/veterinarios')">
+        <div class="action-card" @click="navigateTo('VeterinariosAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -51,7 +51,7 @@
         </div>
 
         <!-- Servicios -->
-        <div class="action-card" @click="navigateTo('/servicios')">
+        <div class="action-card" @click="navigateTo('ServiciosAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -64,7 +64,7 @@
         </div>
 
         <!-- Equipos Médicos -->
-        <div class="action-card" @click="navigateTo('/equipos')">
+        <div class="action-card" @click="navigateTo('EquiposAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -77,7 +77,7 @@
         </div>
 
         <!-- Testimonios -->
-        <div class="action-card" @click="navigateTo('/testimonios')">
+        <div class="action-card" @click="navigateTo('TestimoniosAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -89,7 +89,7 @@
         </div>
 
         <!-- Configuración -->
-        <div class="action-card" @click="navigateTo('/configuracion')">
+        <div class="action-card" @click="navigateTo('ConfiguracionAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -102,7 +102,7 @@
         </div>
 
         <!-- Bitácora -->
-        <div class="action-card" @click="navigateTo('/bitacora')">
+        <div class="action-card" @click="navigateTo('BitacoraAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8V12L15 15" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -262,8 +262,9 @@ onMounted(async () => {
 })
 
 // Navegación rápida
-const navigateTo = (path) => {
-  router.push(path)
+// Navegación rápida por nombre de ruta
+const navigateTo = (routeName) => {
+  router.push({ name: routeName })
 }
 </script>
 
