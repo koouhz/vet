@@ -1,4 +1,4 @@
-}<template>
+<template>
   <div class="profile-container container">
     <Transition name="toast">
       <div
@@ -373,15 +373,6 @@
           </div>
           <div class="form-grid security-grid">
             <div class="form-group">
-              <label>Contraseña Actual</label>
-              <input
-                v-model="passwordForm.currentPassword"
-                type="password"
-                placeholder="••••••••"
-                class="editing"
-              />
-            </div>
-            <div class="form-group">
               <label>Nueva Contraseña</label>
               <input
                 v-model="passwordForm.newPassword"
@@ -402,7 +393,7 @@
             <div class="form-group full-width">
               <button @click="updatePassword" class="btn-primary btn-security" :disabled="isUpdatingPassword">
                 <i class="ph ph-lock-key"></i>
-                {{ isUpdatingPassword ? 'Actualizando...' : 'Actualizar Contraseña' }}
+                {{ isUpdatingPassword ? 'Enviando...' : 'Actualizar Contraseña' }}
               </button>
             </div>
           </div>
@@ -456,7 +447,6 @@ const veterinarioForm = reactive({
 })
 
 const passwordForm = reactive({
-  currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
@@ -600,38 +590,36 @@ const updateVeterinario = async () => {
 
 const updatePassword = async () => {
   if (!passwordForm.newPassword || !passwordForm.confirmPassword) {
-    showToast('Completa todos los campos', 'error')
-    return
+    showToast('Completa todos los campos', 'error');
+    return;
   }
 
   if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    showToast('Las contraseñas no coinciden', 'error')
-    return
+    showToast('Las contraseñas no coinciden', 'error');
+    return;
   }
 
-  isUpdatingPassword.value = true
+  isUpdatingPassword.value = true;
 
   try {
-    const { error } = await supabase.auth.updateUser({
-      password: passwordForm.newPassword
-    })
+    // Llama a la función de restablecimiento de contraseña para enviar el correo
+    const { error } = await supabase.auth.resetPasswordForEmail(userForm.email);
 
-    if (error) throw error
+    if (error) throw error;
 
     Object.assign(passwordForm, {
-      currentPassword: '',
       newPassword: '',
       confirmPassword: ''
-    })
+    });
 
-    showToast('Contraseña actualizada correctamente')
+    showToast('Se ha enviado un correo electrónico de confirmación para restablecer la contraseña. Revisa tu bandeja de entrada.');
   } catch (error) {
-    console.error('Error updating password:', error.message)
-    showToast('Error al actualizar la contraseña', 'error')
+    console.error('Error al iniciar el restablecimiento de contraseña:', error.message);
+    showToast('Error al procesar la solicitud. Intenta de nuevo más tarde.', 'error');
   } finally {
-    isUpdatingPassword.value = false
+    isUpdatingPassword.value = false;
   }
-}
+};
 
 const loadUserData = async () => {
   try {
