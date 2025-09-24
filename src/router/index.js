@@ -4,6 +4,9 @@ import { supabase } from '@/lib/supabaseClient'
 import PublicLayout from '@/components/layouts/PublicLayout.vue'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 
+// Importar el nuevo componente
+import ResetPassword from '@/views/ResetPassword.vue'
+
 const routes = [
   {
     path: '/',
@@ -15,7 +18,9 @@ const routes = [
       { path: 'contacto', name: 'Contacto', component: () => import('@/views/Contacto.vue') },
       { path: 'login', name: 'Login', component: () => import('@/views/loginView.vue') },
       { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') },
-      { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') }
+      { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') },
+      // Añadir la nueva ruta para el restablecimiento de contraseña
+      { path: 'reset-password', name: 'ResetPassword', component: ResetPassword }
     ]
   },
 

@@ -34,7 +34,7 @@ import vet1 from '@/assets/img/personal4.png'
 import vet2 from '@/assets/img/personal3.png'
 import vet3 from '@/assets/img/personal1.png'
 import vet4 from '@/assets/img/personal2.png'
-import vet5 from '@/assets/img/personal5.png'
+import vet5 from '@/assets/img/yooo.jpg'
 
 export default {
   name: 'EquipoView',
