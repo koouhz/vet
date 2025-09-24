@@ -14,13 +14,14 @@
     <SelectVeterinario 
       v-model="veterinarioId" 
       :servicio-id="servicioId"
+      @change="cargarHorarios"
     />
 
-    <!-- Fecha -->
-    <label>Fecha:</label>
-    <input type="date" v-model="fecha" @change="cargarHorasDisponibles" required />
+    <!-- Fecha (opcional, para filtrar horas ocupadas) -->
+    <label>Fecha (opcional):</label>
+    <input type="date" v-model="fecha" @change="cargarHorarios" />
 
-    <!-- Hora -->
+    <!-- Horarios disponibles -->
     <label>Hora:</label>
     <select v-model="hora" required>
       <option disabled value="">-- Selecciona hora --</option>
@@ -73,6 +74,7 @@ export default {
         .eq('usuario_id', user.user.id)
       this.mascotas = data || []
     },
+
     abrirNuevaMascota() { this.mostrarModalMascota = true },
     cerrarModalMascota() { this.mostrarModalMascota = false },
     agregarMascota(mascota) { 
@@ -80,35 +82,65 @@ export default {
       this.mascotaId = mascota.id 
     },
 
-    async cargarHorasDisponibles() {
-      if (!this.fecha || !this.veterinarioId) return
+    async cargarHorarios() {
+  if (!this.veterinarioId) return
 
-      const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"]
-      const dia = diasSemana[new Date(this.fecha).getDay()]
+  try {
+    // Obtener horarios del veterinario según día
+    const diaSemana = this.fecha
+      ? ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date(this.fecha).getDay()]
+      : null
 
-      const { data: vet } = await supabase
-        .from('veterinarios')
-        .select('horario_disponible')
-        .eq('id', this.veterinarioId)
-        .single()
+    const { data: horariosVet, error } = await supabase
+      .from('horarios_veterinarios')
+      .select('hora_inicio,hora_fin,dia,es_disponible')
+      .eq('veterinario_id', this.veterinarioId)
+      .eq('es_disponible', true)
 
-      let horarioVet = vet?.horario_disponible?.[dia] || []
+    if (error) throw error
 
+    // Filtrar por día si se seleccionó fecha
+    let horariosFiltrados = horariosVet
+    if (diaSemana) {
+      horariosFiltrados = horariosVet.filter(h => h.dia === diaSemana)
+    }
+
+    // Generar intervalos de 30 minutos
+    let horas = []
+    horariosFiltrados.forEach(hv => {
+      let [hora, minuto] = hv.hora_inicio.split(':').map(Number)
+      const [finHora, finMin] = hv.hora_fin.split(':').map(Number)
+
+      while (hora < finHora || (hora === finHora && minuto < finMin)) {
+        horas.push(`${String(hora).padStart(2,'0')}:${String(minuto).padStart(2,'0')}`)
+        minuto += 30
+        if (minuto >= 60) { minuto = 0; hora += 1 }
+      }
+    })
+
+    // Filtrar horas ya ocupadas en citasmascotas (si se eligió fecha)
+    if (this.fecha) {
       const { data: citas } = await supabase
         .from('citasmascotas')
         .select('hora')
         .eq('veterinario_id', this.veterinarioId)
         .eq('fecha', this.fecha)
+      const ocupadas = citas.map(c => c.hora)
+      horas = horas.filter(h => !ocupadas.includes(h))
+    }
 
-      const horasOcupadas = citas.map(c => c.hora)
-      this.horasDisponibles = horarioVet.filter(h => !horasOcupadas.includes(h))
-    },
+    this.horasDisponibles = horas
+  } catch (err) {
+    console.error('Error cargando horarios del veterinario:', err.message)
+  }
+},
+
 
     async agendar() {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return alert('Debes iniciar sesión')
 
-      if (!this.mascotaId || !this.veterinarioId || !this.servicioId || !this.fecha || !this.hora) {
+      if (!this.mascotaId || !this.veterinarioId || !this.servicioId || !this.hora) {
         return alert('Completa todos los campos')
       }
 
@@ -117,7 +149,7 @@ export default {
         mascota_id: this.mascotaId,
         veterinario_id: this.veterinarioId,
         servicio_id: this.servicioId,
-        fecha: this.fecha,
+        fecha: this.fecha || new Date().toISOString().split('T')[0],
         hora: this.hora
       }])
 
@@ -129,65 +161,15 @@ export default {
   }
 }
 </script>
-
 <style scoped>
-.form-cita {
-  max-width: 500px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.form-cita h2 {
-  text-align: center;
-  color: #2c3e50;
-  margin-bottom: 1rem;
-}
-
-.form-cita label {
-  font-weight: 600;
-  margin-bottom: 0.3rem;
-  color: #34495e;
-}
-
-.form-cita select,
-.form-cita input[type="date"] {
-  padding: 0.5rem 0.8rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 1rem;
-}
-
-.form-cita button {
-  padding: 0.7rem 1.5rem;
-  border: none;
-  border-radius: 50px;
-  background-color: #3498db;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.form-cita button:hover {
-  background-color: #2980b9;
-  transform: translateY(-2px);
-}
-
-.form-cita button[type="button"] {
-  background-color: #2ecc71;
-}
-
-.form-cita button[type="button"]:hover {
-  background-color: #27ae60;
-}
-
-.form-cita select:disabled {
-  background-color: #f0f0f0;
-}
+/* estilos idénticos a los anteriores */
+.form-cita { max-width: 500px; margin: 2rem auto; padding: 2rem; background: #ffffffff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 1rem; }
+.form-cita h2 { text-align: center; color: #2c3e50; margin-bottom: 1rem; }
+.form-cita label { font-weight: 600; margin-bottom: 0.3rem; color: #34495e; }
+.form-cita select, .form-cita input[type="date"] { padding: 0.5rem 0.8rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+.form-cita button { padding: 0.7rem 1.5rem; border: none; border-radius: 50px; background-color: #3498db; color: #fff; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+.form-cita button:hover { background-color: #2980b9; transform: translateY(-2px); }
+.form-cita button[type="button"] { background-color: #2ecc71; }
+.form-cita button[type="button"]:hover { background-color: #27ae60; }
+.form-cita select:disabled { background-color: #f0f0f0; }
 </style>

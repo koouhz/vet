@@ -1,16 +1,39 @@
 <template>
   <div class="servicios">
     <section class="hero">
-      <h1>Nuestros Servicios</h1>
-      <p>Atención integral para perros, gatos y pequeños animales, con tecnología y cariño.</p>
+      <h1>Servicios con Veterinarios</h1>
+      <p>
+        Estos son los servicios disponibles junto con los veterinarios
+        que actualmente los atienden.
+      </p>
     </section>
 
     <section class="services-list">
-      <div class="service-item" v-for="servicio in servicios" :key="servicio.id">
-        <img :src="servicio.foto_url" :alt="servicio.titulo" />
-        <h3>{{ servicio.titulo }}</h3>
-        <p>{{ servicio.descripcion }}</p>
-        <button class="btn-primary" @click="irAgendarCita(servicio.id)">
+      <div
+        class="service-item"
+        v-for="rel in serviciosVeterinarios"
+        :key="rel.id"
+      >
+        <img :src="rel.servicios?.foto_url" :alt="rel.servicios?.titulo" />
+        <h3>{{ rel.servicios?.titulo }}</h3>
+        <p>{{ rel.servicios?.descripcion }}</p>
+
+        <!-- Veterinario asignado -->
+        <div v-if="rel.veterinarios">
+          <h4>Veterinario:</h4>
+          <p>
+            {{ rel.veterinarios.usuarios?.nombre_completo }} – 
+            {{ rel.veterinarios.especialidades?.nombre }}
+          </p>
+        </div>
+        <div v-else>
+          <p class="no-vet">⚠️ Sin veterinario asignado</p>
+        </div>
+
+        <button
+          class="btn-primary"
+          @click="irAgendarCita(rel.servicios.id, rel.veterinarios?.id)"
+        >
           Agendar ahora
         </button>
       </div>
@@ -25,37 +48,52 @@ export default {
   name: 'ServiciosView',
   data() {
     return {
-      servicios: []
+      serviciosVeterinarios: []
     }
   },
   async created() {
-    await this.cargarServicios()
+    await this.cargarServiciosVeterinarios()
   },
   methods: {
-    async cargarServicios() {
+    async cargarServiciosVeterinarios() {
       try {
-        // Traer todos los servicios activos de la tabla servicios
         const { data, error } = await supabase
-          .from('servicios')
-          .select('id, titulo, descripcion, foto_url, is_activo')
-          .eq('is_activo', true) // opcional: solo los activos
+          .from('servicios_veterinarios')
+          .select(`
+            id,
+            servicios (
+              id,
+              titulo,
+              descripcion,
+              foto_url,
+              is_activo
+            ),
+            veterinarios (
+              id,
+              usuarios (
+                nombre_completo
+              ),
+              especialidades (
+                nombre
+              )
+            )
+          `)
 
         if (error) throw error
 
-        this.servicios = data
+        this.serviciosVeterinarios = data
       } catch (err) {
-        console.error('Error cargando servicios:', err.message)
+        console.error('Error cargando servicios con veterinarios:', err.message)
       }
     },
 
-    async irAgendarCita(servicioId) {
+    async irAgendarCita(servicioId, veterinarioId) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return this.$router.push({ name: 'Login' })
 
-      // Redirige al formulario de citas pasando el servicio elegido
       this.$router.push({
         name: 'AgendarCita',
-        query: { servicioId }
+        query: { servicioId, veterinarioId }
       })
     }
   }
@@ -76,12 +114,21 @@ export default {
   color: white;
 }
 
-.hero h1 { font-size: 3rem; margin-bottom: 1rem; font-weight: 700; }
-.hero p { font-size: 1.4rem; max-width: 800px; margin: 0 auto; color: rgba(255,255,255,0.9); }
+.hero h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+.hero p {
+  font-size: 1.4rem;
+  max-width: 800px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.9);
+}
 
 .services-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px,1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 3rem;
   padding: 5rem 2rem;
   max-width: 1200px;
@@ -92,17 +139,41 @@ export default {
   background: white;
   border-radius: 15px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   text-align: center;
   padding-bottom: 1.5rem;
 }
 
-.service-item:hover { transform: translateY(-10px); box-shadow: 0 15px 40px rgba(0,0,0,0.12); }
+.service-item:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
 
-.service-item img { width: 100%; height: 250px; object-fit: cover; }
-.service-item h3 { padding: 1.5rem; margin: 0; color: #2c3e50; font-size: 1.6rem; font-weight: 600; }
-.service-item p { padding: 0 1.5rem 1rem; color: #555; line-height: 1.7; font-size: 1rem; }
+.service-item img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+.service-item h3 {
+  padding: 1.5rem;
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+.service-item p {
+  padding: 0 1.5rem 1rem;
+  color: #555;
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+.no-vet {
+  color: #e74c3c;
+  font-weight: 500;
+  margin: 0.5rem 0;
+}
 
 .btn-primary {
   margin-top: 0.5rem;
@@ -117,14 +188,24 @@ export default {
   font-weight: 600;
 }
 
-.btn-primary:hover { background-color: #2980b9; transform: translateY(-2px); }
+.btn-primary:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
 
 @media (max-width: 768px) {
-  .hero h1 { font-size: 2.5rem; }
-  .hero p { font-size: 1.2rem; }
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+  .hero p {
+    font-size: 1.2rem;
+  }
 }
 
 @media (max-width: 480px) {
-  .services-list { grid-template-columns: 1fr; padding: 2rem 1rem; }
+  .services-list {
+    grid-template-columns: 1fr;
+    padding: 2rem 1rem;
+  }
 }
 </style>
