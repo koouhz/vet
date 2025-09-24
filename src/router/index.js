@@ -86,6 +86,30 @@ const routes = [
       component: () => import('@/views/Admin/equiposAdmin.vue')
     }
   ]
+},
+{
+  path: '/admin/testimonios',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'TestimoniosAdmin',
+      component: () => import('@/views/Admin/testimoniosAdmin.vue')
+    }
+  ]
+},
+{
+  path: '/admin/configuracion',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'ConfiguracionAdmin',
+      component: () => import('@/views/Admin/configuracionAdmin.vue')
+    }
+  ]
 }
 ]
 
