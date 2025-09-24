@@ -5,7 +5,6 @@
       <div class="admin-header">
         <h1 class="admin-title">Configuración y Horarios</h1>
       </div>
-
       <!-- Tabs de navegación -->
       <div class="tabs-container">
         <button 
@@ -18,7 +17,6 @@
           <span>{{ tab.label }}</span>
         </button>
       </div>
-
       <!-- Contenido según tab seleccionado -->
       <div class="tab-content">
         <!-- Tab: Configuración del Sistema -->
@@ -37,13 +35,11 @@
               <i class="fas fa-plus"></i> Nueva Configuración
             </button>
           </div>
-
           <!-- Estado de carga -->
           <div v-if="loadingConfig" class="loading">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Cargando configuraciones del sistema...</p>
           </div>
-
           <!-- Lista de configuraciones -->
           <div v-else class="configuraciones-lista">
             <div v-if="configuracionesFiltradas.length === 0" class="no-data">
@@ -84,7 +80,6 @@
             </div>
           </div>
         </div>
-
         <!-- Tab: Asignación a Veterinarios -->
         <div v-if="activeTab === 'asignacion-veterinarios'" class="asignacion-tab">
           <div class="action-header">
@@ -94,23 +89,20 @@
                 {{ vet.nombre_completo }} - {{ vet.especialidad_nombre }}
               </option>
             </select>
-            <button v-if="veterinarioSeleccionado" @click="openCrearHorarioModal" class="btn-primary">
-              <i class="fas fa-plus"></i> Agregar Horario Personalizado
+            <button v-if="veterinarioSeleccionado" @click="openAsignarHorarioModal" class="btn-primary">
+              <i class="fas fa-plus"></i> Asignar Horario Base
             </button>
           </div>
-
           <!-- Estado de carga -->
           <div v-if="loadingAsignacion" class="loading">
             <i class="fas fa-spinner fa-spin"></i>
             <p>Cargando horarios...</p>
           </div>
-
           <!-- Vista de asignación por días -->
           <div v-else-if="veterinarioSeleccionado" class="asignacion-container">
             <h3 class="veterinario-title">
               Horarios para: {{ getNombreVeterinario(veterinarioSeleccionado) }}
             </h3>
-            
             <div class="dias-semana-grid">
               <div 
                 v-for="dia in diasSemana" 
@@ -152,15 +144,11 @@
                   </div>
                   <div v-if="getHorariosPorDia(dia.value).length === 0" class="no-horarios-dia">
                     <p>No hay horarios asignados</p>
-                    <button @click="crearHorarioParaDia(dia.value)" class="btn-secondary">
-                      <i class="fas fa-plus"></i> Agregar horario para {{ dia.label }}
-                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
           <div v-else class="seleccion-veterinario">
             <i class="fas fa-user-md"></i>
             <p>Selecciona un veterinario para gestionar sus horarios</p>
@@ -227,55 +215,41 @@
         </div>
       </div>
 
-      <!-- Modal Crear Horario Personalizado -->
-      <div v-if="modalHorarioVisible" class="modal-overlay" @click.self="cerrarModalHorario">
+      <!-- Modal Asignar Horario Base -->
+      <div v-if="modalAsignarHorarioVisible" class="modal-overlay" @click.self="cerrarModalAsignarHorario">
         <div class="modal-contenido">
           <div class="modal-header">
-            <h2>Crear Nuevo Horario Personalizado</h2>
-            <button class="btn-close" @click="cerrarModalHorario">&times;</button>
+            <h2>Asignar Horario Base</h2>
+            <button class="btn-close" @click="cerrarModalAsignarHorario">&times;</button>
           </div>
           <div class="modal-body">
-            <form @submit.prevent="crearHorario" class="form-horario">
-              <div class="form-group">
-                <label for="dia_semana">Día de la semana *</label>
-                <select id="dia_semana" v-model="horarioForm.dia_semana" required>
-                  <option value="">Seleccionar día</option>
-                  <option value="lunes">Lunes</option>
-                  <option value="martes">Martes</option>
-                  <option value="miércoles">Miércoles</option>
-                  <option value="jueves">Jueves</option>
-                  <option value="viernes">Viernes</option>
-                  <option value="sábado">Sábado</option>
-                  <option value="domingo">Domingo</option>
-                </select>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="hora_inicio">Hora de inicio *</label>
-                  <input 
-                    type="time" 
-                    id="hora_inicio" 
-                    v-model="horarioForm.hora_inicio" 
-                    required
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="hora_fin">Hora de fin *</label>
-                  <input 
-                    type="time" 
-                    id="hora_fin" 
-                    v-model="horarioForm.hora_fin" 
-                    required
-                  />
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn-secondary" @click="cerrarModalHorario">Cancelar</button>
-                <button type="submit" class="btn-primary">
-                  Crear Horario
-                </button>
-              </div>
-            </form>
+            <div class="form-group">
+              <label>Veterinario: {{ getNombreVeterinario(veterinarioSeleccionado) }}</label>
+            </div>
+            <div class="form-group">
+              <label for="horarioBase">Seleccionar horario base</label>
+              <select id="horarioBase" v-model="horarioBaseSeleccionado" class="form-control">
+                <option value="">-- Elegir horario --</option>
+                <option
+                  v-for="hb in horariosBaseDisponibles"
+                  :key="hb.id"
+                  :value="hb.id"
+                >
+                  {{ hb.dia_semana }}: {{ formatHora(hb.hora_inicio) }} - {{ formatHora(hb.hora_fin) }}
+                </option>
+              </select>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-secondary" @click="cerrarModalAsignarHorario">Cancelar</button>
+              <button 
+                type="button" 
+                class="btn-primary" 
+                :disabled="!horarioBaseSeleccionado"
+                @click="asignarHorarioBase"
+              >
+                Asignar Horario
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -350,15 +324,13 @@ const configuracionEliminar = ref(null)
 const veterinarios = ref([])
 const veterinarioSeleccionado = ref('')
 const horariosVeterinario = ref([])
+const horariosBase = ref([])
 const loadingAsignacion = ref(true)
-const modalHorarioVisible = ref(false)
+const modalAsignarHorarioVisible = ref(false)
 const modalEliminarHorarioVisible = ref(false)
-const horarioForm = ref({
-  dia_semana: '',
-  hora_inicio: '',
-  hora_fin: ''
-})
+const horarioBaseSeleccionado = ref(null)
 const horarioEliminar = ref(null)
+
 const diasSemana = [
   { value: 'lunes', label: 'Lunes' },
   { value: 'martes', label: 'Martes' },
@@ -372,9 +344,8 @@ const diasSemana = [
 // Cargar datos de configuración
 const cargarConfiguraciones = async () => {
   loadingConfig.value = true
-  
   try {
-    const {  configData, error: configError } = await supabase
+    const { data: configData, error: configError } = await supabase
       .from('configuracionesistema')
       .select(`
         clave,
@@ -384,18 +355,14 @@ const cargarConfiguraciones = async () => {
         actualizado_en
       `)
       .order('clave', { ascending: true })
-    
     if (configError) throw configError
     configuraciones.value = configData || []
-    
     // Cargar usuarios
-    const {  usuariosData, error: usuariosError } = await supabase
+    const { data: usuariosData, error: usuariosError } = await supabase
       .from('usuarios')
       .select('id, nombre_completo')
-    
     if (usuariosError) throw usuariosError
     usuarios.value = usuariosData || []
-    
   } catch (error) {
     console.error('Error al cargar configuraciones:', error)
     alert('Error al cargar las configuraciones: ' + error.message)
@@ -407,61 +374,41 @@ const cargarConfiguraciones = async () => {
 // Cargar datos de veterinarios
 const cargarVeterinarios = async () => {
   try {
-    // Paso 1: Cargar solo los IDs de veterinarios activos
     const { data: veterinariosData, error: veterinariosError } = await supabase
       .from('veterinarios')
       .select('id, usuario_id, especialidad_id')
       .eq('is_activo', true)
-    
     if (veterinariosError) {
       console.error('Error al cargar veterinarios:', veterinariosError)
       alert('Error al cargar los veterinarios: ' + veterinariosError.message)
       return
     }
-    
     if (!veterinariosData || veterinariosData.length === 0) {
       veterinarios.value = []
       return
     }
-    
-    // Extraer los IDs
     const usuarioIds = [...new Set(veterinariosData.map(v => v.usuario_id))]
     const especialidadIds = [...new Set(veterinariosData.map(v => v.especialidad_id))]
-    
-    // Paso 2: Cargar usuarios
+
     const { data: usuariosData, error: usuariosError } = await supabase
       .from('usuarios')
       .select('id, nombre_completo')
       .in('id', usuarioIds)
-    
-    if (usuariosError) {
-      console.error('Error al cargar usuarios:', usuariosError)
-      // Continuamos aunque falle
-    }
-    
-    // Paso 3: Cargar especialidades
+
     const { data: especialidadesData, error: especialidadesError } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .in('id', especialidadIds)
-    
-    if (especialidadesError) {
-      console.error('Error al cargar especialidades:', especialidadesError)
-      // Continuamos aunque falle
-    }
-    
-    // Crear mapas para acceso rápido
+
     const usuariosMap = new Map()
     if (usuariosData) {
       usuariosData.forEach(u => usuariosMap.set(u.id, u.nombre_completo))
     }
-    
     const especialidadesMap = new Map()
     if (especialidadesData) {
       especialidadesData.forEach(e => especialidadesMap.set(e.id, e.nombre))
     }
-    
-    // Construir el array final
+
     veterinarios.value = veterinariosData.map(vet => ({
       id: vet.id,
       usuario_id: vet.usuario_id,
@@ -475,45 +422,68 @@ const cargarVeterinarios = async () => {
       if (nameA > nameB) return 1
       return 0
     })
-    
-    console.log('Veterinarios cargados:', veterinarios.value)
-    
   } catch (error) {
     console.error('Error inesperado al cargar veterinarios:', error)
     alert('Error inesperado al cargar los veterinarios: ' + error.message)
   }
 }
 
-// Cargar horarios del veterinario seleccionado
+// Cargar horarios base
+const cargarHorariosBase = async () => {
+  const { data, error } = await supabase
+    .from('horarios_base')
+    .select('*')
+    .order('dia_semana')
+    .order('hora_inicio')
+  if (error) {
+    console.error('Error al cargar horarios base:', error)
+    alert('Error al cargar horarios base')
+    return
+  }
+  horariosBase.value = data || []
+}
+
+// Cargar horarios del veterinario seleccionado (con relación a horarios_base)
 const cargarHorariosVeterinario = async () => {
   if (!veterinarioSeleccionado.value) {
     horariosVeterinario.value = []
     return
   }
-  
   loadingAsignacion.value = true
-  
   try {
-    const {  horariosVetData, error: horariosVetError } = await supabase
+    const { data, error } = await supabase
       .from('horarios_veterinarios')
-      .select('*')
+      .select(`
+        id,
+        veterinario_id,
+        horario_base_id,
+        es_disponible,
+        actualizado_en,
+        horario_base:horarios_base!inner (
+          dia_semana,
+          hora_inicio,
+          hora_fin
+        )
+      `)
       .eq('veterinario_id', veterinarioSeleccionado.value)
-    
-    if (horariosVetError) {
-      console.error('Error Supabase al cargar horarios:', horariosVetError)
-      alert('Error al cargar los horarios del veterinario: ' + horariosVetError.message)
-      return
-    }
-    
-    if (!horariosVetData || !Array.isArray(horariosVetData)) {
-      horariosVeterinario.value = []
-      return
-    }
-    
-    horariosVeterinario.value = horariosVetData
+
+    if (error) throw error
+
+    const horariosConDatos = (data || []).map(hv => ({
+      id: hv.id,
+      horario_base_id: hv.horario_base_id,
+      veterinario_id: hv.veterinario_id,
+      es_disponible: hv.es_disponible,
+      actualizado_en: hv.actualizado_en,
+      dia_semana: hv.horario_base.dia_semana,
+      hora_inicio: hv.horario_base.hora_inicio,
+      hora_fin: hv.horario_base.hora_fin
+    }))
+
+    horariosVeterinario.value = horariosConDatos
   } catch (error) {
-    console.error('Error inesperado al cargar horarios:', error)
-    alert('Error inesperado al cargar los horarios: ' + error.message)
+    console.error('Error al cargar horarios del veterinario:', error)
+    alert('Error al cargar los horarios: ' + error.message)
   } finally {
     loadingAsignacion.value = false
   }
@@ -525,7 +495,6 @@ const configuracionesFiltradas = computed(() => {
     const coincideBusqueda = !busquedaConfig.value || 
       config.clave.toLowerCase().includes(busquedaConfig.value.toLowerCase()) ||
       (config.descripcion && config.descripcion.toLowerCase().includes(busquedaConfig.value.toLowerCase()))
-    
     return coincideBusqueda
   })
 })
@@ -577,40 +546,35 @@ const cerrarModalConfig = () => {
 const guardarConfiguracion = async () => {
   errorClave.value = ''
   errorValor.value = ''
-  
   if (!configuracionForm.value.clave.trim()) {
     errorClave.value = 'La clave es requerida'
     return
   }
-  
   try {
     JSON.parse(configuracionForm.value.valor)
   } catch (error) {
     errorValor.value = 'El valor debe ser un JSON válido'
     return
   }
-  
   try {
+    const user = (await supabase.auth.getUser()).data.user
     if (modoEdicionConfig.value) {
       const { data, error } = await supabase
         .from('configuracionesistema')
         .update({
           valor: JSON.parse(configuracionForm.value.valor),
           descripcion: configuracionForm.value.descripcion,
-          actualizado_por: (await supabase.auth.getUser()).data.user?.id,
+          actualizado_por: user?.id,
           actualizado_en: new Date().toISOString()
         })
         .eq('clave', configuracionForm.value.clave)
         .select()
         .single()
-      
       if (error) throw error
-      
       const index = configuraciones.value.findIndex(c => c.clave === configuracionForm.value.clave)
       if (index !== -1) {
         configuraciones.value[index] = { ...data }
       }
-      
       alert('Configuración actualizada exitosamente')
     } else {
       const { data, error } = await supabase
@@ -619,17 +583,14 @@ const guardarConfiguracion = async () => {
           clave: configuracionForm.value.clave,
           valor: JSON.parse(configuracionForm.value.valor),
           descripcion: configuracionForm.value.descripcion,
-          actualizado_por: (await supabase.auth.getUser()).data.user?.id
+          actualizado_por: user?.id
         })
         .select()
         .single()
-      
       if (error) throw error
-      
       configuraciones.value.push(data)
       alert('Configuración creada exitosamente')
     }
-    
     cerrarModalConfig()
   } catch (error) {
     console.error('Error al guardar configuración:', error)
@@ -656,9 +617,7 @@ const confirmarEliminarConfig = async () => {
       .from('configuracionesistema')
       .delete()
       .eq('clave', configuracionEliminar.value.clave)
-    
     if (error) throw error
-    
     configuraciones.value = configuraciones.value.filter(c => c.clave !== configuracionEliminar.value.clave)
     alert('Configuración eliminada exitosamente')
     cerrarModalEliminarConfig()
@@ -668,11 +627,13 @@ const confirmarEliminarConfig = async () => {
   }
 }
 
-const filtrarConfiguraciones = () => {
-  // Se maneja con computed property
-}
-
 // --- ASIGNACIÓN A VETERINARIOS: Métodos ---
+const horariosBaseDisponibles = computed(() => {
+  if (!veterinarioSeleccionado.value) return []
+  const idsAsignados = new Set(horariosVeterinario.value.map(h => h.horario_base_id))
+  return horariosBase.value.filter(hb => !idsAsignados.has(hb.id))
+})
+
 const getHorariosPorDia = (dia) => {
   return horariosVeterinario.value.filter(h => h.dia_semana === dia)
 }
@@ -690,62 +651,66 @@ const formatHora = (hora) => {
 
 const calcularDuracion = (inicio, fin) => {
   if (!inicio || !fin) return 0
-  
   const [horaIni, minIni] = inicio.split(':').map(Number)
   const [horaFin, minFin] = fin.split(':').map(Number)
-  
   const inicioMinutos = horaIni * 60 + minIni
   const finMinutos = horaFin * 60 + minFin
-  
   return finMinutos - inicioMinutos
 }
 
-const openCrearHorarioModal = () => {
-  horarioForm.value = {
-    dia_semana: '',
-    hora_inicio: '',
-    hora_fin: ''
-  }
-  modalHorarioVisible.value = true
+const openAsignarHorarioModal = () => {
+  modalAsignarHorarioVisible.value = true
+  horarioBaseSeleccionado.value = null
 }
 
-const crearHorarioParaDia = (dia) => {
-  horarioForm.value = {
-    dia_semana: dia,
-    hora_inicio: '',
-    hora_fin: ''
-  }
-  modalHorarioVisible.value = true
+const cerrarModalAsignarHorario = () => {
+  modalAsignarHorarioVisible.value = false
+  horarioBaseSeleccionado.value = null
 }
 
-const cerrarModalHorario = () => {
-  modalHorarioVisible.value = false
-}
+const asignarHorarioBase = async () => {
+  if (!horarioBaseSeleccionado.value) return
 
-const crearHorario = async () => {
   try {
     const { data, error } = await supabase
       .from('horarios_veterinarios')
       .insert({
         veterinario_id: veterinarioSeleccionado.value,
-        dia_semana: horarioForm.value.dia_semana,
-        hora_inicio: horarioForm.value.hora_inicio,
-        hora_fin: horarioForm.value.hora_fin,
+        horario_base_id: horarioBaseSeleccionado.value,
         es_disponible: true
       })
-      .select()
+      .select(`
+        id,
+        veterinario_id,
+        horario_base_id,
+        es_disponible,
+        actualizado_en,
+        horario_base:horarios_base!inner (
+          dia_semana,
+          hora_inicio,
+          hora_fin
+        )
+      `)
       .single()
-    
+
     if (error) throw error
-    
-    // Agregar a la lista local
-    horariosVeterinario.value.push(data)
-    
-    alert('Horario personalizado creado exitosamente')
-    cerrarModalHorario()
+
+    horariosVeterinario.value.push({
+      id: data.id,
+      horario_base_id: data.horario_base_id,
+      veterinario_id: data.veterinario_id,
+      es_disponible: data.es_disponible,
+      actualizado_en: data.actualizado_en,
+      dia_semana: data.horario_base.dia_semana,
+      hora_inicio: data.horario_base.hora_inicio,
+      hora_fin: data.horario_base.hora_fin
+    })
+
+    alert('Horario asignado exitosamente')
+    cerrarModalAsignarHorario()
   } catch (error) {
-    console.error('Error al crear horario:', error)
-    alert('Error al crear el horario: ' + error.message)
+    console.error('Error al asignar horario:', error)
+    alert('Error al asignar horario: ' + error.message)
   }
 }
 
@@ -761,14 +726,11 @@ const toggleDisponibilidad = async (horario) => {
       .eq('id', horario.id)
       .select()
       .single()
-    
     if (error) throw error
-    
     const index = horariosVeterinario.value.findIndex(h => h.id === horario.id)
     if (index !== -1) {
       horariosVeterinario.value[index] = { ...data }
     }
-    
     alert(`Horario ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`)
   } catch (error) {
     console.error('Error al cambiar disponibilidad:', error)
@@ -795,9 +757,7 @@ const confirmarEliminarHorario = async () => {
       .from('horarios_veterinarios')
       .delete()
       .eq('id', horarioEliminar.value.id)
-    
     if (error) throw error
-    
     horariosVeterinario.value = horariosVeterinario.value.filter(h => h.id !== horarioEliminar.value.id)
     alert('Horario eliminado exitosamente')
     cerrarModalEliminarHorario()
@@ -811,8 +771,10 @@ const confirmarEliminarHorario = async () => {
 onMounted(async () => {
   await cargarConfiguraciones()
   await cargarVeterinarios()
+  await cargarHorariosBase()
 })
 </script>
+
 
 <style scoped>
 .configuracion-admin-container {
