@@ -34,32 +34,15 @@ export default {
   methods: {
     async cargarServicios() {
       try {
-        // Trae servicios vinculados a veterinarios activos
+        // Traer todos los servicios activos de la tabla servicios
         const { data, error } = await supabase
-          .from('servicios_veterinarios')
-          .select(`
-            servicio_id,
-            servicios(id, titulo, descripcion, foto_url, is_activo),
-            veterinario:veterinarios(id, is_activo)
-          `)
+          .from('servicios')
+          .select('id, titulo, descripcion, foto_url, is_activo')
+          .eq('is_activo', true) // opcional: solo los activos
 
         if (error) throw error
 
-        // Filtrar servicios válidos: activos y con al menos un veterinario activo
-        const serviciosValidos = []
-        const seen = new Set()
-
-        data.forEach(sv => {
-          const s = sv.servicios
-          const vetActivo = sv.veterinario?.is_activo
-
-          if (s?.is_activo && vetActivo && !seen.has(s.id)) {
-            serviciosValidos.push(s)
-            seen.add(s.id)
-          }
-        })
-
-        this.servicios = serviciosValidos
+        this.servicios = data
       } catch (err) {
         console.error('Error cargando servicios:', err.message)
       }
@@ -68,11 +51,17 @@ export default {
     async irAgendarCita(servicioId) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return this.$router.push({ name: 'Login' })
-      this.$router.push({ name: 'AgendarCita', query: { servicio: servicioId } })
+
+      // Redirige al formulario de citas pasando el servicio elegido
+      this.$router.push({ 
+        name: 'AgendarCita', 
+        query: { servicioId } 
+      })
     }
   }
 }
 </script>
+
 
 <style scoped>
 .servicios {

@@ -15,7 +15,7 @@ const routes = [
       { path: 'contacto', name: 'Contacto', component: () => import('@/views/Contacto.vue') },
       { path: 'login', name: 'Login', component: () => import('@/views/loginView.vue') },
       { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') },
-       { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') } // ← nueva
+      { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') } // ← nueva
     ]
   },
 
