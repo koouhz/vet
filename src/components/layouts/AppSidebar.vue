@@ -1,21 +1,12 @@
 <template>
-  <aside
-    class="app-sidebar"
-    :class="{ 'sidebar-collapsed': isCollapsed }"
-    aria-label="Navegación principal"
-  >
+  <aside :class="['app-sidebar', { 'sidebar-collapsed': isCollapsed }]" aria-label="Navegación principal">
     <!-- Logo & Toggle -->
     <div class="sidebar-header">
       <div class="logo-container">
-        <img src="@/assets/img/logo.png" alt="Logo Clínica Veterinaria" class="logo" />
+        <img src="@/assets/img/logo.png" alt="Logo VetCare" class="logo" />
         <h1 v-if="!isCollapsed" class="logo-text">VetCare</h1>
       </div>
-      <button
-        v-if="showToggle"
-        @click="toggleSidebar"
-        class="toggle-btn"
-        aria-label="Alternar menú"
-      >
+      <button v-if="showToggle" @click="toggleSidebar" class="toggle-btn" aria-label="Alternar menú">
         <i class="ph ph-caret-left" :class="{ rotated: isCollapsed }"></i>
       </button>
     </div>
@@ -23,138 +14,41 @@
     <!-- Navegación Principal -->
     <nav class="sidebar-nav">
       <ul class="nav-list">
+        <SidebarItem to="/" icon="ph-house" label="Inicio" :collapsed="isCollapsed" />
+
         <!-- Dashboard según rol -->
         <SidebarItem
-          v-if="userRole === 'admin'"
-          to="/dashboard/admin"
-          icon="ph-chart-bar"
-          label="Dashboard Admin"
-        />
-        <SidebarItem
-          v-else-if="userRole === 'veterinario'"
-          to="/dashboard/vet"
-          icon="ph-stethoscope"
-          label="Mi Panel"
+          :to="dashboardRoute"
+          icon="ph-gauge"
+          label="Dashboard"
+          :collapsed="isCollapsed"
         />
 
-        <!-- Citas -->
-        <SidebarItem
-          to="/citas"
-          icon="ph-calendar"
-          label="Mis Citas"
-          v-if="userRole !== 'admin'"
-        />
-        <SidebarItem
-          to="/citas-gestion"
-          icon="ph-calendar-check"
-          label="Gestionar Citas"
-          v-if="userRole === 'admin' || userRole === 'veterinario'"
-        />
+        <SidebarItem to="/reportes" icon="ph-file-text" label="Reportes" :collapsed="isCollapsed" />
+        <SidebarItem to="/configuracion" icon="ph-gear" label="Configuración" :collapsed="isCollapsed" />
 
-        <!-- Mascotas -->
-        <SidebarItem
-          to="/mascotas"
-          icon="ph-paw-print"
-          label="Mis Mascotas"
-          v-if="userRole !== 'admin'"
-        />
-        <SidebarItem
-          to="/mascotas-gestion"
-          icon="ph-dog"
-          label="Todas las Mascotas"
-          v-if="userRole === 'admin'"
-        />
-
-        <!-- Veterinarios -->
-        <SidebarItem
-          to="/equipo"
-          icon="ph-users"
-          label="Nuestro Equipo"
-          v-if="userRole !== 'veterinario'"
-        />
-        <SidebarItem
-          to="/mi-perfil-vet"
-          icon="ph-user-circle-gear"
-          label="Mi Perfil Profesional"
-          v-if="userRole === 'veterinario'"
-        />
-
-        <!-- Servicios -->
-        <SidebarItem
-          to="/servicios"
-          icon="ph-list-checks"
-          label="Servicios"
-        />
-
-        <!-- Testimonios -->
-        <SidebarItem
-          to="/testimonios"
-          icon="ph-chat-centered-text"
-          label="Testimonios"
-        />
-        <SidebarItem
-          to="/testimonios-aprobar"
-          icon="ph-check-circle"
-          label="Aprobar Testimonios"
-          v-if="userRole === 'admin'"
-        />
-
-        <!-- Contacto y Mensajes -->
-        <SidebarItem
-          to="/contacto"
-          icon="ph-envelope"
-          label="Contáctanos"
-          v-if="userRole === 'cliente'"
-        />
-        <SidebarItem
-          to="/mensajes"
-          icon="ph-inbox"
-          label="Mensajes de Contacto"
-          v-if="userRole === 'admin'"
-        />
-
-        <!-- Configuración (solo admin) -->
-        <SidebarItem
-          to="/configuracion"
-          icon="ph-gear"
-          label="Configuración"
-          v-if="userRole === 'admin'"
-        />
-
-        <!-- Perfil y Cerrar Sesión -->
         <li class="nav-divider"></li>
-        <SidebarItem
-          to="/perfil"
-          icon="ph-user"
-          label="Mi Perfil"
-        />
-        <SidebarItem
-          @click="handleLogout"
-          icon="ph-sign-out"
-          label="Cerrar Sesión"
-          class="logout-item"
-        />
+
+        <SidebarItem to="/perfil" icon="ph-user" label="Mi Perfil" :collapsed="isCollapsed" />
+        <SidebarItem @click="handleLogout" icon="ph-sign-out" label="Cerrar Sesión" :collapsed="isCollapsed" class="logout-item" />
       </ul>
     </nav>
   </aside>
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import SidebarItem from './SidebarItem.vue';
 
-// Inyectamos el store global o auth (ajusta según tu implementación)
-// Aquí asumo que tienes un store de auth o un composable que provee userRole
-const authStore = inject('authStore') || {
-  user: { role: 'cliente' } // fallback para desarrollo
-};
+// Inyectamos authStore global
+const authStore = inject('authStore') || { user: { role: 'cliente' } };
 
 const userRole = computed(() => authStore.user?.role || 'cliente');
 
 const router = useRouter();
 const isCollapsed = ref(false);
-const showToggle = ref(false); // Puedes activarlo si quieres permitir colapsar
+const showToggle = ref(true);
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
@@ -162,7 +56,6 @@ const toggleSidebar = () => {
 
 const handleLogout = async () => {
   try {
-    // Aquí debes integrar tu lógica de logout con Supabase
     const { supabase } = await import('@/lib/supabaseClient.js');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -171,22 +64,29 @@ const handleLogout = async () => {
     console.error('Error al cerrar sesión:', err.message);
   }
 };
+
+// Dashboard route dinámico según rol
+const dashboardRoute = ref('/');
+watch(userRole, (newRole) => {
+  if (newRole === 'admin') dashboardRoute.value = '/dashboard-admin';
+  else if (newRole === 'veterinario') dashboardRoute.value = '/dashboard-vet';
+  else dashboardRoute.value = '/';
+}, { immediate: true });
 </script>
 
 <style scoped>
 .app-sidebar {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  border-right: 1px solid #e2e8f0;
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
   height: 100vh;
   width: 260px;
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 999;
-  transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.04);
 }
 
 .sidebar-collapsed {
@@ -198,7 +98,7 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 1.25rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .logo-container {
@@ -217,7 +117,7 @@ const handleLogout = async () => {
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-text);
   margin: 0;
   white-space: nowrap;
   transition: opacity 0.2s ease;
@@ -232,7 +132,7 @@ const handleLogout = async () => {
 .toggle-btn {
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--color-gray);
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 6px;
@@ -244,7 +144,7 @@ const handleLogout = async () => {
 }
 
 .toggle-btn:hover {
-  background-color: #e2e8f0;
+  background-color: var(--color-border);
 }
 
 .rotated {
@@ -265,25 +165,13 @@ const handleLogout = async () => {
 
 .nav-divider {
   height: 1px;
-  background-color: #e2e8f0;
+  background-color: var(--color-border);
   margin: 0.75rem 1rem;
 }
 
 .logout-item {
   margin-top: auto;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--color-border);
   padding-top: 1rem;
-}
-
-/* Media Queries */
-@media (max-width: 768px) {
-  .app-sidebar {
-    transform: translateX(-100%);
-    box-shadow: none;
-  }
-
-  .app-sidebar.active {
-    transform: translateX(0);
-  }
 }
 </style>
