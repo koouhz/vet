@@ -20,7 +20,8 @@ const routes = [
       { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') },
       { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') },
       // Añadir la nueva ruta para el restablecimiento de contraseña
-      { path: 'reset-password', name: 'ResetPassword', component: ResetPassword }
+      { path: 'reset-password', name: 'ResetPassword', component: ResetPassword },
+      { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') } // ← nueva
     ]
   },
 
