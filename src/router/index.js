@@ -5,7 +5,7 @@ import PublicLayout from '@/components/layouts/PublicLayout.vue'
 import DashboardLayout from '@/components/layouts/DashboardLayout.vue'
 
 // Importar el nuevo componente
-import ResetPassword from '@/views/ResetPassword.vue'
+import ResetPassword from '@/views/resetPassword.vue'
 
 const routes = [
   {
