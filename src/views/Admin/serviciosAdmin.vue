@@ -1,130 +1,166 @@
 <template>
   <div class="servicios-admin-container">
-    <!-- Contenedor principal con padding para el sidebar -->
-    <div class="main-content">
-      <!-- Header -->
-      <div class="admin-header">
-        <h1 class="admin-title">Gestión de Servicios</h1>
-        <button @click="openCrearServicioModal" class="btn-primary">
-          <i class="fas fa-plus"></i> Crear Nuevo Servicio
-        </button>
+    <AppSidebar />
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Servicios</h1>
+        <p class="subtitle">Gestiona el catálogo de servicios del sistema.</p>
+        <button @click="openCrearModal" class="btn btn--success">+ Nuevo Servicio</button>
       </div>
 
-      <!-- Filtros y búsqueda -->
-      <div class="filtros-container">
-        <div class="filtro-item">
-          <label for="filtro-categoria">Categoría</label>
-          <select id="filtro-categoria" v-model="filtroCategoria" @change="filtrarServicios">
-            <option value="">Todas las categorías</option>
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filter-categoria" class="filter-label">Categoría</label>
+          <select
+            id="filter-categoria"
+            :value="selectedCategoria"
+            @change="handleCategoriaChange"
+            class="status-select"
+          >
+            <option value="">Todas</option>
             <option value="consulta">Consulta</option>
             <option value="procedimiento">Procedimiento</option>
             <option value="cuidado">Cuidado</option>
             <option value="emergencia">Emergencia</option>
           </select>
         </div>
-        <div class="filtro-item">
-          <label for="filtro-especialidad">Especialidad</label>
-          <select id="filtro-especialidad" v-model="filtroEspecialidad" @change="filtrarServicios">
-            <option value="">Todas las especialidades</option>
-            <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">{{ esp.nombre }}</option>
+        <div class="filter-item">
+          <label for="filter-estado" class="filter-label">Estado</label>
+          <select
+            id="filter-estado"
+            :value="selectedActivo"
+            @change="handleActivoChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option value="true">Activo</option>
+            <option value="false">Inactivo</option>
           </select>
         </div>
-        <div class="search-box">
-          <input 
-            type="text" 
-            v-model="busqueda" 
-            placeholder="Buscar servicio..." 
-            @input="filtrarServicios"
-          />
-          <i class="fas fa-search search-icon"></i>
+        <div class="filter-item">
+          <label for="filter-especialidad" class="filter-label">Especialidad</label>
+          <select
+            id="filter-especialidad"
+            :value="selectedEspecialidad"
+            @change="handleEspecialidadChange"
+            class="status-select"
+          >
+            <option value="">Todas</option>
+            <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
+              {{ esp.nombre }}
+            </option>
+          </select>
         </div>
       </div>
 
-      <!-- Estado de carga -->
-      <div v-if="loading" class="loading">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Cargando servicios...</p>
-      </div>
-
-      <!-- Lista de servicios como tarjetas -->
-      <div v-else class="servicios-lista">
-        <div v-if="serviciosFiltrados.length === 0" class="no-data">
-          <i class="fas fa-search"></i>
-          <p>No se encontraron servicios</p>
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando servicios...</p>
         </div>
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadServicios" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else-if="filteredServicios.length === 0" class="message empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" />
+            <path d="M12 8V16" />
+            <path d="M8 12H16" />
+          </svg>
+          <p>No hay servicios que coincidan con los filtros.</p>
+        </div>
+
         <div v-else class="servicios-grid">
-          <div v-for="servicio in serviciosFiltrados" :key="servicio.id" class="servicio-card">
-            <div class="servicio-header">
-              <h3>{{ servicio.titulo }}</h3>
-              <span class="badge" :class="getCategoriaColor(servicio.categoria)">
-                {{ getCategoriaLabel(servicio.categoria) }}
+          <div
+            v-for="servicio in filteredServicios"
+            :key="servicio.id"
+            class="servicio-card"
+          >
+            <div class="card-header">
+              <h3 class="servicio-titulo">{{ servicio.titulo }}</h3>
+              <span class="badge" :class="`badge--${servicio.is_activo ? 'activo' : 'inactivo'}`">
+                {{ servicio.is_activo ? 'Activo' : 'Inactivo' }}
               </span>
             </div>
-            <div v-if="servicio.foto_url" class="servicio-imagen">
-              <img :src="servicio.foto_url" :alt="servicio.titulo" @error="handleImageError($event, servicio)" />
-            </div>
-            <div class="servicio-body">
+
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Categoría:</span>
+                <span class="value">{{ getCategoriaLabel(servicio.categoria) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Especialidad:</span>
+                <span class="value">{{ servicio.especialidad_nombre || 'General' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Duración:</span>
+                <span class="value">{{ servicio.duracion_minutos }} min</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Precio:</span>
+                <span class="value">{{ formatoMoneda(servicio.precio) }}</span>
+              </div>
               <div v-if="servicio.descripcion" class="info-row">
-                <span>{{ servicio.descripcion }}</span>
-              </div>
-              <div class="info-row">
-                <strong>Especialidad:</strong>
-                <span>{{ getNombreEspecialidad(servicio.especialidad_id) }}</span>
-              </div>
-              <div class="info-row">
-                <strong>Precio:</strong>
-                <span class="precio">S/ {{ servicio.precio.toFixed(2) }}</span>
-              </div>
-              <div class="info-row">
-                <strong>Duración:</strong>
-                <span class="duracion">{{ servicio.duracion_minutos }} min</span>
-              </div>
-              <div class="info-row">
-                <strong>Estado:</strong>
-                <span :class="servicio.is_activo ? 'estado-activo' : 'estado-inactivo'">
-                  {{ servicio.is_activo ? 'Activo' : 'Inactivo' }}
-                </span>
+                <span class="label">Descripción:</span>
+                <span class="value">{{ servicio.descripcion }}</span>
               </div>
             </div>
-            <div class="servicio-actions">
-              <button @click="editarServicio(servicio)" class="btn-edit" title="Editar">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button @click="toggleEstado(servicio)" class="btn-toggle" :class="{ 'btn-activo': servicio.is_activo }" :title="servicio.is_activo ? 'Desactivar' : 'Activar'">
-                <i :class="servicio.is_activo ? 'fas fa-toggle-on' : 'fas fa-toggle-off'"></i>
-              </button>
-              <button @click="eliminarServicio(servicio.id)" class="btn-delete" title="Eliminar">
-                <i class="fas fa-trash"></i>
+
+            <div class="card-footer">
+              <button @click="editarServicio(servicio)" class="btn btn--outline">Editar</button>
+              <button
+                @click="toggleEstado(servicio)"
+                class="btn"
+                :class="servicio.is_activo ? 'btn--danger' : 'btn--success'"
+              >
+                {{ servicio.is_activo ? 'Desactivar' : 'Activar' }}
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Modal Crear/Editar Servicio -->
-    <div v-if="modalVisible" class="modal-overlay" @click.self="cerrarModal">
-      <div class="modal-contenido">
-        <div class="modal-header">
-          <h2>{{ modoEdicion ? 'Editar Servicio' : 'Crear Nuevo Servicio' }}</h2>
-          <button class="btn-close" @click="cerrarModal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="guardarServicio" class="form-servicio">
+      <!-- Modal Crear/Editar -->
+      <div v-if="showModal" class="modal-overlay" @click="closeModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>{{ editingServicio ? 'Editar Servicio' : 'Crear Servicio' }}</h2>
+            <button @click="closeModal" class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
             <div class="form-group">
-              <label for="titulo">Título del Servicio *</label>
-              <input 
-                type="text" 
-                id="titulo" 
-                v-model="servicioForm.titulo" 
-                required 
-                placeholder="Ej. Consulta General"
+              <label>Título *</label>
+              <input
+                v-model="formServicio.titulo"
+                type="text"
+                class="form-input"
+                placeholder="Título del servicio"
+                required
               />
             </div>
             <div class="form-group">
-              <label for="categoria">Categoría *</label>
-              <select id="categoria" v-model="servicioForm.categoria" required>
-                <option value="">Seleccionar categoría</option>
+              <label>Descripción</label>
+              <textarea
+                v-model="formServicio.descripcion"
+                class="form-input textarea"
+                placeholder="Descripción del servicio"
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label>Categoría *</label>
+              <select v-model="formServicio.categoria" class="form-input" required>
                 <option value="consulta">Consulta</option>
                 <option value="procedimiento">Procedimiento</option>
                 <option value="cuidado">Cuidado</option>
@@ -132,709 +168,548 @@
               </select>
             </div>
             <div class="form-group">
-              <label for="especialidad">Especialidad</label>
-              <select id="especialidad" v-model="servicioForm.especialidad_id">
-                <option :value="null">Sin especialidad</option>
+              <label>Especialidad</label>
+              <select v-model="formServicio.especialidad_id" class="form-input">
+                <option value="">General (sin especialidad)</option>
                 <option v-for="esp in especialidades" :key="esp.id" :value="esp.id">
                   {{ esp.nombre }}
                 </option>
               </select>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="precio">Precio (S/) *</label>
-                <input 
-                  type="number" 
-                  id="precio" 
-                  v-model.number="servicioForm.precio" 
-                  step="0.01" 
-                  min="0" 
-                  required 
-                  placeholder="0.00"
+            <div class="form-group">
+              <label>Duración (minutos) *</label>
+              <input
+                v-model="formServicio.duracion_minutos"
+                type="number"
+                class="form-input"
+                placeholder="Duración en minutos"
+                min="1"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Precio ($) *</label>
+                <input
+                v-model="formServicio.precio"
+                type="number"
+                class="form-input"
+                placeholder="Precio del servicio"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Estado</label>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  v-model="formServicio.is_activo"
                 />
-              </div>
-              <div class="form-group">
-                <label for="duracion">Duración (min) *</label>
-                <input 
-                  type="number" 
-                  id="duracion" 
-                  v-model.number="servicioForm.duracion_minutos" 
-                  min="5" 
-                  step="5" 
-                  required 
-                  placeholder="30"
-                />
-              </div>
+                <span class="slider"></span>
+              </label>
             </div>
-            <div class="form-group">
-              <label for="descripcion">Descripción</label>
-              <textarea 
-                id="descripcion" 
-                v-model="servicioForm.descripcion" 
-                placeholder="Descripción opcional del servicio"
-                rows="3"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label for="foto_url">URL de la imagen</label>
-              <input 
-                type="text" 
-                id="foto_url" 
-                v-model="servicioForm.foto_url" 
-                placeholder="https://ejemplo.com/imagen.jpg"
-              />
-            </div>
-            <div class="form-group">
-              <label for="icono">Icono (opcional)</label>
-              <input 
-                type="text" 
-                id="icono" 
-                v-model="servicioForm.icono" 
-                placeholder="fas fa-stethoscope"
-              />
-            </div>
-            <div class="form-group form-checkbox">
-              <input 
-                type="checkbox" 
-                id="is_activo" 
-                v-model="servicioForm.is_activo"
-              />
-              <label for="is_activo">Servicio activo</label>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn-secondary" @click="cerrarModal">Cancelar</button>
-              <button type="submit" class="btn-primary">
-                {{ modoEdicion ? 'Actualizar' : 'Crear' }} Servicio
-              </button>
-            </div>
-          </form>
+          </div>
+          <div class="modal-footer">
+            <button @click="closeModal" class="btn btn--outline">Cancelar</button>
+            <button @click="guardarServicio" class="btn btn--success" :disabled="isProcessing">
+              {{ isProcessing ? 'Guardando...' : (editingServicio ? 'Actualizar' : 'Crear') }}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-
-    <!-- Modal Confirmación Eliminar -->
-    <div v-if="modalEliminarVisible" class="modal-overlay" @click.self="cerrarModalEliminar">
-      <div class="modal-confirmacion">
-        <div class="modal-header">
-          <h3>Confirmar Eliminación</h3>
-          <button class="btn-close" @click="cerrarModalEliminar">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>¿Estás seguro de que deseas eliminar el servicio <strong>{{ servicioEliminar?.titulo }}</strong>?</p>
-          <p>Esta acción no se puede deshacer.</p>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="cerrarModalEliminar">Cancelar</button>
-          <button class="btn-delete" @click="confirmarEliminar">Eliminar</button>
-        </div>
-      </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
-const servicios = ref([])
+// Estado
+const isLoading = ref(false)
+const isProcessing = ref(false)
+const error = ref(null)
+const rawServicios = ref([])
+const selectedCategoria = ref('')
+const selectedActivo = ref('')
+const selectedEspecialidad = ref('')
+
+// Listas para filtros
 const especialidades = ref([])
-const busqueda = ref('')
-const filtroCategoria = ref('')
-const filtroEspecialidad = ref('')
-const modalVisible = ref(false)
-const modalEliminarVisible = ref(false)
-const modoEdicion = ref(false)
-const loading = ref(true)
-const servicioForm = ref({
-  id: null,
+
+// Modal
+const showModal = ref(false)
+const editingServicio = ref(null)
+const formServicio = ref({
   titulo: '',
-  categoria: '',
-  especialidad_id: null,
-  precio: 0,
-  duracion_minutos: 30,
   descripcion: '',
-  foto_url: '',
-  icono: '',
+  categoria: 'consulta',
+  especialidad_id: null,
+  duracion_minutos: 30,
+  precio: 0,
   is_activo: true
 })
-const servicioEliminar = ref(null)
 
-// Cargar datos desde Supabase
-const cargarDatos = async () => {
-  loading.value = true
-  
+// Handlers
+const handleCategoriaChange = (event) => {
+  selectedCategoria.value = event.target.value
+}
+
+const handleActivoChange = (event) => {
+  selectedActivo.value = event.target.value
+}
+
+const handleEspecialidadChange = (event) => {
+  selectedEspecialidad.value = event.target.value
+}
+
+// Servicios filtrados
+const filteredServicios = computed(() => {
+  return rawServicios.value.filter(servicio => {
+    const matchCategoria = !selectedCategoria.value || servicio.categoria === selectedCategoria.value
+    const matchActivo = selectedActivo.value === '' ||
+      (selectedActivo.value === 'true' && servicio.is_activo) ||
+      (selectedActivo.value === 'false' && !servicio.is_activo)
+    const matchEspecialidad = !selectedEspecialidad.value || servicio.especialidad_id == selectedEspecialidad.value
+    return matchCategoria && matchActivo && matchEspecialidad
+  })
+})
+
+// Formateo
+const getCategoriaLabel = (categoria) => {
+  const labels = {
+    consulta: 'Consulta',
+    procedimiento: 'Procedimiento',
+    cuidado: 'Cuidado',
+    emergencia: 'Emergencia'
+  }
+  return labels[categoria] || categoria
+}
+
+const formatoMoneda = (valor) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(valor)
+}
+
+// Cargar datos
+const loadServicios = async () => {
+  isLoading.value = true
+  error.value = null
+
   try {
-    // Cargar especialidades
-    const { data: especialidadesData, error: especialidadesError } = await supabase
+    // 1. Cargar especialidades
+    const { data: espData, error: espError } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .eq('is_activa', true)
-      .order('nombre', { ascending: true })
-    
-    if (especialidadesError) throw especialidadesError
-    especialidades.value = especialidadesData || []
-    
-    // Cargar servicios
-    const { data: serviciosData, error: serviciosError } = await supabase
+
+    if (espError) throw new Error('Error al cargar especialidades')
+    especialidades.value = espData
+
+    // 2. Cargar servicios con relaciones
+    const { data: servsData, error: servsError } = await supabase
       .from('servicios')
       .select(`
         id,
         titulo,
         descripcion,
+        categoria,
         duracion_minutos,
         precio,
-        categoria,
-        icono,
-        foto_url,
+        is_activo,
         especialidad_id,
-        is_activo
+        especialidades (nombre)
       `)
       .order('titulo', { ascending: true })
-    
-    if (serviciosError) throw serviciosError
-    servicios.value = serviciosData || []
-    
-  } catch (error) {
-    console.error('Error al cargar datos:', error)
-    alert('Error al cargar los servicios: ' + error.message)
+
+    if (servsError) {
+      console.error('Error al cargar servicios:', servsError)
+      throw new Error('Error al cargar servicios')
+    }
+
+    // 3. Combinar datos
+    rawServicios.value = servsData.map(serv => ({
+      ...serv,
+      especialidad_nombre: serv.especialidades?.[0]?.nombre || null
+    }))
+
+  } catch (err) {
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar servicios. Inténtalo más tarde.'
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
-// Filtrar servicios (computed)
-const serviciosFiltrados = computed(() => {
-  return servicios.value.filter(servicio => {
-    const coincideBusqueda = !busqueda.value || 
-      servicio.titulo.toLowerCase().includes(busqueda.value.toLowerCase())
-    const coincideCategoria = !filtroCategoria.value || servicio.categoria === filtroCategoria.value
-    const coincideEspecialidad = !filtroEspecialidad.value || 
-      (servicio.especialidad_id && servicio.especialidad_id.toString() === filtroEspecialidad.value)
-    
-    return coincideBusqueda && coincideCategoria && coincideEspecialidad
-  })
-})
-
-// Manejar error de imagen
-const handleImageError = (event, servicio) => {
-  console.warn('Error al cargar imagen para servicio:', servicio.titulo)
-  event.target.style.display = 'none'
-}
-
-// Abrir modal para crear
-const openCrearServicioModal = () => {
-  modoEdicion.value = false
-  servicioForm.value = {
-    id: null,
+// Abrir modal crear
+const openCrearModal = () => {
+  editingServicio.value = null
+  formServicio.value = {
     titulo: '',
-    categoria: '',
-    especialidad_id: null,
-    precio: 0,
-    duracion_minutos: 30,
     descripcion: '',
-    foto_url: '',
-    icono: '',
+    categoria: 'consulta',
+    especialidad_id: null,
+    duracion_minutos: 30,
+    precio: 0,
     is_activo: true
   }
-  modalVisible.value = true
+  showModal.value = true
 }
 
 // Editar servicio
 const editarServicio = (servicio) => {
-  modoEdicion.value = true
-  servicioForm.value = { ...servicio }
-  modalVisible.value = true
+  editingServicio.value = servicio
+  formServicio.value = { ...servicio }
+  showModal.value = true
 }
 
 // Cerrar modal
-const cerrarModal = () => {
-  modalVisible.value = false
+const closeModal = () => {
+  showModal.value = false
+  editingServicio.value = null
 }
 
-// Guardar servicio (crear o actualizar)
+// Guardar servicio
 const guardarServicio = async () => {
+  if (isProcessing.value) return
+  if (!formServicio.value.titulo || !formServicio.value.duracion_minutos || formServicio.value.precio === null) {
+    alert('Completa todos los campos obligatorios')
+    return
+  }
+  isProcessing.value = true
+
   try {
-    if (modoEdicion.value) {
-      // Actualizar servicio
-      const { data, error } = await supabase
-        .from('servicios')
-        .update({
-          titulo: servicioForm.value.titulo,
-          categoria: servicioForm.value.categoria,
-          especialidad_id: servicioForm.value.especialidad_id,
-          precio: servicioForm.value.precio,
-          duracion_minutos: servicioForm.value.duracion_minutos,
-          descripcion: servicioForm.value.descripcion,
-          foto_url: servicioForm.value.foto_url,
-          icono: servicioForm.value.icono,
-          is_activo: servicioForm.value.is_activo,
-          actualizado_en: new Date().toISOString()
-        })
-        .eq('id', servicioForm.value.id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // Actualizar en la lista local
-      const index = servicios.value.findIndex(s => s.id === servicioForm.value.id)
-      if (index !== -1) {
-        servicios.value[index] = { ...data }
+    let result
+    if (editingServicio.value) {
+      // Actualizar
+      const updateData = {
+        titulo: formServicio.value.titulo,
+        descripcion: formServicio.value.descripcion,
+        categoria: formServicio.value.categoria,
+        especialidad_id: formServicio.value.especialidad_id || null,
+        duracion_minutos: formServicio.value.duracion_minutos,
+        precio: formServicio.value.precio,
+        is_activo: formServicio.value.is_activo
       }
-      
-      alert('Servicio actualizado exitosamente')
-    } else {
-      // Crear nuevo servicio
-      const { data, error } = await supabase
+
+      const { error: updateError } = await supabase
         .from('servicios')
-        .insert({
-          titulo: servicioForm.value.titulo,
-          categoria: servicioForm.value.categoria,
-          especialidad_id: servicioForm.value.especialidad_id,
-          precio: servicioForm.value.precio,
-          duracion_minutos: servicioForm.value.duracion_minutos,
-          descripcion: servicioForm.value.descripcion,
-          foto_url: servicioForm.value.foto_url,
-          icono: servicioForm.value.icono,
-          is_activo: servicioForm.value.is_activo
-        })
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // Agregar a la lista local
-      servicios.value.push(data)
-      alert('Servicio creado exitosamente')
+        .update(updateData)
+        .eq('id', editingServicio.value.id)
+
+      if (updateError) throw updateError
+    } else {
+      // Crear
+      const { error: insertError } = await supabase
+        .from('servicios')
+        .insert([{
+          titulo: formServicio.value.titulo,
+          descripcion: formServicio.value.descripcion,
+          categoria: formServicio.value.categoria,
+          especialidad_id: formServicio.value.especialidad_id || null,
+          duracion_minutos: formServicio.value.duracion_minutos,
+          precio: formServicio.value.precio,
+          is_activo: formServicio.value.is_activo
+        }])
+
+      if (insertError) throw insertError
     }
-    
-    cerrarModal.value = false
-    cerrarModal()
-  } catch (error) {
-    console.error('Error al guardar servicio:', error)
-    alert('Error al guardar el servicio: ' + error.message)
+
+    await loadServicios()
+    closeModal()
+    alert(editingServicio.value ? 'Servicio actualizado correctamente' : 'Servicio creado correctamente')
+
+  } catch (err) {
+    console.error('Error al guardar servicio:', err)
+    alert('Error al guardar el servicio. Verifica los datos.')
+  } finally {
+    isProcessing.value = false
   }
 }
 
-// Toggle de estado activo/inactivo
+// Toggle estado
 const toggleEstado = async (servicio) => {
+  if (!confirm(`¿${servicio.is_activo ? 'Desactivar' : 'Activar'} "${servicio.titulo}"?`)) return
+
   try {
-    const nuevoEstado = !servicio.is_activo
-    const { data, error } = await supabase
+    const { error: updateError } = await supabase
       .from('servicios')
-      .update({
-        is_activo: nuevoEstado,
-        actualizado_en: new Date().toISOString()
-      })
+      .update({ is_activo: !servicio.is_activo })
       .eq('id', servicio.id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    
-    // Actualizar en la lista local
-    const index = servicios.value.findIndex(s => s.id === servicio.id)
-    if (index !== -1) {
-      servicios.value[index] = { ...data }
-    }
-    
-    alert(`Servicio ${nuevoEstado ? 'activado' : 'desactivado'} exitosamente`)
-  } catch (error) {
-    console.error('Error al cambiar estado:', error)
-    alert('Error al cambiar el estado del servicio: ' + error.message)
+
+    if (updateError) throw updateError
+    await loadServicios()
+  } catch (err) {
+    console.error('Error al cambiar estado:', err)
+    alert('Error al cambiar el estado del servicio')
   }
 }
 
-// Eliminar servicio
-const eliminarServicio = (id) => {
-  const servicio = servicios.value.find(s => s.id === id)
-  if (servicio) {
-    servicioEliminar.value = servicio
-    modalEliminarVisible.value = true
-  }
-}
-
-// Cerrar modal de eliminar
-const cerrarModalEliminar = () => {
-  modalEliminarVisible.value = false
-  servicioEliminar.value = null
-}
-
-// Confirmar eliminación
-const confirmarEliminar = async () => {
-  try {
-    const { error } = await supabase
-      .from('servicios')
-      .delete()
-      .eq('id', servicioEliminar.value.id)
-    
-    if (error) throw error
-    
-    // Eliminar de la lista local
-    servicios.value = servicios.value.filter(s => s.id !== servicioEliminar.value.id)
-    alert('Servicio eliminado exitosamente')
-    cerrarModalEliminar()
-  } catch (error) {
-    console.error('Error al eliminar servicio:', error)
-    alert('Error al eliminar el servicio: ' + error.message)
-  }
-}
-
-// Obtener nombre de especialidad
-const getNombreEspecialidad = (especialidadId) => {
-  if (!especialidadId) return 'Sin especialidad'
-  const especialidad = especialidades.value.find(e => e.id === especialidadId)
-  return especialidad ? especialidad.nombre : 'No asignada'
-}
-
-// Obtener color de categoría
-const getCategoriaColor = (categoria) => {
-  const colores = {
-    'consulta': 'badge-blue',
-    'procedimiento': 'badge-green',
-    'cuidado': 'badge-purple',
-    'emergencia': 'badge-red'
-  }
-  return colores[categoria] || 'badge-gray'
-}
-
-// Obtener etiqueta de categoría
-const getCategoriaLabel = (categoria) => {
-  const labels = {
-    'consulta': 'Consulta',
-    'procedimiento': 'Procedimiento',
-    'cuidado': 'Cuidado',
-    'emergencia': 'Emergencia'
-  }
-  return labels[categoria] || categoria
-}
-
-// Cargar datos al montar el componente
 onMounted(() => {
-  cargarDatos()
+  loadServicios()
 })
 </script>
 
 <style scoped>
-/* Contenedor principal */
+/* Estilos coherentes con el dashboard admin */
 .servicios-admin-container {
-  background-color: #0f1a2c;
-  color: white;
+  display: flex;
   min-height: 100vh;
-  width: 100%;
+  background-color: #f9fafb;
 }
 
-/* Contenido principal con margen para el sidebar */
 .main-content {
-  margin-left: 240px;
+  flex: 1;
   padding: 2rem;
+  margin-left: 240px;
+  transition: margin-left 0.3s ease;
 }
 
-/* Header */
-.admin-header {
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .status-select {
+    width: 100%;
+  }
+}
+
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #2c3e50;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.admin-title {
-  font-size: 1.8rem;
-  font-weight: 600;
+.page-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
-  color: #3498db;
-  white-space: nowrap;
 }
 
-.btn-primary {
-  background-color: #3498db;
+.subtitle {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.btn--success {
+  background: #145a32;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s ease;
+  transition: background 0.2s;
 }
 
-.btn-primary:hover {
-  background-color: #2980b9;
-  transform: translateY(-2px);
+.btn--success:hover {
+  background: #0f4c28;
 }
 
-/* Filtros */
-.filtros-container {
+.filters-bar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: end;
 }
 
-.filtro-item {
-  flex: 1;
-  min-width: 200px;
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 180px;
 }
 
-.filtro-item label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #bdc3c7;
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
 }
 
-.filtro-item select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #2c3e50;
+.status-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  font-size: 0.9375rem;
+  background: white;
+  transition: border-color 0.2s;
 }
 
-.filtro-item select:focus {
+.status-select:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
 }
 
-/* Barra de búsqueda */
-.search-box {
-  position: relative;
-  min-width: 250px;
-  flex: 0 0 300px;
+.content-area {
+  min-height: 400px;
 }
 
-.search-box input {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border: 1px solid #2c3e50;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
   color: white;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
 }
 
-.search-box input:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-}
-
-.search-icon {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #bdc3c7;
-}
-
-/* Loading */
-.loading {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #bdc3c7;
-}
-
-.loading i {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #3498db;
-}
-
-/* Lista de servicios */
-.servicios-lista {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-}
-
-.no-data {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #bdc3c7;
-  font-style: italic;
-}
-
-.no-data i {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: #7f8c8d;
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
 .servicios-grid {
   display: grid;
-  gap: 1.5rem;
-  padding: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
 }
 
-/* Tarjeta de servicio */
 .servicio-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: white;
   border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .servicio-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-.servicio-header {
+.card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
 }
 
-.servicio-header h3 {
-  margin: 0;
+.servicio-titulo {
   font-size: 1.25rem;
-  color: #ecf0f1;
-  flex: 1;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
 }
 
 .badge {
   padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  display: inline-block;
-  white-space: nowrap;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.badge-blue { background-color: #3498db; color: white; }
-.badge-green { background-color: #2ecc71; color: white; }
-.badge-purple { background-color: #9b59b6; color: white; }
-.badge-red { background-color: #e74c3c; color: white; }
-.badge-gray { background-color: #7f8c8d; color: white; }
+.badge--activo { background: #dcfce7; color: #166534; }
+.badge--inactivo { background: #fee2e2; color: #dc2626; }
 
-/* Imagen del servicio */
-.servicio-imagen {
-  width: 100%;
-  height: 150px;
-  margin-bottom: 1rem;
-  overflow: hidden;
-  border-radius: 8px;
-}
-
-.servicio-imagen img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
-}
-
-.servicio-imagen img:hover {
-  transform: scale(1.05);
-}
-
-/* Cuerpo del servicio */
-.servicio-body {
-  margin-bottom: 1rem;
+.card-body {
+  margin-bottom: 1.5rem;
 }
 
 .info-row {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin: 0.5rem 0;
   font-size: 0.95rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
-.info-row strong {
-  color: #bdc3c7;
-  min-width: 120px;
-}
-
-.precio {
-  color: #2ecc71;
+.label {
   font-weight: 600;
+  color: #475569;
+  min-width: 90px;
 }
 
-.duracion {
-  color: #3498db;
-  font-weight: 500;
+.value {
+  color: #1e293b;
+  flex: 1;
 }
 
-.estado-activo {
-  color: #2ecc71;
-  font-weight: 500;
-}
-
-.estado-inactivo {
-  color: #e74c3c;
-  font-weight: 500;
-}
-
-/* Botones de acción */
-.servicio-actions {
+.card-footer {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.875rem;
   justify-content: flex-end;
-  margin-top: 1rem;
 }
 
-.btn-edit, .btn-delete, .btn-toggle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s ease;
   border: none;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--outline {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+.btn--danger {
+  background: #dc2626;
   color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
-.btn-edit {
-  background-color: #3498db;
-}
-
-.btn-edit:hover {
-  background-color: #2980b9;
-  transform: translateY(-2px);
-}
-
-.btn-delete {
-  background-color: #e74c3c;
-}
-
-.btn-delete:hover {
-  background-color: #c0392b;
-  transform: translateY(-2px);
-}
-
-.btn-toggle {
-  background-color: #7f8c8d;
-}
-
-.btn-toggle:hover {
-  transform: translateY(-2px);
-}
-
-.btn-activo {
-  background-color: #2ecc71;
+.btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
 /* Modal */
@@ -844,191 +719,159 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
 }
 
-.modal-contenido {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 600px;
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #3498db;
+  color: #1e293b;
   font-size: 1.5rem;
 }
 
-.btn-close {
+.modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 2rem;
   cursor: pointer;
-  color: #bdc3c7;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  color: #94a3b8;
+  padding: 0;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
 }
 
-.btn-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #e74c3c;
+.modal-close:hover {
+  color: #1e293b;
 }
 
 .modal-body {
-  padding: 2rem;
-}
-
-.form-servicio {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  padding: 1.5rem;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .form-group label {
-  font-weight: 500;
-  color: #bdc3c7;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
+.form-input {
+  width: 100%;
   padding: 0.75rem;
-  border: 1px solid #2c3e50;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
   font-size: 1rem;
-  transition: border-color 0.3s ease;
 }
 
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
 }
 
-.form-row {
-  display: flex;
-  gap: 1rem;
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
 }
 
-.form-row .form-group {
-  flex: 1;
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
 }
 
-.form-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.form-checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+.slider {
+  position: absolute;
   cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #145a32;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  padding: 1.5rem 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
-.btn-secondary {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #bdc3c7;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 0;
-    padding: 1rem;
-  }
-  
-  .admin-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .filtros-container {
-    flex-direction: column;
-  }
-  
-  .form-row {
-    flex-direction: column;
-  }
-  
-  .modal-contenido {
-    margin: 1rem;
-    max-width: none;
-  }
-  
+@media (max-width: 480px) {
   .servicios-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
-  
-  .servicio-header {
+
+  .servicio-card {
+    padding: 1.25rem;
+  }
+
+  .card-footer {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
-  
-  .info-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .info-row strong {
-    min-width: auto;
-  }
-  
-  .search-box {
-    flex: 1;
-    min-width: 200px;
+
+  .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

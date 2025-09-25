@@ -127,6 +127,18 @@ const routes = [
       component: () => import('@/views/Admin/configuracionAdmin.vue')
     }
   ]
+},
+{
+  path: '/admin/productos',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'ProductosAdmin',
+      component: () => import('@/views/Admin/productosAdmin.vue')
+    }
+  ]
 }
 ]
 

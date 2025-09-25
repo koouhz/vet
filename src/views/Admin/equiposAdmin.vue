@@ -1,252 +1,255 @@
 <template>
   <div class="equipos-admin-container">
-    <div class="main-content">
-      <!-- Header -->
-      <div class="admin-header">
-        <h1 class="admin-title">Gestión de Equipos Médicos</h1>
-        <button @click="openCrearEquipoModal" class="btn-primary">
-          <i class="fas fa-plus"></i> Registrar Nuevo Equipo
-        </button>
+    <AppSidebar />
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Equipos Médicos</h1>
+        <p class="subtitle">Gestiona el inventario de equipos médicos del sistema.</p>
+        <button @click="openCrearModal" class="btn btn--success">+ Nuevo Equipo</button>
       </div>
 
-      <!-- Filtros y búsqueda -->
-      <div class="filtros-container">
-        <div class="filtro-item">
-          <label for="filtro-tipo">Tipo</label>
-          <select id="filtro-tipo" v-model="filtroTipo" @change="filtrarEquipos">
-            <option value="">Todos los tipos</option>
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filter-tipo" class="filter-label">Tipo</label>
+          <select
+            id="filter-tipo"
+            :value="selectedTipo"
+            @change="handleTipoChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
             <option value="diagnostico">Diagnóstico</option>
             <option value="cirugia">Cirugía</option>
             <option value="laboratorio">Laboratorio</option>
             <option value="cuidado">Cuidado</option>
           </select>
         </div>
-        <div class="filtro-item">
-          <label for="filtro-estado">Estado</label>
-          <select id="filtro-estado" v-model="filtroEstado" @change="filtrarEquipos">
-            <option value="">Todos los estados</option>
+        <div class="filter-item">
+          <label for="filter-estado" class="filter-label">Estado</label>
+          <select
+            id="filter-estado"
+            :value="selectedEstado"
+            @change="handleEstadoChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
             <option value="activo">Activo</option>
             <option value="mantenimiento">Mantenimiento</option>
             <option value="fuera_de_servicio">Fuera de servicio</option>
             <option value="archivado">Archivado</option>
           </select>
         </div>
-        <div class="search-box">
-          <input 
-            type="text" 
-            v-model="busqueda" 
-            placeholder="Buscar equipo..." 
-            @input="filtrarEquipos"
-          />
-          <i class="fas fa-search search-icon"></i>
-        </div>
       </div>
 
-      <!-- Estado de carga -->
-      <div v-if="loading" class="loading">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Cargando equipos médicos...</p>
-      </div>
-
-      <!-- Lista de equipos como tarjetas -->
-      <div v-else class="equipos-lista">
-        <div v-if="equiposFiltrados.length === 0" class="no-data">
-          <i class="fas fa-search"></i>
-          <p>No se encontraron equipos médicos</p>
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando equipos...</p>
         </div>
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadEquipos" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else-if="filteredEquipos.length === 0" class="message empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" />
+            <path d="M16 11H8" />
+            <path d="M16 15H8" />
+          </svg>
+          <p>No hay equipos que coincidan con los filtros.</p>
+        </div>
+
         <div v-else class="equipos-grid">
-          <div v-for="equipo in equiposFiltrados" :key="equipo.id" class="equipo-card">
-            <div class="equipo-header">
-              <h3>{{ equipo.nombre }}</h3>
-              <span class="badge" :class="getTipoColor(equipo.tipo)">
-                {{ getTipoLabel(equipo.tipo) }}
+          <div
+            v-for="equipo in filteredEquipos"
+            :key="equipo.id"
+            class="equipo-card"
+            :class="{ 'equipo-mantenimiento': equipo.estado === 'mantenimiento', 'equipo-fuera': equipo.estado === 'fuera_de_servicio' }"
+          >
+            <div class="card-header">
+              <h3 class="equipo-nombre">{{ equipo.nombre }}</h3>
+              <span class="badge" :class="`badge--${equipo.estado}`">
+                {{ getEstadoLabel(equipo.estado) }}
               </span>
             </div>
-            <div class="equipo-body">
+
+            <div class="card-body">
               <div class="info-row">
-                <strong>Marca/Modelo:</strong>
-                <span>{{ equipo.marca }} {{ equipo.modelo }}</span>
+                <span class="label">Tipo:</span>
+                <span class="value">{{ getTipoLabel(equipo.tipo) }}</span>
               </div>
-              <div class="info-row">
-                <strong>N° Serie:</strong>
-                <span>{{ equipo.numero_serie || 'No disponible' }}</span>
+              <div v-if="equipo.marca" class="info-row">
+                <span class="label">Marca:</span>
+                <span class="value">{{ equipo.marca }}</span>
               </div>
-              <div class="info-row">
-                <strong>Ubicación:</strong>
-                <span>{{ equipo.ubicacion || 'No especificada' }}</span>
+              <div v-if="equipo.modelo" class="info-row">
+                <span class="label">Modelo:</span>
+                <span class="value">{{ equipo.modelo }}</span>
               </div>
-              <div class="info-row">
-                <strong>Estado:</strong>
-                <span :class="getEstadoClass(equipo.estado)">
-                  {{ getEstadoLabel(equipo.estado) }}
-                </span>
+              <div v-if="equipo.numero_serie" class="info-row">
+                <span class="label">N° Serie:</span>
+                <span class="value">{{ equipo.numero_serie }}</span>
               </div>
-              <div class="info-row">
-                <strong>Compra:</strong>
-                <span>{{ equipo.fecha_compra ? new Date(equipo.fecha_compra).toLocaleDateString() : 'No especificada' }}</span>
+              <div v-if="equipo.fecha_compra" class="info-row">
+                <span class="label">Compra:</span>
+                <span class="value">{{ formatDate(equipo.fecha_compra) }}</span>
               </div>
-              <div class="info-row">
-                <strong>Garantía:</strong>
-                <span :class="getGarantiaClass(equipo.garantia_expira)">
-                  {{ equipo.garantia_expira ? new Date(equipo.garantia_expira).toLocaleDateString() : 'Sin garantía' }}
-                </span>
+              <div v-if="equipo.garantia_expira" class="info-row">
+                <span class="label">Garantía:</span>
+                <span class="value">{{ formatDate(equipo.garantia_expira) }}</span>
               </div>
-              <div v-if="equipo.notas" class="info-row notas">
-                <strong>Notas:</strong>
-                <span>{{ equipo.notas }}</span>
+              <div v-if="equipo.ubicacion" class="info-row">
+                <span class="label">Ubicación:</span>
+                <span class="value">{{ equipo.ubicacion }}</span>
+              </div>
+              <div v-if="equipo.notas" class="info-row">
+                <span class="label">Notas:</span>
+                <span class="value">{{ equipo.notas }}</span>
               </div>
             </div>
-            <div class="equipo-actions">
-              <button @click="editarEquipo(equipo)" class="btn-action btn-edit">
-                <i class="fas fa-edit"></i>
-                <span>Editar</span>
-              </button>
-              <button @click="cambiarEstado(equipo)" class="btn-action" :class="getEstadoButtonClass(equipo.estado)">
-                <i class="fas fa-sync-alt"></i>
-                <span>{{ getEstadoButtonText(equipo.estado) }}</span>
-              </button>
-              <button @click="eliminarEquipo(equipo.id)" class="btn-action btn-delete">
-                <i class="fas fa-archive"></i>
-                <span>Dar de baja</span>
+
+            <div class="card-footer">
+              <button @click="editarEquipo(equipo)" class="btn btn--outline">Editar</button>
+              <button
+                @click="cambiarEstado(equipo)"
+                class="btn btn--success"
+              >
+                Cambiar estado
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Modal Crear/Editar Equipo -->
-      <div v-if="modalVisible" class="modal-overlay" @click.self="cerrarModal">
-        <div class="modal-contenido">
+      <!-- Modal Crear/Editar -->
+      <div v-if="showModal" class="modal-overlay" @click="closeModal">
+        <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h2>{{ modoEdicion ? 'Editar Equipo Médico' : 'Registrar Nuevo Equipo' }}</h2>
-            <button class="btn-close" @click="cerrarModal">&times;</button>
+            <h2>{{ editingEquipo ? 'Editar Equipo' : 'Crear Equipo' }}</h2>
+            <button @click="closeModal" class="modal-close">&times;</button>
           </div>
           <div class="modal-body">
-            <form @submit.prevent="guardarEquipo" class="form-equipo">
-              <div class="form-group">
-                <label for="nombre">Nombre del Equipo *</label>
-                <input 
-                  type="text" 
-                  id="nombre" 
-                  v-model="equipoForm.nombre" 
-                  required 
-                  placeholder="Ej. Ecógrafo Portátil"
-                />
-              </div>
-              <div class="form-group">
-                <label for="tipo">Tipo *</label>
-                <select id="tipo" v-model="equipoForm.tipo" required>
-                  <option value="">Seleccionar tipo</option>
-                  <option value="diagnostico">Diagnóstico</option>
-                  <option value="cirugia">Cirugía</option>
-                  <option value="laboratorio">Laboratorio</option>
-                  <option value="cuidado">Cuidado</option>
-                </select>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="marca">Marca</label>
-                  <input 
-                    type="text" 
-                    id="marca" 
-                    v-model="equipoForm.marca" 
-                    placeholder="Ej. Siemens"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="modelo">Modelo</label>
-                  <input 
-                    type="text" 
-                    id="modelo" 
-                    v-model="equipoForm.modelo" 
-                    placeholder="Ej. X300"
-                  />
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="numero_serie">Número de Serie</label>
-                <input 
-                  type="text" 
-                  id="numero_serie" 
-                  v-model="equipoForm.numero_serie" 
-                  placeholder="Ej. SN-2024-001"
-                />
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="fecha_compra">Fecha de Compra</label>
-                  <input 
-                    type="date" 
-                    id="fecha_compra" 
-                    v-model="equipoForm.fecha_compra"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="garantia_expira">Garantía Expira</label>
-                  <input 
-                    type="date" 
-                    id="garantia_expira" 
-                    v-model="equipoForm.garantia_expira"
-                  />
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="ubicacion">Ubicación</label>
-                <input 
-                  type="text" 
-                  id="ubicacion" 
-                  v-model="equipoForm.ubicacion" 
-                  placeholder="Ej. Sala 1 - Diagnóstico"
-                />
-              </div>
-              <div class="form-group">
-                <label for="estado">Estado *</label>
-                <select id="estado" v-model="equipoForm.estado" required>
-                  <option value="activo">Activo</option>
-                  <option value="mantenimiento">Mantenimiento</option>
-                  <option value="fuera_de_servicio">Fuera de servicio</option>
-                  <option value="archivado">Archivado</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="notas">Notas</label>
-                <textarea 
-                  id="notas" 
-                  v-model="equipoForm.notas" 
-                  placeholder="Notas adicionales sobre el equipo"
-                  rows="3"
-                ></textarea>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn-secondary" @click="cerrarModal">Cancelar</button>
-                <button type="submit" class="btn-primary">
-                  {{ modoEdicion ? 'Actualizar' : 'Registrar' }} Equipo
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal Confirmación Cambiar Estado -->
-      <div v-if="modalEstadoVisible" class="modal-overlay" @click.self="cerrarModalEstado">
-        <div class="modal-confirmacion">
-          <div class="modal-header">
-            <h3>Cambiar Estado del Equipo</h3>
-            <button class="btn-close" @click="cerrarModalEstado">&times;</button>
-          </div>
-          <div class="modal-body">
-            <p>¿Estás seguro de que deseas cambiar el estado del equipo <strong>{{ equipoEstado?.nombre }}</strong>?</p>
-            <div class="estado-seleccion">
-              <label>Estado actual: 
-                <span :class="getEstadoClass(equipoEstado?.estado)">
-                  {{ getEstadoLabel(equipoEstado?.estado) }}
-                </span>
-              </label>
+            <div class="form-group">
+              <label>Nombre *</label>
+              <input
+                v-model="formEquipo.nombre"
+                type="text"
+                class="form-input"
+                placeholder="Nombre del equipo"
+                required
+              />
             </div>
             <div class="form-group">
-              <label for="nuevo_estado">Nuevo estado:</label>
-              <select id="nuevo_estado" v-model="nuevoEstado" class="select-estado">
+              <label>Tipo *</label>
+              <select v-model="formEquipo.tipo" class="form-input" required>
+                <option value="diagnostico">Diagnóstico</option>
+                <option value="cirugia">Cirugía</option>
+                <option value="laboratorio">Laboratorio</option>
+                <option value="cuidado">Cuidado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Marca</label>
+              <input
+                v-model="formEquipo.marca"
+                type="text"
+                class="form-input"
+                placeholder="Marca del equipo"
+              />
+            </div>
+            <div class="form-group">
+              <label>Modelo</label>
+              <input
+                v-model="formEquipo.modelo"
+                type="text"
+                class="form-input"
+                placeholder="Modelo del equipo"
+              />
+            </div>
+            <div class="form-group">
+              <label>Número de serie</label>
+              <input
+                v-model="formEquipo.numero_serie"
+                type="text"
+                class="form-input"
+                placeholder="Número de serie único"
+              />
+            </div>
+            <div class="form-group">
+              <label>Fecha de compra</label>
+              <input
+                v-model="formEquipo.fecha_compra"
+                type="date"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label>Garantía expira</label>
+              <input
+                v-model="formEquipo.garantia_expira"
+                type="date"
+                class="form-input"
+              />
+            </div>
+            <div class="form-group">
+              <label>Ubicación</label>
+              <input
+                v-model="formEquipo.ubicacion"
+                type="text"
+                class="form-input"
+                placeholder="Ubicación física"
+              />
+            </div>
+            <div class="form-group">
+              <label>Estado *</label>
+              <select v-model="formEquipo.estado" class="form-input" required>
+                <option value="activo">Activo</option>
+                <option value="mantenimiento">Mantenimiento</option>
+                <option value="fuera_de_servicio">Fuera de servicio</option>
+                <option value="archivado">Archivado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Notas</label>
+              <textarea
+                v-model="formEquipo.notas"
+                class="form-input textarea"
+                placeholder="Notas adicionales"
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="closeModal" class="btn btn--outline">Cancelar</button>
+            <button @click="guardarEquipo" class="btn btn--success" :disabled="isProcessing">
+              {{ isProcessing ? 'Guardando...' : (editingEquipo ? 'Actualizar' : 'Crear') }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Cambiar Estado -->
+      <div v-if="showEstadoModal" class="modal-overlay" @click="closeEstadoModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>Cambiar Estado</h2>
+            <button @click="closeEstadoModal" class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>Cambiar estado de <strong>{{ equipoSeleccionado?.nombre }}</strong></p>
+            <div class="form-group">
+              <label>Nuevo estado *</label>
+              <select v-model="nuevoEstado" class="form-input" required>
                 <option value="activo">Activo</option>
                 <option value="mantenimiento">Mantenimiento</option>
                 <option value="fuera_de_servicio">Fuera de servicio</option>
@@ -255,50 +258,36 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-secondary" @click="cerrarModalEstado">Cancelar</button>
-            <button class="btn-primary" @click="confirmarCambioEstado">Cambiar Estado</button>
+            <button @click="closeEstadoModal" class="btn btn--outline">Cancelar</button>
+            <button @click="actualizarEstado" class="btn btn--success" :disabled="isProcessing">
+              {{ isProcessing ? 'Actualizando...' : 'Actualizar' }}
+            </button>
           </div>
         </div>
       </div>
-
-      <!-- Modal Confirmación Dar de Baja -->
-      <div v-if="modalEliminarVisible" class="modal-overlay" @click.self="cerrarModalEliminar">
-        <div class="modal-confirmacion">
-          <div class="modal-header">
-            <h3>Confirmar Dar de Baja</h3>
-            <button class="btn-close" @click="cerrarModalEliminar">&times;</button>
-          </div>
-          <div class="modal-body">
-            <p>¿Estás seguro de que deseas dar de baja el equipo <strong>{{ equipoEliminar?.nombre }}</strong>?</p>
-            <p>Esta acción cambiará su estado a "Archivado".</p>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" @click="cerrarModalEliminar">Cancelar</button>
-            <button class="btn-delete" @click="confirmarDarBaja">Dar de Baja</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
-const equipos = ref([])
-const busqueda = ref('')
-const filtroTipo = ref('')
-const filtroEstado = ref('')
-const modalVisible = ref(false)
-const modalEstadoVisible = ref(false)
-const modalEliminarVisible = ref(false)
-const modoEdicion = ref(false)
-const loading = ref(true)
-const equipoForm = ref({
-  id: null,
+// Estado
+const isLoading = ref(false)
+const isProcessing = ref(false)
+const error = ref(null)
+const rawEquipos = ref([])
+const selectedTipo = ref('')
+const selectedEstado = ref('')
+
+// Modal crear/editar
+const showModal = ref(false)
+const editingEquipo = ref(null)
+const formEquipo = ref({
   nombre: '',
-  tipo: '',
+  tipo: 'diagnostico',
   marca: '',
   modelo: '',
   numero_serie: '',
@@ -308,66 +297,91 @@ const equipoForm = ref({
   estado: 'activo',
   notas: ''
 })
-const equipoEstado = ref(null)
-const nuevoEstado = ref('mantenimiento')
-const equipoEliminar = ref(null)
 
-// Cargar datos desde Supabase
-const cargarDatos = async () => {
-  loading.value = true
-  
-  try {
-    const { data: equiposData, error: equiposError } = await supabase
-      .from('equiposmedicos')
-      .select(`
-        id,
-        nombre,
-        tipo,
-        marca,
-        modelo,
-        numero_serie,
-        fecha_compra,
-        garantia_expira,
-        ubicacion,
-        estado,
-        notas,
-        creado_en,
-        actualizado_en
-      `)
-      .order('nombre', { ascending: true })
-    
-    if (equiposError) throw equiposError
-    equipos.value = equiposData || []
-    
-  } catch (error) {
-    console.error('Error al cargar datos:', error)
-    alert('Error al cargar los equipos médicos: ' + error.message)
-  } finally {
-    loading.value = false
-  }
+// Modal cambiar estado
+const showEstadoModal = ref(false)
+const equipoSeleccionado = ref(null)
+const nuevoEstado = ref('activo')
+
+// Handlers
+const handleTipoChange = (event) => {
+  selectedTipo.value = event.target.value
 }
 
-// Filtrar equipos (computed)
-const equiposFiltrados = computed(() => {
-  return equipos.value.filter(equipo => {
-    const coincideBusqueda = !busqueda.value || 
-      equipo.nombre.toLowerCase().includes(busqueda.value.toLowerCase()) ||
-      (equipo.marca && equipo.marca.toLowerCase().includes(busqueda.value.toLowerCase())) ||
-      (equipo.modelo && equipo.modelo.toLowerCase().includes(busqueda.value.toLowerCase()))
-    const coincideTipo = !filtroTipo.value || equipo.tipo === filtroTipo.value
-    const coincideEstado = !filtroEstado.value || equipo.estado === filtroEstado.value
-    
-    return coincideBusqueda && coincideTipo && coincideEstado
+const handleEstadoChange = (event) => {
+  selectedEstado.value = event.target.value
+}
+
+// Equipos filtrados
+const filteredEquipos = computed(() => {
+  return rawEquipos.value.filter(equipo => {
+    const matchTipo = !selectedTipo.value || equipo.tipo === selectedTipo.value
+    const matchEstado = !selectedEstado.value || equipo.estado === selectedEstado.value
+    return matchTipo && matchEstado
   })
 })
 
-// Abrir modal para crear
-const openCrearEquipoModal = () => {
-  modoEdicion.value = false
-  equipoForm.value = {
-    id: null,
+// Etiquetas
+const tipoLabels = {
+  diagnostico: 'Diagnóstico',
+  cirugia: 'Cirugía',
+  laboratorio: 'Laboratorio',
+  cuidado: 'Cuidado'
+}
+
+const estadoLabels = {
+  activo: 'Activo',
+  mantenimiento: 'Mantenimiento',
+  fuera_de_servicio: 'Fuera de servicio',
+  archivado: 'Archivado'
+}
+
+// Formateo
+const getTipoLabel = (tipo) => tipoLabels[tipo] || tipo
+const getEstadoLabel = (estado) => estadoLabels[estado] || estado
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
+}
+
+// Cargar equipos
+const loadEquipos = async () => {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    const { data, error: equiposError } = await supabase
+      .from('equiposmedicos')
+      .select('*')
+      .order('nombre', { ascending: true })
+
+    if (equiposError) {
+      console.error('Error al cargar equipos:', equiposError)
+      throw new Error('Error al cargar equipos')
+    }
+
+    rawEquipos.value = data
+
+  } catch (err) {
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar equipos. Inténtalo más tarde.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Abrir modal crear
+const openCrearModal = () => {
+  editingEquipo.value = null
+  formEquipo.value = {
     nombre: '',
-    tipo: '',
+    tipo: 'diagnostico',
     marca: '',
     modelo: '',
     numero_serie: '',
@@ -377,578 +391,360 @@ const openCrearEquipoModal = () => {
     estado: 'activo',
     notas: ''
   }
-  modalVisible.value = true
+  showModal.value = true
 }
 
 // Editar equipo
 const editarEquipo = (equipo) => {
-  modoEdicion.value = true
-  equipoForm.value = { ...equipo }
-  modalVisible.value = true
+  editingEquipo.value = equipo
+  formEquipo.value = { ...equipo }
+  showModal.value = true
 }
 
-// Cerrar modal
-const cerrarModal = () => {
-  modalVisible.value = false
+// Cerrar modal crear/editar
+const closeModal = () => {
+  showModal.value = false
+  editingEquipo.value = null
 }
 
-// Guardar equipo (crear o actualizar)
+// Guardar equipo
 const guardarEquipo = async () => {
+  if (isProcessing.value) return
+  if (!formEquipo.value.nombre) {
+    alert('El nombre es obligatorio')
+    return
+  }
+  isProcessing.value = true
+
   try {
-    if (modoEdicion.value) {
-      // Actualizar equipo
-      const { data, error } = await supabase
+    if (editingEquipo.value) {
+      // Actualizar
+      const { error: updateError } = await supabase
         .from('equiposmedicos')
-        .update({
-          nombre: equipoForm.value.nombre,
-          tipo: equipoForm.value.tipo,
-          marca: equipoForm.value.marca,
-          modelo: equipoForm.value.modelo,
-          numero_serie: equipoForm.value.numero_serie,
-          fecha_compra: equipoForm.value.fecha_compra,
-          garantia_expira: equipoForm.value.garantia_expira,
-          ubicacion: equipoForm.value.ubicacion,
-          estado: equipoForm.value.estado,
-          notas: equipoForm.value.notas,
-          actualizado_en: new Date().toISOString()
-        })
-        .eq('id', equipoForm.value.id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // Actualizar en la lista local
-      const index = equipos.value.findIndex(e => e.id === equipoForm.value.id)
-      if (index !== -1) {
-        equipos.value[index] = { ...data }
-      }
-      
-      alert('Equipo actualizado exitosamente')
+        .update(formEquipo.value)
+        .eq('id', editingEquipo.value.id)
+
+      if (updateError) throw updateError
     } else {
-      // Crear nuevo equipo
-      const { data, error } = await supabase
+      // Crear
+      const { error: insertError } = await supabase
         .from('equiposmedicos')
-        .insert({
-          nombre: equipoForm.value.nombre,
-          tipo: equipoForm.value.tipo,
-          marca: equipoForm.value.marca,
-          modelo: equipoForm.value.modelo,
-          numero_serie: equipoForm.value.numero_serie,
-          fecha_compra: equipoForm.value.fecha_compra,
-          garantia_expira: equipoForm.value.garantia_expira,
-          ubicacion: equipoForm.value.ubicacion,
-          estado: equipoForm.value.estado,
-          notas: equipoForm.value.notas
-        })
-        .select()
-        .single()
-      
-      if (error) throw error
-      
-      // Agregar a la lista local
-      equipos.value.push(data)
-      alert('Equipo registrado exitosamente')
+        .insert([formEquipo.value])
+
+      if (insertError) throw insertError
     }
-    
-    cerrarModal()
-  } catch (error) {
-    console.error('Error al guardar equipo:', error)
-    alert('Error al guardar el equipo: ' + error.message)
+
+    await loadEquipos()
+    closeModal()
+    alert(editingEquipo.value ? 'Equipo actualizado correctamente' : 'Equipo creado correctamente')
+
+  } catch (err) {
+    console.error('Error al guardar equipo:', err)
+    alert('Error al guardar el equipo. Verifica los datos.')
+  } finally {
+    isProcessing.value = false
   }
 }
 
-// Abrir modal para cambiar estado
+// Abrir modal cambiar estado
 const cambiarEstado = (equipo) => {
-  equipoEstado.value = equipo
-  nuevoEstado.value = equipo.estado === 'activo' ? 'mantenimiento' : 'activo'
-  modalEstadoVisible.value = true
+  equipoSeleccionado.value = equipo
+  nuevoEstado.value = equipo.estado
+  showEstadoModal.value = true
 }
 
-// Cerrar modal de estado
-const cerrarModalEstado = () => {
-  modalEstadoVisible.value = false
-  equipoEstado.value = null
+// Cerrar modal cambiar estado
+const closeEstadoModal = () => {
+  showEstadoModal.value = false
+  equipoSeleccionado.value = null
 }
 
-// Confirmar cambio de estado
-const confirmarCambioEstado = async () => {
+// Actualizar estado
+const actualizarEstado = async () => {
+  if (isProcessing.value) return
+  isProcessing.value = true
+
   try {
-    const { data, error } = await supabase
+    const { error: updateError } = await supabase
       .from('equiposmedicos')
-      .update({
-        estado: nuevoEstado.value,
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('id', equipoEstado.value.id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    
-    // Actualizar en la lista local
-    const index = equipos.value.findIndex(e => e.id === equipoEstado.value.id)
-    if (index !== -1) {
-      equipos.value[index] = { ...data }
-    }
-    
-    alert(`Estado del equipo actualizado a: ${getEstadoLabel(nuevoEstado.value)}`)
-    cerrarModalEstado()
-  } catch (error) {
-    console.error('Error al cambiar estado:', error)
-    alert('Error al cambiar el estado del equipo: ' + error.message)
+      .update({ estado: nuevoEstado.value })
+      .eq('id', equipoSeleccionado.value.id)
+
+    if (updateError) throw updateError
+    await loadEquipos()
+    closeEstadoModal()
+    alert('Estado actualizado correctamente')
+
+  } catch (err) {
+    console.error('Error al actualizar estado:', err)
+    alert('Error al actualizar el estado')
+  } finally {
+    isProcessing.value = false
   }
 }
 
-// Eliminar equipo (dar de baja)
-const eliminarEquipo = (id) => {
-  const equipo = equipos.value.find(e => e.id === id)
-  if (equipo) {
-    equipoEliminar.value = equipo
-    modalEliminarVisible.value = true
-  }
-}
-
-// Cerrar modal de eliminar
-const cerrarModalEliminar = () => {
-  modalEliminarVisible.value = false
-  equipoEliminar.value = null
-}
-
-// Confirmar dar de baja
-const confirmarDarBaja = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('equiposmedicos')
-      .update({
-        estado: 'archivado',
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('id', equipoEliminar.value.id)
-      .select()
-      .single()
-    
-    if (error) throw error
-    
-    // Actualizar en la lista local
-    const index = equipos.value.findIndex(e => e.id === equipoEliminar.value.id)
-    if (index !== -1) {
-      equipos.value[index] = { ...data }
-    }
-    
-    alert('Equipo dado de baja exitosamente')
-    cerrarModalEliminar()
-  } catch (error) {
-    console.error('Error al dar de baja:', error)
-    alert('Error al dar de baja el equipo: ' + error.message)
-  }
-}
-
-// Obtener color de tipo
-const getTipoColor = (tipo) => {
-  const colores = {
-    'diagnostico': 'badge-blue',
-    'cirugia': 'badge-red',
-    'laboratorio': 'badge-purple',
-    'cuidado': 'badge-green'
-  }
-  return colores[tipo] || 'badge-gray'
-}
-
-// Obtener etiqueta de tipo
-const getTipoLabel = (tipo) => {
-  const labels = {
-    'diagnostico': 'Diagnóstico',
-    'cirugia': 'Cirugía',
-    'laboratorio': 'Laboratorio',
-    'cuidado': 'Cuidado'
-  }
-  return labels[tipo] || tipo
-}
-
-// Obtener clase de estado
-const getEstadoClass = (estado) => {
-  const clases = {
-    'activo': 'estado-activo',
-    'mantenimiento': 'estado-mantenimiento',
-    'fuera_de_servicio': 'estado-inactivo',
-    'archivado': 'estado-archivado'
-  }
-  return clases[estado] || 'estado-activo'
-}
-
-// Obtener etiqueta de estado
-const getEstadoLabel = (estado) => {
-  const labels = {
-    'activo': 'Activo',
-    'mantenimiento': 'Mantenimiento',
-    'fuera_de_servicio': 'Fuera de servicio',
-    'archivado': 'Archivado'
-  }
-  return labels[estado] || estado
-}
-
-// Obtener clase para botón de estado
-const getEstadoButtonClass = (estado) => {
-  const clases = {
-    'activo': 'btn-mantenimiento',
-    'mantenimiento': 'btn-activo',
-    'fuera_de_servicio': 'btn-activo',
-    'archivado': 'btn-activo'
-  }
-  return clases[estado] || 'btn-mantenimiento'
-}
-
-// Obtener texto para botón de estado
-const getEstadoButtonText = (estado) => {
-  const textos = {
-    'activo': 'Mantenimiento',
-    'mantenimiento': 'Activar',
-    'fuera_de_servicio': 'Activar',
-    'archivado': 'Reactivar'
-  }
-  return textos[estado] || 'Cambiar estado'
-}
-
-// Obtener clase para garantía
-const getGarantiaClass = (fechaGarantia) => {
-  if (!fechaGarantia) return 'garantia-sin'
-  
-  const hoy = new Date()
-  const fecha = new Date(fechaGarantia)
-  const diffTime = fecha - hoy
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
-  if (diffDays < 0) return 'garantia-vencida'
-  if (diffDays <= 30) return 'garantia-por-vencer'
-  return 'garantia-activa'
-}
-
-// Cargar datos al montar el componente
 onMounted(() => {
-  cargarDatos()
+  loadEquipos()
 })
 </script>
 
 <style scoped>
+/* Estilos coherentes con el dashboard admin */
 .equipos-admin-container {
-  background-color: #0f1a2c;
-  color: white;
+  display: flex;
   min-height: 100vh;
-  width: 100%;
+  background-color: #f9fafb;
 }
 
 .main-content {
-  margin-left: 240px;
+  flex: 1;
   padding: 2rem;
+  margin-left: 240px;
+  transition: margin-left 0.3s ease;
 }
 
-.admin-header {
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .status-select {
+    width: 100%;
+  }
+}
+
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #2c3e50;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
-.admin-title {
-  font-size: 1.8rem;
-  font-weight: 600;
+.page-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
-  color: #3498db;
-  white-space: nowrap;
 }
 
-.btn-primary {
-  background-color: #3498db;
+.subtitle {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.btn--success {
+  background: #145a32;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1rem;
-  transition: all 0.2s ease;
+  transition: background 0.2s;
 }
 
-.btn-primary:hover {
-  background-color: #2980b9;
-  transform: translateY(-2px);
+.btn--success:hover {
+  background: #0f4c28;
 }
 
-.filtros-container {
+.filters-bar {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  align-items: end;
 }
 
-.filtro-item {
-  flex: 1;
-  min-width: 200px;
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 180px;
 }
 
-.filtro-item label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: #bdc3c7;
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
 }
 
-.filtro-item select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #2c3e50;
+.status-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  font-size: 0.9375rem;
+  background: white;
+  transition: border-color 0.2s;
 }
 
-.filtro-item select:focus {
+.status-select:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
 }
 
-.search-box {
-  position: relative;
-  min-width: 250px;
-  flex: 0 0 300px;
+.content-area {
+  min-height: 400px;
 }
 
-.search-box input {
-  width: 100%;
-  padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border: 1px solid #2c3e50;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
   color: white;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
 }
 
-.search-box input:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-}
-
-.search-icon {
-  position: absolute;
-  right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #bdc3c7;
-}
-
-.loading {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #bdc3c7;
-}
-
-.loading i {
-  font-size: 2rem;
-  margin-bottom: 1rem;
-  color: #3498db;
-}
-
-.equipos-lista {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-}
-
-.no-data {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: #bdc3c7;
-  font-style: italic;
-}
-
-.no-data i {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: #7f8c8d;
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
 .equipos-grid {
   display: grid;
-  gap: 1.5rem;
-  padding: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
 }
 
 .equipo-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: white;
   border-radius: 12px;
-  padding: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 1.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .equipo-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-.equipo-header {
+.equipo-card.equipo-mantenimiento {
+  border-left: 4px solid #f59e0b;
+}
+
+.equipo-card.equipo-fuera {
+  border-left: 4px solid #ef4444;
+  opacity: 0.8;
+}
+
+.card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
 }
 
-.equipo-header h3 {
-  margin: 0;
+.equipo-nombre {
   font-size: 1.25rem;
-  color: #ecf0f1;
-  flex: 1;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
 }
 
 .badge {
   padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  display: inline-block;
-  white-space: nowrap;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.badge-blue { background-color: #3498db; color: white; }
-.badge-red { background-color: #e74c3c; color: white; }
-.badge-purple { background-color: #9b59b6; color: white; }
-.badge-green { background-color: #2ecc71; color: white; }
-.badge-gray { background-color: #7f8c8d; color: white; }
+.badge--activo { background: #dcfce7; color: #166534; }
+.badge--mantenimiento { background: #ffedd5; color: #ea580c; }
+.badge--fuera_de_servicio { background: #fee2e2; color: #dc2626; }
+.badge--archivado { background: #e2e8f0; color: #475569; }
 
-.equipo-body {
-  margin-bottom: 1rem;
+.card-body {
+  margin-bottom: 1.5rem;
 }
 
 .info-row {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
+  margin: 0.5rem 0;
   font-size: 0.95rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 
-.info-row strong {
-  color: #bdc3c7;
-  min-width: 120px;
+.label {
+  font-weight: 600;
+  color: #475569;
+  min-width: 90px;
 }
 
-.notas span {
-  display: block;
-  margin-top: 0.25rem;
-  font-style: italic;
-  color: #bdc3c7;
+.value {
+  color: #1e293b;
+  flex: 1;
 }
 
-.estado-activo {
-  color: #2ecc71;
-  font-weight: 500;
-}
-
-.estado-mantenimiento {
-  color: #f39c12;
-  font-weight: 500;
-}
-
-.estado-inactivo {
-  color: #e74c3c;
-  font-weight: 500;
-}
-
-.estado-archivado {
-  color: #7f8c8d;
-  font-weight: 500;
-}
-
-.garantia-activa {
-  color: #2ecc71;
-  font-weight: 500;
-}
-
-.garantia-por-vencer {
-  color: #f39c12;
-  font-weight: 500;
-}
-
-.garantia-vencida {
-  color: #e74c3c;
-  font-weight: 500;
-}
-
-.garantia-sin {
-  color: #7f8c8d;
-  font-weight: 500;
-}
-
-.equipo-actions {
+.card-footer {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.875rem;
   justify-content: flex-end;
-  margin-top: 1.5rem;
-  flex-wrap: wrap;
 }
 
-.btn-action {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.btn {
   padding: 0.5rem 1rem;
   border-radius: 6px;
-  cursor: pointer;
+  font-weight: 600;
   font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  cursor: pointer;
   border: none;
-  color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
 }
 
-.btn-edit {
-  background-color: #3498db;
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.btn-edit:hover {
-  background-color: #2980b9;
-  transform: translateY(-1px);
+.btn--outline {
+  background: #f1f5f9;
+  color: #1e293b;
 }
 
-.btn-delete {
-  background-color: #e74c3c;
-}
-
-.btn-delete:hover {
-  background-color: #c0392b;
-  transform: translateY(-1px);
-}
-
-.btn-mantenimiento {
-  background-color: #f39c12;
-}
-
-.btn-activo {
-  background-color: #2ecc71;
-}
-
-.btn-mantenimiento:hover,
-.btn-activo:hover {
-  transform: translateY(-1px);
+.btn--outline:hover:not(:disabled) {
+  background: #e2e8f0;
 }
 
 /* Modal */
@@ -958,200 +754,113 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
 }
 
-.modal-contenido {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 600px;
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .modal-header h2 {
   margin: 0;
-  color: #3498db;
+  color: #1e293b;
   font-size: 1.5rem;
 }
 
-.btn-close {
+.modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 2rem;
   cursor: pointer;
-  color: #bdc3c7;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  color: #94a3b8;
+  padding: 0;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s ease;
 }
 
-.btn-close:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #e74c3c;
+.modal-close:hover {
+  color: #1e293b;
 }
 
 .modal-body {
-  padding: 2rem;
-}
-
-.form-equipo {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  padding: 1.5rem;
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .form-group label {
-  font-weight: 500;
-  color: #bdc3c7;
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.form-group input,
-.form-group select,
-.form-group textarea {
-  padding: 0.75rem;
-  border: 1px solid #2c3e50;
-  border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
-}
-
-.form-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.form-row .form-group {
-  flex: 1;
-}
-
-.select-estado {
+.form-input {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #2c3e50;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: white;
   font-size: 1rem;
-  transition: border-color 0.3s ease;
 }
 
-.estado-seleccion {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  padding: 1.5rem 2rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5rem;
+  border-top: 1px solid #e2e8f0;
 }
 
-.btn-secondary {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #bdc3c7;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 0;
-    padding: 1rem;
-  }
-  
-  .admin-header {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .filtros-container {
-    flex-direction: column;
-  }
-  
-  .form-row {
-    flex-direction: column;
-  }
-  
-  .modal-contenido {
-    margin: 1rem;
-    max-width: none;
-  }
-  
+@media (max-width: 480px) {
   .equipos-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
-  
-  .equipo-header {
+
+  .equipo-card {
+    padding: 1.25rem;
+  }
+
+  .card-footer {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
-  
-  .info-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .info-row strong {
-    min-width: auto;
-  }
-  
-  .search-box {
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .equipo-actions {
+
+  .btn {
+    width: 100%;
     justify-content: center;
   }
 }

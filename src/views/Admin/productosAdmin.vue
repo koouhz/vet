@@ -1,28 +1,31 @@
 <template>
-  <div class="usuarios-admin-container">
+  <div class="productos-admin-container">
     <AppSidebar />
 
     <main class="main-content">
       <div class="page-header">
-        <h1>Usuarios</h1>
-        <p class="subtitle">Gestiona todos los usuarios del sistema.</p>
-        <button @click="openCrearModal" class="btn btn--success">+ Nuevo Usuario</button>
+        <h1>Productos</h1>
+        <p class="subtitle">Gestiona el catálogo de productos del sistema.</p>
+        <button @click="openCrearModal" class="btn btn--success">+ Nuevo Producto</button>
       </div>
 
       <!-- Filtros -->
       <div class="filters-bar">
         <div class="filter-item">
-          <label for="filter-rol" class="filter-label">Rol</label>
+          <label for="filter-categoria" class="filter-label">Categoría</label>
           <select
-            id="filter-rol"
-            :value="selectedRol"
-            @change="handleRolChange"
+            id="filter-categoria"
+            :value="selectedCategoria"
+            @change="handleCategoriaChange"
             class="status-select"
           >
-            <option value="">Todos</option>
-            <option value="cliente">Cliente</option>
-            <option value="veterinario">Veterinario</option>
-            <option value="admin">Admin</option>
+            <option value="">Todas</option>
+            <option value="alimento">Alimento</option>
+            <option value="medicamento">Medicamento</option>
+            <option value="accesorio">Accesorio</option>
+            <option value="juguete">Juguete</option>
+            <option value="higiene">Higiene</option>
+            <option value="otros">Otros</option>
           </select>
         </div>
         <div class="filter-item">
@@ -39,14 +42,17 @@
           </select>
         </div>
         <div class="filter-item">
-          <label for="filter-fecha" class="filter-label">Registrado desde</label>
-          <input
-            id="filter-fecha"
-            type="date"
-            :value="selectedFecha"
-            @input="handleFechaInput"
-            class="date-input"
-          />
+          <label for="filter-stock" class="filter-label">Stock</label>
+          <select
+            id="filter-stock"
+            :value="selectedStock"
+            @change="handleStockChange"
+            class="status-select"
+          >
+            <option value="">Cualquiera</option>
+            <option value="bajo">Bajo stock</option>
+            <option value="agotado">Agotado</option>
+          </select>
         </div>
       </div>
 
@@ -54,7 +60,7 @@
       <div class="content-area">
         <div v-if="isLoading" class="message">
           <div class="spinner"></div>
-          <p>Cargando usuarios...</p>
+          <p>Cargando productos...</p>
         </div>
 
         <div v-else-if="error" class="message error">
@@ -64,60 +70,65 @@
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <p>{{ error }}</p>
-          <button @click="loadUsuarios" class="retry-btn">Reintentar</button>
+          <button @click="loadProductos" class="retry-btn">Reintentar</button>
         </div>
 
-        <div v-else-if="filteredUsuarios.length === 0" class="message empty">
+        <div v-else-if="filteredProductos.length === 0" class="message empty">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-            <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" />
-            <path d="M20 21C20 19.3431 18.6569 18 17 18H7C5.34315 18 4 19.3431 4 21" />
+            <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" />
+            <path d="M16 11H8" />
+            <path d="M16 15H8" />
           </svg>
-          <p>No hay usuarios que coincidan con los filtros.</p>
+          <p>No hay productos que coincidan con los filtros.</p>
         </div>
 
-        <div v-else class="usuarios-grid">
+        <div v-else class="productos-grid">
           <div
-            v-for="usuario in filteredUsuarios"
-            :key="usuario.id"
-            class="usuario-card"
+            v-for="producto in filteredProductos"
+            :key="producto.id"
+            class="producto-card"
+            :class="{ 'bajo-stock': producto.stock <= 5, 'agotado': producto.stock === 0 }"
           >
             <div class="card-header">
-              <h3 class="usuario-nombre">{{ usuario.nombre_completo }}</h3>
-              <span class="badge" :class="`badge--${usuario.rol}`">
-                {{ getRolLabel(usuario.rol) }}
+              <h3 class="producto-nombre">{{ producto.nombre }}</h3>
+              <span class="badge" :class="`badge--${producto.is_activo ? 'activo' : 'inactivo'}`">
+                {{ producto.is_activo ? 'Activo' : 'Inactivo' }}
               </span>
             </div>
 
             <div class="card-body">
               <div class="info-row">
-                <span class="label">Email:</span>
-                <span class="value">{{ usuario.email || '—' }}</span>
+                <span class="label">Categoría:</span>
+                <span class="value">{{ getCategoriaLabel(producto.categoria) }}</span>
               </div>
               <div class="info-row">
-                <span class="label">Teléfono:</span>
-                <span class="value">{{ usuario.telefono || '—' }}</span>
+                <span class="label">Precio:</span>
+                <span class="value">{{ formatoMoneda(producto.precio) }}</span>
               </div>
-              <div class="info-row">
-                <span class="label">Estado:</span>
-                <span class="value">
-                  <span class="estado-indicator" :class="{ 'activo': usuario.is_activo }"></span>
-                  {{ usuario.is_activo ? 'Activo' : 'Inactivo' }}
+              <div class="info-row stock-info">
+                <span class="label">Stock:</span>
+                <span class="value" :class="{ 'stock-bajo': producto.stock <= 5, 'stock-agotado': producto.stock === 0 }">
+                  {{ producto.stock }} {{ producto.unidad_medida }}
                 </span>
               </div>
-              <div class="info-row">
-                <span class="label">Registrado:</span>
-                <span class="value">{{ formatDate(usuario.fecha_registro) }}</span>
+              <div v-if="producto.descripcion" class="info-row">
+                <span class="label">Descripción:</span>
+                <span class="value">{{ producto.descripcion }}</span>
+              </div>
+              <div v-if="producto.codigo_barras" class="info-row">
+                <span class="label">Código:</span>
+                <span class="value">{{ producto.codigo_barras }}</span>
               </div>
             </div>
 
             <div class="card-footer">
-              <button @click="editarUsuario(usuario)" class="btn btn--outline">Editar</button>
+              <button @click="editarProducto(producto)" class="btn btn--outline">Editar</button>
               <button
-                @click="toggleEstado(usuario)"
+                @click="toggleEstado(producto)"
                 class="btn"
-                :class="usuario.is_activo ? 'btn--danger' : 'btn--success'"
+                :class="producto.is_activo ? 'btn--danger' : 'btn--success'"
               >
-                {{ usuario.is_activo ? 'Desactivar' : 'Activar' }}
+                {{ producto.is_activo ? 'Desactivar' : 'Activar' }}
               </button>
             </div>
           </div>
@@ -128,45 +139,81 @@
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
-            <h2>{{ editingUser ? 'Editar Usuario' : 'Crear Usuario' }}</h2>
+            <h2>{{ editingProducto ? 'Editar Producto' : 'Crear Producto' }}</h2>
             <button @click="closeModal" class="modal-close">&times;</button>
           </div>
           <div class="modal-body">
             <div class="form-group">
-              <label>Nombre completo *</label>
+              <label>Nombre *</label>
               <input
-                v-model="formUsuario.nombre_completo"
+                v-model="formProducto.nombre"
                 type="text"
                 class="form-input"
-                placeholder="Nombre completo"
+                placeholder="Nombre del producto"
                 required
               />
             </div>
             <div class="form-group">
-              <label>Email *</label>
-              <input
-                v-model="formUsuario.email"
-                type="email"
-                class="form-input"
-                placeholder="correo@ejemplo.com"
-                required
-              />
+              <label>Descripción</label>
+              <textarea
+                v-model="formProducto.descripcion"
+                class="form-input textarea"
+                placeholder="Descripción del producto"
+                rows="3"
+              ></textarea>
             </div>
             <div class="form-group">
-              <label>Rol *</label>
-              <select v-model="formUsuario.rol" class="form-input" required>
-                <option value="cliente">Cliente</option>
-                <option value="veterinario">Veterinario</option>
-                <option value="admin">Admin</option>
+              <label>Categoría *</label>
+              <select v-model="formProducto.categoria" class="form-input" required>
+                <option value="alimento">Alimento</option>
+                <option value="medicamento">Medicamento</option>
+                <option value="accesorio">Accesorio</option>
+                <option value="juguete">Juguete</option>
+                <option value="higiene">Higiene</option>
+                <option value="otros">Otros</option>
               </select>
             </div>
             <div class="form-group">
-              <label>Teléfono</label>
+              <label>Precio ($) *</label>
               <input
-                v-model="formUsuario.telefono"
+                v-model="formProducto.precio"
+                type="number"
+                class="form-input"
+                placeholder="Precio del producto"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Stock *</label>
+              <input
+                v-model="formProducto.stock"
+                type="number"
+                class="form-input"
+                placeholder="Cantidad en inventario"
+                min="0"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Unidad de medida</label>
+              <input
+                v-model="formProducto.unidad_medida"
                 type="text"
                 class="form-input"
-                placeholder="Teléfono"
+                placeholder="Ej: unidad, kg, lt"
+                maxlength="50"
+              />
+            </div>
+            <div class="form-group">
+              <label>Código de barras</label>
+              <input
+                v-model="formProducto.codigo_barras"
+                type="text"
+                class="form-input"
+                placeholder="Código único de barras"
+                maxlength="100"
               />
             </div>
             <div class="form-group">
@@ -174,7 +221,7 @@
               <label class="switch">
                 <input
                   type="checkbox"
-                  v-model="formUsuario.is_activo"
+                  v-model="formProducto.is_activo"
                 />
                 <span class="slider"></span>
               </label>
@@ -182,8 +229,8 @@
           </div>
           <div class="modal-footer">
             <button @click="closeModal" class="btn btn--outline">Cancelar</button>
-            <button @click="guardarUsuario" class="btn btn--success" :disabled="isProcessing">
-              {{ isProcessing ? 'Guardando...' : (editingUser ? 'Actualizar' : 'Crear') }}
+            <button @click="guardarProducto" class="btn btn--success" :disabled="isProcessing">
+              {{ isProcessing ? 'Guardando...' : (editingProducto ? 'Actualizar' : 'Crear') }}
             </button>
           </div>
         </div>
@@ -201,85 +248,99 @@ import AppSidebar from '@/components/layouts/AppSidebar.vue'
 const isLoading = ref(false)
 const isProcessing = ref(false)
 const error = ref(null)
-const rawUsuarios = ref([])
-const selectedRol = ref('')
+const rawProductos = ref([])
+const selectedCategoria = ref('')
 const selectedActivo = ref('')
-const selectedFecha = ref('')
+const selectedStock = ref('')
 
 // Modal
 const showModal = ref(false)
-const editingUser = ref(null)
-const formUsuario = ref({
-  nombre_completo: '',
-  email: '',
-  rol: 'cliente',
-  telefono: '',
+const editingProducto = ref(null)
+const formProducto = ref({
+  nombre: '',
+  descripcion: '',
+  categoria: 'alimento',
+  precio: 0,
+  stock: 0,
+  unidad_medida: 'unidad',
+  codigo_barras: '',
   is_activo: true
 })
 
 // Handlers
-const handleRolChange = (event) => {
-  selectedRol.value = event.target.value
+const handleCategoriaChange = (event) => {
+  selectedCategoria.value = event.target.value
 }
 
 const handleActivoChange = (event) => {
   selectedActivo.value = event.target.value
 }
 
-const handleFechaInput = (event) => {
-  selectedFecha.value = event.target.value
+const handleStockChange = (event) => {
+  selectedStock.value = event.target.value
 }
 
-// Usuarios filtrados
-const filteredUsuarios = computed(() => {
-  return rawUsuarios.value.filter(usuario => {
-    const matchRol = !selectedRol.value || usuario.rol === selectedRol.value
+// Productos filtrados
+const filteredProductos = computed(() => {
+  return rawProductos.value.filter(producto => {
+    const matchCategoria = !selectedCategoria.value || producto.categoria === selectedCategoria.value
     const matchActivo = selectedActivo.value === '' ||
-      (selectedActivo.value === 'true' && usuario.is_activo) ||
-      (selectedActivo.value === 'false' && !usuario.is_activo)
-    const matchFecha = !selectedFecha.value ||
-      new Date(usuario.fecha_registro) >= new Date(selectedFecha.value)
-    return matchRol && matchActivo && matchFecha
+      (selectedActivo.value === 'true' && producto.is_activo) ||
+      (selectedActivo.value === 'false' && !producto.is_activo)
+
+    let matchStock = true
+    if (selectedStock.value === 'bajo') {
+      matchStock = producto.stock > 0 && producto.stock <= 5
+    } else if (selectedStock.value === 'agotado') {
+      matchStock = producto.stock === 0
+    }
+
+    return matchCategoria && matchActivo && matchStock
   })
 })
 
 // Formateo
-const getRolLabel = (rol) => {
-  const labels = { cliente: 'Cliente', veterinario: 'Veterinario', admin: 'Admin' }
-  return labels[rol] || rol
+const getCategoriaLabel = (categoria) => {
+  const labels = {
+    alimento: 'Alimento',
+    medicamento: 'Medicamento',
+    accesorio: 'Accesorio',
+    juguete: 'Juguete',
+    higiene: 'Higiene',
+    otros: 'Otros'
+  }
+  return labels[categoria] || categoria
 }
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+const formatoMoneda = (valor) => {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(valor)
 }
 
-// Cargar usuarios
-const loadUsuarios = async () => {
+// Cargar productos
+const loadProductos = async () => {
   isLoading.value = true
   error.value = null
 
   try {
-    const { data, error: usuariosError } = await supabase
-      .from('usuarios')
-      .select('id, nombre_completo, email, telefono, rol, is_activo, fecha_registro')
-      .order('fecha_registro', { ascending: false })
+    const { data, error: productosError } = await supabase
+      .from('productos')
+      .select('*')
+      .order('nombre', { ascending: true })
 
-    if (usuariosError) {
-      console.error('Error al cargar usuarios:', usuariosError)
-      throw new Error('Error al cargar usuarios')
+    if (productosError) {
+      console.error('Error al cargar productos:', productosError)
+      throw new Error('Error al cargar productos')
     }
 
-    rawUsuarios.value = data
+    rawProductos.value = data
 
   } catch (err) {
     console.error('Error crítico:', err)
-    error.value = err.message || 'Error al cargar usuarios. Inténtalo más tarde.'
+    error.value = err.message || 'Error al cargar productos. Inténtalo más tarde.'
   } finally {
     isLoading.value = false
   }
@@ -287,92 +348,98 @@ const loadUsuarios = async () => {
 
 // Abrir modal crear
 const openCrearModal = () => {
-  editingUser.value = null
-  formUsuario.value = {
-    nombre_completo: '',
-    email: '',
-    rol: 'cliente',
-    telefono: '',
+  editingProducto.value = null
+  formProducto.value = {
+    nombre: '',
+    descripcion: '',
+    categoria: 'alimento',
+    precio: 0,
+    stock: 0,
+    unidad_medida: 'unidad',
+    codigo_barras: '',
     is_activo: true
   }
   showModal.value = true
 }
 
-// Editar usuario
-const editarUsuario = (usuario) => {
-  editingUser.value = usuario
-  formUsuario.value = { ...usuario }
+// Editar producto
+const editarProducto = (producto) => {
+  editingProducto.value = producto
+  formProducto.value = { ...producto }
   showModal.value = true
 }
 
 // Cerrar modal
 const closeModal = () => {
   showModal.value = false
-  editingUser.value = null
+  editingProducto.value = null
 }
 
-// Guardar usuario
-const guardarUsuario = async () => {
+// Guardar producto
+const guardarProducto = async () => {
   if (isProcessing.value) return
+  if (!formProducto.value.nombre || formProducto.value.precio < 0 || formProducto.value.stock < 0) {
+    alert('Verifica que el nombre, precio y stock sean válidos')
+    return
+  }
   isProcessing.value = true
 
   try {
-    let result
-    if (editingUser.value) {
+    if (editingProducto.value) {
       // Actualizar
       const { error: updateError } = await supabase
-        .from('usuarios')
-        .update(formUsuario.value)
-        .eq('id', editingUser.value.id)
+        .from('productos')
+        .update(formProducto.value)
+        .eq('id', editingProducto.value.id)
 
       if (updateError) throw updateError
     } else {
       // Crear
       const { error: insertError } = await supabase
-        .from('usuarios')
-        .insert([formUsuario.value])
+        .from('productos')
+        .insert([formProducto.value])
 
       if (insertError) throw insertError
     }
 
-    await loadUsuarios()
+    await loadProductos()
     closeModal()
-    alert(editingUser.value ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente')
+    alert(editingProducto.value ? 'Producto actualizado correctamente' : 'Producto creado correctamente')
 
   } catch (err) {
-    console.error('Error al guardar usuario:', err)
-    alert('Error al guardar el usuario. Verifica que el email no esté duplicado.')
+    console.error('Error al guardar producto:', err)
+    alert('Error al guardar el producto. Verifica que el código de barras no esté duplicado.')
   } finally {
     isProcessing.value = false
   }
 }
 
 // Toggle estado
-const toggleEstado = async (usuario) => {
-  if (!confirm(`¿${usuario.is_activo ? 'Desactivar' : 'Activar'} a ${usuario.nombre_completo}?`)) return
+const toggleEstado = async (producto) => {
+  if (!confirm(`¿${producto.is_activo ? 'Desactivar' : 'Activar'} "${producto.nombre}"?`)) return
 
   try {
     const { error: updateError } = await supabase
-      .from('usuarios')
-      .update({ is_activo: !usuario.is_activo })
-      .eq('id', usuario.id)
+      .from('productos')
+      .update({ is_activo: !producto.is_activo })
+      .eq('id', producto.id)
 
     if (updateError) throw updateError
-    await loadUsuarios()
+    await loadProductos()
   } catch (err) {
     console.error('Error al cambiar estado:', err)
-    alert('Error al cambiar el estado del usuario')
+    alert('Error al cambiar el estado del producto')
   }
 }
 
 onMounted(() => {
-  loadUsuarios()
+  loadProductos()
 })
 </script>
 
 <style scoped>
 /* Estilos coherentes con el dashboard admin */
-.usuarios-admin-container {
+.productos-admin-container {
   display: flex;
   min-height: 100vh;
   background-color: #f9fafb;
@@ -401,7 +468,6 @@ onMounted(() => {
     min-width: auto;
   }
 
-  .date-input,
   .status-select {
     width: 100%;
   }
@@ -464,7 +530,6 @@ onMounted(() => {
   color: #475569;
 }
 
-.date-input,
 .status-select {
   padding: 0.625rem 0.875rem;
   border: 1px solid #d1d5db;
@@ -474,7 +539,6 @@ onMounted(() => {
   transition: border-color 0.2s;
 }
 
-.date-input:focus,
 .status-select:focus {
   outline: none;
   border-color: #145a32;
@@ -525,13 +589,13 @@ onMounted(() => {
   background: #0f4c28;
 }
 
-.usuarios-grid {
+.productos-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.75rem;
 }
 
-.usuario-card {
+.producto-card {
   background: white;
   border-radius: 12px;
   padding: 1.75rem;
@@ -540,9 +604,18 @@ onMounted(() => {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.usuario-card:hover {
+.producto-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.producto-card.bajo-stock {
+  border-left: 4px solid #f59e0b;
+}
+
+.producto-card.agotado {
+  border-left: 4px solid #ef4444;
+  opacity: 0.8;
 }
 
 .card-header {
@@ -552,7 +625,7 @@ onMounted(() => {
   margin-bottom: 1.25rem;
 }
 
-.usuario-nombre {
+.producto-nombre {
   font-size: 1.25rem;
   font-weight: 700;
   color: #1e293b;
@@ -567,9 +640,8 @@ onMounted(() => {
   text-transform: uppercase;
 }
 
-.badge--cliente { background: #dbeafe; color: #1d4ed8; }
-.badge--veterinario { background: #dcfce7; color: #166534; }
-.badge--admin { background: #ede9fe; color: #7c3aed; }
+.badge--activo { background: #dcfce7; color: #166534; }
+.badge--inactivo { background: #fee2e2; color: #dc2626; }
 
 .card-body {
   margin-bottom: 1.5rem;
@@ -584,7 +656,7 @@ onMounted(() => {
 .label {
   font-weight: 600;
   color: #475569;
-  min-width: 90px;
+  min-width: 85px;
 }
 
 .value {
@@ -592,17 +664,14 @@ onMounted(() => {
   flex: 1;
 }
 
-.estado-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #dc2626;
-  margin-right: 0.5rem;
+.stock-info .value.stock-bajo {
+  color: #d97706;
+  font-weight: 600;
 }
 
-.estado-indicator.activo {
-  background: #16a34a;
+.stock-info .value.stock-agotado {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .card-footer {
@@ -722,6 +791,11 @@ onMounted(() => {
   font-size: 1rem;
 }
 
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
 .form-input:focus {
   outline: none;
   border-color: #145a32;
@@ -782,12 +856,12 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 480px) {
-  .usuarios-grid {
+  .productos-grid {
     grid-template-columns: 1fr;
     gap: 1.25rem;
   }
 
-  .usuario-card {
+  .producto-card {
     padding: 1.25rem;
   }
 

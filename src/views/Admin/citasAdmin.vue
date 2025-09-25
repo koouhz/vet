@@ -1,497 +1,530 @@
-<script setup>
-import { ref, onMounted, computed } from 'vue'
-import { supabase } from '@/lib/supabaseClient'
-
-// Estados
-const citas = ref([])
-const veterinarios = ref([])
-const servicios = ref([])
-const especialidades = ref([])
-const loading = ref(false)
-const editingCita = ref(null)
-const showEditModal = ref(false)
-const notification = ref({ message: '', type: '', visible: false })
-const stats = ref({
-  total: 0,
-  programadas: 0,
-  confirmadas: 0,
-  completadas: 0,
-  canceladas: 0,
-  no_asistio: 0,
-  especialidadMasUsada: '',
-  citasPorMes: []
-})
-
-// Filtros
-const filtroEstado = ref('todas')
-const filtroVeterinario = ref('todos')
-const filtroServicio = ref('todos')
-const searchCliente = ref('')
-
-// Cargar datos
-const fetchCitas = async () => {
-  loading.value = true
-  try {
-    const {  data, error } = await supabase
-      .from('citasmascotas')
-      .select(`
-        id,
-        fecha,
-        hora,
-        estado,
-        observaciones,
-        estado_pago,
-        metodo_pago,
-        creado_en,
-        usuario_id,
-        mascota_id,
-        veterinario_id,
-        servicio_id,
-        creada_por,
-        usuario:usuarios!citasmascotas_usuario_id_fkey ( nombre_completo, email ),
-        mascota:mascotas ( nombre, especie ),
-        veterinario:veterinarios ( id, usuario_id ),
-        servicio:servicios ( id, titulo ),
-        vet_usuario: veterinarios!inner(usuario:usuarios!veterinarios_usuario_id_fkey ( nombre_completo )),
-        especialidad_vet: veterinarios!inner(especialidad:especialidades ( nombre )),
-        especialidad_serv: servicios!inner(especialidad:especialidades ( nombre ))
-      `)
-      .order('fecha', { ascending: false })
-      .order('hora', { ascending: true })
-
-    if (error) throw error
-
-    citas.value = (data || []).map(cita => ({
-      ...cita,
-      usuario: cita.usuario || { nombre_completo: 'Usuario no encontrado', email: '' },
-      mascota: cita.mascota || { nombre: 'Mascota no encontrada', especie: 'Desconocida' },
-      veterinario: {
-        ...cita.veterinario,
-        nombre: cita.vet_usuario?.usuario?.nombre_completo || 'Veterinario no encontrado'
-      },
-      servicio: cita.servicio || { titulo: 'Servicio no encontrado' },
-      especialidad_vet: cita.especialidad_vet || { nombre: 'Sin especialidad' },
-      especialidad_serv: cita.especialidad_serv || { nombre: 'Sin especialidad' }
-    }))
-
-    await fetchEstadisticas()
-    await fetchCatalogos()
-    showNotification('✅ Citas cargadas correctamente', 'success')
-  } catch (err) {
-    console.error('❌ Error al cargar citas:', err.message)
-    showNotification('⚠️ Error al cargar citas', 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-const fetchEstadisticas = async () => {
-  try {
-    // Estadísticas básicas
-    const {  statsData, error: statsError } = await supabase
-      .from('citasmascotas')
-      .select('estado')
-    if (statsError) throw statsError
-
-    const estados = statsData.reduce((acc, cita) => {
-      acc[cita.estado] = (acc[cita.estado] || 0) + 1
-      return acc
-    }, {})
-
-    // Especialidad más usada (placeholder)
-    const espMasUsada = 'General'
-
-    // Citas por mes (placeholder)
-    const citasPorMes = [
-      { mes: 'Ene', total: 15 },
-      { mes: 'Feb', total: 20 },
-      { mes: 'Mar', total: 18 }
-    ]
-
-    stats.value = {
-      total: statsData.length,
-      programadas: estados.programada || 0,
-      confirmadas: estados.confirmada || 0,
-      completadas: estados.completada || 0,
-      canceladas: estados.cancelada || 0,
-      no_asistio: estados.no_asistio || 0,
-      especialidadMasUsada: espMasUsada,
-      citasPorMes: citasPorMes
-    }
-  } catch (err) {
-    console.error('Error al cargar estadísticas:', err.message)
-  }
-}
-
-const fetchCatalogos = async () => {
-  try {
-    // Veterinarios activos
-    const {  vets, error: vetError } = await supabase
-      .from('veterinarios')
-      .select('id, usuario_id')
-      .eq('is_activo', true)
-    if (!vetError) {
-      const userIds = vets.map(v => v.usuario_id)
-      const {  users, userError } = await supabase
-        .from('usuarios')
-        .select('id, nombre_completo')
-        .in('id', userIds)
-      if (!userError) {
-        veterinarios.value = vets.map(v => ({
-          ...v,
-          nombre: users.find(u => u.id === v.usuario_id)?.nombre_completo || 'Sin nombre'
-        }))
-      }
-    }
-
-    // Servicios activos
-    const {  servs, error: servError } = await supabase
-      .from('servicios')
-      .select('id, titulo, especialidad_id')
-      .eq('is_activo', true)
-    if (!servError) servicios.value = servs
-
-    // Especialidades activas
-    const {  esp, error: espError } = await supabase
-      .from('especialidades')
-      .select('id, nombre')
-      .eq('is_activa', true)
-    if (!espError) especialidades.value = esp
-  } catch (err) {
-    console.error('Error al cargar catálogos:', err.message)
-  }
-}
-
-// Filtro computado
-const filteredCitas = computed(() => {
-  return citas.value.filter(cita => {
-    if (filtroEstado.value !== 'todas' && cita.estado !== filtroEstado.value) return false
-    if (filtroVeterinario.value !== 'todos' && cita.veterinario.id.toString() !== filtroVeterinario.value) return false
-    if (filtroServicio.value !== 'todos' && cita.servicio.id.toString() !== filtroServicio.value) return false
-    if (searchCliente.value && !cita.usuario.nombre_completo.toLowerCase().includes(searchCliente.value.toLowerCase())) return false
-    return true
-  })
-})
-
-// Acciones
-const openEditModal = (cita) => {
-  editingCita.value = { ...cita }
-  showEditModal.value = true
-}
-
-const saveCita = async () => {
-  if (!editingCita.value) return
-  try {
-    const { error } = await supabase
-      .from('citasmascotas')
-      .update({
-        veterinario_id: editingCita.value.veterinario.id,
-        servicio_id: editingCita.value.servicio.id,
-        fecha: editingCita.value.fecha,
-        hora: editingCita.value.hora,
-        estado: editingCita.value.estado,
-        observaciones: editingCita.value.observaciones,
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('id', editingCita.value.id)
-
-    if (error) throw error
-    showNotification('✅ Cita actualizada', 'success')
-    showEditModal.value = false
-    fetchCitas()
-  } catch (err) {
-    console.error('Error al guardar cita:', err.message)
-    showNotification('❌ Error al guardar', 'error')
-  }
-}
-
-const cancelarCita = async (cita) => {
-  if (!confirm(`¿Cancelar cita de ${cita.usuario.nombre_completo} para ${cita.mascota.nombre}?`)) return
-  try {
-    const { error } = await supabase
-      .from('citasmascotas')
-      .update({
-        estado: 'cancelada',
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('id', cita.id)
-    if (error) throw error
-    showNotification('🚫 Cita cancelada', 'warning')
-    fetchCitas()
-  } catch (err) {
-    showNotification('❌ Error al cancelar', 'error')
-  }
-}
-
-const completarCita = async (cita) => {
-  if (!confirm(`¿Marcar como completada la cita de ${cita.usuario.nombre_completo}?`)) return
-  try {
-    const { error } = await supabase
-      .from('citasmascotas')
-      .update({
-        estado: 'completada',
-        actualizado_en: new Date().toISOString()
-      })
-      .eq('id', cita.id)
-    if (error) throw error
-    showNotification('✅ Cita completada', 'success')
-    fetchCitas()
-  } catch (err) {
-    showNotification('❌ Error al completar', 'error')
-  }
-}
-
-// Notificación
-const showNotification = (message, type) => {
-  notification.value = { message, type, visible: true }
-  setTimeout(() => { notification.value.visible = false }, 3000)
-}
-
-// Hooks
-onMounted(() => { fetchCitas() })
-</script>
-
 <template>
-  <div class="admin-container">
-    <!-- Notificación -->
-    <div v-if="notification.visible" :class="`notification ${notification.type}`">
-      {{ notification.message }}
-    </div>
+  <div class="citas-admin-container">
+    <AppSidebar />
 
-    <!-- Header -->
-    <div class="page-header">
-      <h1>📅 Gestión de Citas</h1>
-      <p class="subtitle">Administra, reprograma y analiza las citas del sistema.</p>
-    </div>
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Citas</h1>
+        <p class="subtitle">Gestiona todas las citas del sistema.</p>
+      </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Cargando citas...</p>
-    </div>
-
-    <!-- Estadísticas -->
-    <div v-else class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value">{{ stats.total }}</div>
-        <div class="stat-label">Total Citas</div>
-      </div>
-      <div class="stat-card success">
-        <div class="stat-value">{{ stats.completadas }}</div>
-        <div class="stat-label">Completadas</div>
-      </div>
-      <div class="stat-card warning">
-        <div class="stat-value">{{ stats.canceladas }}</div>
-        <div class="stat-label">Canceladas</div>
-      </div>
-      <div class="stat-card info">
-        <div class="stat-value">{{ stats.especialidadMasUsada || 'N/A' }}</div>
-        <div class="stat-label">Especialidad más usada</div>
-      </div>
-    </div>
-
-    <!-- Filtros -->
-    <div class="filters-container">
-      <div class="filter-group">
-        <label>Estado</label>
-        <select v-model="filtroEstado" class="fancy-select">
-          <option value="todas">Todas</option>
-          <option value="programada">Programada</option>
-          <option value="confirmada">Confirmada</option>
-          <option value="completada">Completada</option>
-          <option value="cancelada">Cancelada</option>
-          <option value="no_asistio">No asistió</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Veterinario</label>
-        <select v-model="filtroVeterinario" class="fancy-select">
-          <option value="todos">Todos</option>
-          <option v-for="vet in veterinarios" :key="vet.id" :value="vet.id">
-            {{ vet.nombre }}
-          </option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Servicio</label>
-        <select v-model="filtroServicio" class="fancy-select">
-          <option value="todos">Todos</option>
-          <option v-for="serv in servicios" :key="serv.id" :value="serv.id">
-            {{ serv.titulo }}
-          </option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Cliente</label>
-        <input v-model="searchCliente" type="text" placeholder="Buscar cliente..." class="search-input" />
-      </div>
-    </div>
-
-    <!-- Lista de citas -->
-    <div class="citas-grid">
-      <div v-if="filteredCitas.length === 0" class="no-data">
-        🗓️ No hay citas que coincidan con los filtros.
-      </div>
-      <div
-        v-for="cita in filteredCitas"
-        :key="cita.id"
-        class="cita-card"
-        :class="{ 'estado-programada': cita.estado === 'programada', 'estado-confirmada': cita.estado === 'confirmada', 'estado-completada': cita.estado === 'completada', 'estado-cancelada': cita.estado === 'cancelada' }"
-      >
-        <div class="cita-header">
-          <div class="cita-estado">
-            <span :class="`badge estado-${cita.estado}`">
-              {{ cita.estado }}
-            </span>
-          </div>
-          <div class="cita-fecha">
-            {{ new Date(cita.fecha).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) }}
-            <br>
-            <strong>{{ cita.hora }}</strong>
-          </div>
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filter-fecha" class="filter-label">Fecha</label>
+          <input
+            id="filter-fecha"
+            type="date"
+            :value="selectedFecha"
+            @input="handleFechaInput"
+            class="date-input"
+          />
         </div>
-        <div class="cita-body">
-          <h3 class="cita-cliente">{{ cita.usuario.nombre_completo }}</h3>
-          <p class="cita-mascota">🐾 {{ cita.mascota.nombre }} ({{ cita.mascota.especie }})</p>
-          <p class="cita-servicio">🩺 {{ cita.servicio.titulo }}</p>
-          <p class="cita-vet">👨‍⚕️ Dr. {{ cita.veterinario.nombre }}</p>
-          <p class="cita-pago" v-if="cita.estado_pago">
-            💰 {{ cita.estado_pago }} - {{ cita.metodo_pago || 'N/A' }}
-          </p>
+        <div class="filter-item">
+          <label for="filter-estado" class="filter-label">Estado</label>
+          <select
+            id="filter-estado"
+            :value="selectedEstado"
+            @change="handleEstadoChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option value="programada">Programada</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="completada">Completada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="no_asistio">No asistió</option>
+          </select>
         </div>
-        <div class="cita-actions">
-          <button @click="openEditModal(cita)" class="btn-icon" title="Reprogramar/Editar">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-          </button>
-          <button @click="cancelarCita(cita)" v-if="cita.estado !== 'cancelada'" class="btn-danger" title="Cancelar cita">
-            ❌
-          </button>
-          <button @click="completarCita(cita)" v-if="cita.estado !== 'completada' && cita.estado !== 'cancelada'" class="btn-success" title="Marcar como completada">
-            ✅
-          </button>
+        <div class="filter-item">
+          <label for="filter-veterinario" class="filter-label">Veterinario</label>
+          <select
+            id="filter-veterinario"
+            :value="selectedVeterinario"
+            @change="handleVeterinarioChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option v-for="vet in veterinarios" :key="vet.id" :value="vet.id">
+              {{ vet.nombre }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-item">
+          <label for="filter-servicio" class="filter-label">Servicio</label>
+          <select
+            id="filter-servicio"
+            :value="selectedServicio"
+            @change="handleServicioChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option v-for="serv in servicios" :key="serv.id" :value="serv.id">
+              {{ serv.titulo }}
+            </option>
+          </select>
         </div>
       </div>
-    </div>
 
-    <!-- Modal de edición -->
-    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>✏️ Editar Cita</h2>
-          <button class="close-btn" @click="showEditModal = false">×</button>
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando citas...</p>
         </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <label>Cliente</label>
-            <div class="readonly-field">
-              {{ editingCita?.usuario?.nombre_completo }}
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadCitas" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else-if="filteredCitas.length === 0" class="message empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M8 2V5" /><path d="M16 2V5" />
+            <path d="M3 9H21" /><path d="M3 15H21" /><path d="M3 21H21" />
+          </svg>
+          <p>No hay citas que coincidan con los filtros.</p>
+        </div>
+
+        <div v-else class="citas-grid">
+          <div
+            v-for="cita in filteredCitas"
+            :key="cita.id"
+            class="cita-card"
+          >
+            <div class="card-header">
+              <div>
+                <span class="time">{{ formatTime(cita.hora) }}</span>
+                <span class="date">{{ formatDate(cita.fecha) }}</span>
+              </div>
+              <span class="badge" :class="`badge--${cita.estado}`">
+                {{ getEstadoLabel(cita.estado) }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Mascota:</span>
+                <span class="value">{{ cita.mascota_nombre || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Dueño:</span>
+                <span class="value">{{ cita.usuario_nombre || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Veterinario:</span>
+                <span class="value">{{ cita.veterinario_nombre || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Servicio:</span>
+                <span class="value">{{ cita.servicio_titulo || '—' }}</span>
+              </div>
+              <div v-if="cita.observaciones" class="info-row">
+                <span class="label">Notas:</span>
+                <span class="value">{{ cita.observaciones }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Pago:</span>
+                <span class="value" :class="`pago--${cita.estado_pago}`">
+                  {{ getEstadoPagoLabel(cita.estado_pago) }}
+                </span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button
+                v-if="cita.estado === 'programada'"
+                @click="actualizarEstado(cita.id, 'confirmada')"
+                class="btn btn--success"
+              >
+                Confirmar
+              </button>
+              <button
+                v-if="cita.estado === 'programada' || cita.estado === 'confirmada'"
+                @click="actualizarEstado(cita.id, 'cancelada')"
+                class="btn btn--danger"
+              >
+                Cancelar
+              </button>
+              <button @click="verDetalles(cita.id)" class="btn btn--outline">
+                Ver
+              </button>
             </div>
           </div>
-          <div class="form-row">
-            <label>Mascota</label>
-            <div class="readonly-field">
-              {{ editingCita?.mascota?.nombre }} ({{ editingCita?.mascota?.especie }})
-            </div>
-          </div>
-          <div class="form-row">
-            <label>Fecha</label>
-            <input v-model="editingCita.fecha" type="date" class="fancy-input" />
-          </div>
-          <div class="form-row">
-            <label>Hora</label>
-            <input v-model="editingCita.hora" type="time" class="fancy-input" />
-          </div>
-          <div class="form-row">
-            <label>Veterinario</label>
-            <select v-model="editingCita.veterinario.id" class="fancy-select">
-              <option v-for="vet in veterinarios" :key="vet.id" :value="vet.id">
-                {{ vet.nombre }}
-              </option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>Servicio</label>
-            <select v-model="editingCita.servicio.id" class="fancy-select">
-              <option v-for="serv in servicios" :key="serv.id" :value="serv.id">
-                {{ serv.titulo }}
-              </option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>Estado</label>
-            <select v-model="editingCita.estado" class="fancy-select">
-              <option value="programada">Programada</option>
-              <option value="confirmada">Confirmada</option>
-              <option value="completada">Completada</option>
-              <option value="cancelada">Cancelada</option>
-              <option value="no_asistio">No asistió</option>
-            </select>
-          </div>
-          <div class="form-row">
-            <label>Observaciones</label>
-            <textarea v-model="editingCita.observaciones" class="fancy-textarea" rows="3"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="showEditModal = false">Cancelar</button>
-          <button class="btn-primary" @click="saveCita">Guardar Cambios</button>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
-<style scoped>
-.admin-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #03252b 0%, #0a4a56 100%);
-  padding: 2rem;
-  color: #e0f7fa;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding-left: calc(2rem + 80px);
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { supabase } from '@/lib/supabaseClient'
+import { useRouter } from 'vue-router'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
+
+const router = useRouter()
+const isLoading = ref(false)
+const error = ref(null)
+const rawCitas = ref([])
+const selectedFecha = ref('')
+const selectedEstado = ref('')
+const selectedVeterinario = ref('')
+const selectedServicio = ref('')
+
+// Listas para filtros
+const veterinarios = ref([])
+const servicios = ref([])
+
+// Handlers
+const handleFechaInput = (event) => {
+  selectedFecha.value = event.target.value
 }
 
-@media (min-width: 1024px) {
-  .admin-container {
-    padding-left: calc(2rem + 260px);
+const handleEstadoChange = (event) => {
+  selectedEstado.value = event.target.value
+}
+
+const handleVeterinarioChange = (event) => {
+  selectedVeterinario.value = event.target.value
+}
+
+const handleServicioChange = (event) => {
+  selectedServicio.value = event.target.value
+}
+
+const filteredCitas = computed(() => {
+  return rawCitas.value.filter(cita => {
+    const matchFecha = !selectedFecha.value || cita.fecha === selectedFecha.value
+    const matchEstado = !selectedEstado.value || cita.estado === selectedEstado.value
+    const matchVeterinario = !selectedVeterinario.value || cita.veterinario_id == selectedVeterinario.value
+    const matchServicio = !selectedServicio.value || cita.servicio_id == selectedServicio.value
+    return matchFecha && matchEstado && matchVeterinario && matchServicio
+  })
+})
+
+const estadoLabels = {
+  programada: 'Programada',
+  confirmada: 'Confirmada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+  no_asistio: 'No asistió'
+}
+
+const estadoPagoLabels = {
+  pendiente: 'Pendiente',
+  pagado: 'Pagado',
+  reembolsado: 'Reembolsado',
+  fallido: 'Fallido'
+}
+
+const getEstadoLabel = (estado) => estadoLabels[estado] || estado
+const getEstadoPagoLabel = (estado) => estadoPagoLabels[estado] || estado
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '—'
+  const [h, m] = timeStr.split(':')
+  return `${h}:${m}`
+}
+
+// Cargar datos (versión robusta)
+const loadCitas = async () => {
+  isLoading.value = true
+  error.value = null
+
+  try {
+    // 1. Cargar veterinarios para filtro
+    const { data: vetsData, error: vetsError } = await supabase
+      .from('veterinarios')
+      .select('id, usuario_id')
+      .eq('is_activo', true)
+
+    if (vetsError) throw new Error('Error al cargar veterinarios')
+
+    // Obtener nombres de veterinarios
+    const vetUsuarioIds = vetsData.map(v => v.usuario_id)
+    const vetNombres = {}
+    if (vetUsuarioIds.length > 0) {
+      const { data: usuariosVets, error: usuariosError } = await supabase
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .in('id', vetUsuarioIds)
+
+      if (usuariosError) throw new Error('Error al cargar nombres de veterinarios')
+      usuariosVets.forEach(u => { vetNombres[u.id] = u.nombre_completo })
+    }
+
+    veterinarios.value = vetsData.map(v => ({
+      id: v.id,
+      nombre: vetNombres[v.usuario_id] || 'Veterinario'
+    }))
+
+    // 2. Cargar servicios para filtro
+    const { data: servsData, error: servsError } = await supabase
+      .from('servicios')
+      .select('id, titulo')
+      .eq('is_activo', true)
+
+    if (servsError) throw new Error('Error al cargar servicios')
+    servicios.value = servsData
+
+    // 3. Cargar citas (solo IDs y campos básicos)
+    const { data: citasData, error: citasError } = await supabase
+      .from('citasmascotas')
+      .select('id, fecha, hora, estado, observaciones, estado_pago, mascota_id, usuario_id, veterinario_id, servicio_id')
+      .order('fecha', { ascending: false })
+      .order('hora', { ascending: false })
+
+    if (citasError) {
+      console.error('Error Supabase:', citasError)
+      throw new Error('Error al consultar citas')
+    }
+
+    if (citasData.length === 0) {
+      rawCitas.value = []
+      isLoading.value = false
+      return
+    }
+
+    // 4. Obtener IDs únicos para relaciones
+    const mascotaIds = [...new Set(citasData.map(c => c.mascota_id).filter(Boolean))]
+    const usuarioIds = [...new Set(citasData.map(c => c.usuario_id).filter(Boolean))]
+    const servicioIds = [...new Set(citasData.map(c => c.servicio_id).filter(Boolean))]
+    const vetIds = [...new Set(citasData.map(c => c.veterinario_id).filter(Boolean))]
+
+    // 5. Cargar datos relacionados en paralelo
+    const [
+      mascotasRes,
+      usuariosRes,
+      serviciosRes,
+      vetsRes
+    ] = await Promise.all([
+      mascotaIds.length > 0
+        ? supabase.from('mascotas').select('id, nombre').in('id', mascotaIds)
+        : Promise.resolve({ data: [], error: null }),
+
+      usuarioIds.length > 0
+        ? supabase.from('usuarios').select('id, nombre_completo').in('id', usuarioIds)
+        : Promise.resolve({ data: [], error: null }),
+
+      servicioIds.length > 0
+        ? supabase.from('servicios').select('id, titulo').in('id', servicioIds)
+        : Promise.resolve({ data: [], error: null }),
+
+      vetIds.length > 0
+        ? supabase.from('veterinarios').select('id, usuario_id').in('id', vetIds)
+        : Promise.resolve({ data: [], error: null })
+    ])
+
+    // Verificar errores
+    if (mascotasRes.error) throw new Error('Error al cargar mascotas')
+    if (usuariosRes.error) throw new Error('Error al cargar usuarios')
+    if (serviciosRes.error) throw new Error('Error al cargar servicios')
+    if (vetsRes.error) throw new Error('Error al cargar veterinarios')
+
+    // Crear mapas
+    const mascotasMap = {}
+    mascotasRes.data.forEach(m => { mascotasMap[m.id] = m.nombre })
+
+    const usuariosMap = {}
+    usuariosRes.data.forEach(u => { usuariosMap[u.id] = u.nombre_completo })
+
+    const serviciosMap = {}
+    serviciosRes.data.forEach(s => { serviciosMap[s.id] = s.titulo })
+
+    // Obtener nombres de veterinarios
+    const vetUsuarioMap = {}
+    if (vetsRes.data.length > 0) {
+      const vetUserIds = vetsRes.data.map(v => v.usuario_id)
+      if (vetUserIds.length > 0) {
+        const { data: vetUsuarios, error: vetUserError } = await supabase
+          .from('usuarios')
+          .select('id, nombre_completo')
+          .in('id', vetUserIds)
+
+        if (vetUserError) throw new Error('Error al cargar nombres de veterinarios')
+        vetUsuarios.forEach(u => { vetUsuarioMap[u.id] = u.nombre_completo })
+      }
+    }
+
+    const veterinariosMap = {}
+    vetsRes.data.forEach(v => {
+      veterinariosMap[v.id] = vetUsuarioMap[v.usuario_id] || 'Veterinario'
+    })
+
+    // 6. Combinar datos
+    rawCitas.value = citasData.map(cita => ({
+      ...cita,
+      mascota_nombre: mascotasMap[cita.mascota_id] || null,
+      usuario_nombre: usuariosMap[cita.usuario_id] || null,
+      servicio_titulo: serviciosMap[cita.servicio_id] || null,
+      veterinario_nombre: veterinariosMap[cita.veterinario_id] || null
+    }))
+
+  } catch (err) {
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar citas. Inténtalo más tarde.'
+  } finally {
+    isLoading.value = false
   }
 }
 
+const actualizarEstado = async (citaId, nuevoEstado) => {
+  if (!confirm(`¿${nuevoEstado === 'confirmada' ? 'Confirmar' : 'Cancelar'} esta cita?`)) return
+
+  try {
+    const { error: updateError } = await supabase
+      .from('citasmascotas')
+      .update({ estado: nuevoEstado })
+      .eq('id', citaId)
+
+    if (updateError) {
+      console.error('Error al actualizar:', updateError)
+      throw new Error('No se pudo actualizar la cita')
+    }
+
+    await loadCitas()
+  } catch (err) {
+    alert(err.message)
+  }
+}
+
+const verDetalles = (citaId) => {
+  router.push({ name: 'DetalleCitaAdmin', params: { id: citaId } })
+}
+
+onMounted(() => {
+  loadCitas()
+})
+</script>
+
+<style scoped>
+/* Estilos coherentes con el dashboard admin */
+.citas-admin-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 240px;
+  transition: margin-left 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .date-input,
+  .status-select {
+    width: 100%;
+  }
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
 .page-header h1 {
-  font-size: 2rem;
+  font-size: 1.875rem;
   font-weight: 700;
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.5px;
-  background: linear-gradient(to right, #80deea, #4dd0e1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-align: center;
+  color: #1e293b;
+  margin: 0;
 }
 
 .subtitle {
-  text-align: center;
+  color: #64748b;
   font-size: 1rem;
-  opacity: 0.85;
-  margin: 0 0 2rem;
 }
 
-.loading-state {
+.filters-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 160px;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.date-input,
+.status-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.date-input:focus,
+.status-select:focus {
+  outline: none;
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
+}
+
+.content-area {
+  min-height: 400px;
+}
+
+.message {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4rem 0;
-  color: #b2ebf2;
+  justify-content: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+  text-align: center;
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(128, 222, 234, 0.3);
-  border-top: 3px solid #4dd0e1;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
@@ -499,391 +532,168 @@ onMounted(() => { fetchCitas() })
   to { transform: rotate(360deg); }
 }
 
-/* Estadísticas */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 1.5rem;
-  text-align: center;
-  border: 1px solid rgba(128, 222, 234, 0.2);
-}
-
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-  color: #ffffff;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  color: #b2ebf2;
-}
-
-.stat-card.success { border-color: rgba(165, 214, 167, 0.3); background: rgba(165, 214, 167, 0.1); }
-.stat-card.warning { border-color: rgba(255, 138, 128, 0.3); background: rgba(255, 138, 128, 0.1); }
-.stat-card.info { border-color: rgba(129, 212, 250, 0.3); background: rgba(129, 212, 250, 0.1); }
-
-/* Filtros */
-.filters-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1.5rem;
-  border-radius: 16px;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-group label {
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
   font-weight: 600;
-  color: #80deea;
-  font-size: 0.9rem;
+  transition: background 0.2s;
 }
 
-.search-input,
-.fancy-select,
-.fancy-input {
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 12px;
-  border: 1px solid rgba(77, 208, 225, 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  font-size: 1rem;
-  transition: border 0.2s;
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
-.search-input:focus,
-.fancy-select:focus,
-.fancy-input:focus {
-  outline: none;
-  border-color: #80deea;
-  box-shadow: 0 0 0 2px rgba(128, 222, 234, 0.2);
-}
-
-.fancy-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 12px;
-  border: 1px solid rgba(77, 208, 225, 0.3);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  font-size: 1rem;
-  resize: vertical;
-  min-height: 80px;
-}
-
-.readonly-field {
-  width: 100%;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #b2ebf2;
-  font-size: 1rem;
-  border: 1px solid rgba(77, 208, 225, 0.3);
-}
-
-/* Citas */
 .citas-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
-}
-
-.no-data {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 3rem 1rem;
-  font-size: 1.2rem;
-  color: #ff8a80;
-  background: rgba(255, 138, 128, 0.1);
-  border-radius: 16px;
-  border: 1px dashed rgba(255, 138, 128, 0.3);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
 }
 
 .cita-card {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  border-radius: 18px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(77, 208, 225, 0.15);
-  transition: all 0.25s ease;
+  background: white;
+  border-radius: 12px;
+  padding: 1.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .cita-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-.cita-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(128, 222, 234, 0.2);
+  margin-bottom: 1.25rem;
 }
 
-.cita-estado .badge {
+.time {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.date {
+  font-size: 0.875rem;
+  color: #64748b;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.badge {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
-.estado-programada { background: rgba(129, 212, 250, 0.2); color: #81d4fa; }
-.estado-confirmada { background: rgba(165, 214, 167, 0.2); color: #a5d6a7; }
-.estado-completada { background: rgba(159, 168, 218, 0.2); color: #9fa8da; }
-.estado-cancelada { background: rgba(255, 138, 128, 0.2); color: #ff8a80; }
+.badge--programada { background: #dbeafe; color: #1d4ed8; }
+.badge--confirmada { background: #dcfce7; color: #166534; }
+.badge--completada { background: #ede9fe; color: #7c3aed; }
+.badge--cancelada { background: #fee2e2; color: #dc2626; }
+.badge--no_asistio { background: #ffedd5; color: #ea580c; }
 
-.cita-fecha {
-  text-align: right;
-  font-weight: 600;
-  color: #ffffff;
-  font-size: 0.9rem;
-}
-
-.cita-body h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.1rem;
-  color: #ffffff;
-}
-
-.cita-body p {
-  margin: 0.25rem 0;
-  font-size: 0.9rem;
-  color: #b2ebf2;
-}
-
-.cita-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.btn-icon,
-.btn-danger,
-.btn-success {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.btn-icon {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #80deea;
-}
-
-.btn-icon:hover {
-  background: rgba(128, 222, 234, 0.2);
-  transform: scale(1.05);
-}
-
-.btn-danger {
-  background: rgba(255, 138, 128, 0.2);
-  border: 1px solid rgba(255, 138, 128, 0.3);
-  color: #ff8a80;
-}
-
-.btn-danger:hover {
-  background: rgba(255, 138, 128, 0.3);
-}
-
-.btn-success {
-  background: rgba(165, 214, 167, 0.2);
-  border: 1px solid rgba(165, 214, 167, 0.3);
-  color: #a5d6a7;
-}
-
-.btn-success:hover {
-  background: rgba(165, 214, 167, 0.3);
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-}
-
-.modal {
-  background: #0a4a56;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 500px;
-  padding: 2rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(77, 208, 225, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.card-body {
   margin-bottom: 1.5rem;
 }
 
-.modal-header h2 {
-  margin: 0;
-  color: #ffffff;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #ffffff;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+.info-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background 0.2s;
-}
-
-.close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.form-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-row label {
-  font-weight: 600;
-  color: #b2ebf2;
-  font-size: 0.9rem;
-}
-
-.modal-footer {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-.btn-primary,
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
+  margin: 0.5rem 0;
   font-size: 0.95rem;
-  transition: all 0.2s;
 }
 
-.btn-primary {
-  background: linear-gradient(135deg, #4dd0e1, #80deea);
-  color: #0277bd;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(77, 208, 225, 0.4);
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* Notificación */
-.notification {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
+.label {
   font-weight: 600;
-  z-index: 2000;
+  color: #475569;
+  min-width: 85px;
+}
+
+.value {
+  color: #1e293b;
+  flex: 1;
+}
+
+.pago--pendiente { color: #d97706; font-weight: 600; }
+.pago--pagado { color: #166534; font-weight: 600; }
+.pago--reembolsado { color: #7c3aed; font-weight: 600; }
+.pago--fallido { color: #dc2626; font-weight: 600; }
+
+.card-footer {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+  gap: 0.875rem;
+  justify-content: flex-end;
 }
 
-.notification.success { background: rgba(165, 214, 167, 0.9); color: #1b5e20; }
-.notification.error { background: rgba(255, 138, 128, 0.9); color: #b71c1c; }
-.notification.warning { background: rgba(255, 204, 128, 0.9); color: #ef6c00; }
-
-@keyframes slideIn {
-  from { transform: translateX(120%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 768px) {
-  .admin-container {
-    padding: 1rem;
-    padding-left: 1rem;
-  }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+.btn--success {
+  background: #145a32;
+  color: white;
+}
 
-  .filters-container {
-    grid-template-columns: 1fr;
-  }
+.btn--success:hover:not(:disabled) {
+  background: #0f4c28;
+}
 
+.btn--danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn--outline {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+@media (max-width: 480px) {
   .citas-grid {
     grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 
-  .modal {
-    padding: 1.5rem;
-    margin: 1rem;
+  .cita-card {
+    padding: 1.25rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>
