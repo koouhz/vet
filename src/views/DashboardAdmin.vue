@@ -88,6 +88,31 @@
           <p>{{ stats.testimonials }} pendientes</p>
         </div>
 
+        <!-- Productos -->
+        <div class="action-card" @click="navigateTo('ProductosAdmin')">
+          <div class="icon-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 11H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 15H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3>Productos</h3>
+          <p>{{ stats.products }} activos</p>
+        </div>
+
+        <!-- Mensajes de Contacto -->
+        <div class="action-card" @click="navigateTo('MensajesContactoAdmin')">
+          <div class="icon-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 6L12 13L22 6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3>Mensajes</h3>
+          <p>{{ stats.contactMessages }} no leídos</p>
+        </div>
+
         <!-- Configuración -->
         <div class="action-card" @click="navigateTo('ConfiguracionAdmin')">
           <div class="icon-container">
@@ -134,6 +159,14 @@
             <span class="stat-number">{{ stats.activeServices }}</span>
             <span class="stat-label">Servicios activos</span>
           </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ stats.activeProducts }}</span>
+            <span class="stat-label">Productos activos</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ stats.unreadMessages }}</span>
+            <span class="stat-label">Mensajes sin leer</span>
+          </div>
         </div>
       </section>
     </main>
@@ -149,6 +182,7 @@ import AppSidebar from '@/components/layouts/AppSidebar.vue'
 const router = useRouter()
 const adminName = ref('')
 const stats = ref({
+  // Tarjetas rápidas
   users: 0,
   appointments: 0,
   veterinarians: 0,
@@ -157,10 +191,17 @@ const stats = ref({
   testimonials: 0,
   configs: 0,
   audits: 0,
+  products: 0,
+  sales: 0,
+  contactMessages: 0,
+
+  // Resumen general
   totalUsers: 0,
   activeAppointments: 0,
   activeVeterinarians: 0,
   activeServices: 0,
+  activeProducts: 0,
+  unreadMessages: 0,
 })
 
 // Obtener nombre del admin logueado
@@ -184,76 +225,100 @@ const fetchStats = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  // Usuarios (todos excepto admins)
-  const { data: users, error: usersError } = await supabase
+  // Usuarios totales (todos los roles)
+  const { count: usersCount, error: usersError } = await supabase
     .from('usuarios')
-    .select('id')
-    .neq('rol', 'admin')
+    .select('*', { count: 'exact', head: true })
   if (usersError) console.warn('Error al cargar usuarios:', usersError.message)
-  stats.value.users = users?.length || 0
-  stats.value.totalUsers = users?.length || 0
+  stats.value.users = usersCount || 0
+  stats.value.totalUsers = usersCount || 0
 
   // Citas (todas)
-  const { data: citas, error: citasError } = await supabase
+  const { count: citasCount, error: citasError } = await supabase
     .from('citasmascotas')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
   if (citasError) console.warn('Error al cargar citas:', citasError.message)
-  stats.value.appointments = citas?.length || 0
+  stats.value.appointments = citasCount || 0
+
+  // Citas activas: programadas o confirmadas
+  const { count: citasActivasCount, error: citasActError } = await supabase
+    .from('citasmascotas')
+    .select('*', { count: 'exact', head: true })
+    .in('estado', ['programada', 'confirmada'])
+  if (citasActError) console.warn('Error al cargar citas activas:', citasActError.message)
+  stats.value.activeAppointments = citasActivasCount || 0
 
   // Veterinarios activos
-  const { data: vets, error: vetsError } = await supabase
+  const { count: vetsCount, error: vetsError } = await supabase
     .from('veterinarios')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
     .eq('is_activo', true)
   if (vetsError) console.warn('Error al cargar veterinarios:', vetsError.message)
-  stats.value.veterinarians = vets?.length || 0
-  stats.value.activeVeterinarians = vets?.length || 0
+  stats.value.veterinarians = vetsCount || 0
+  stats.value.activeVeterinarians = vetsCount || 0
 
   // Servicios activos
-  const { data: servicios, error: servError } = await supabase
+  const { count: serviciosCount, error: servError } = await supabase
     .from('servicios')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
     .eq('is_activo', true)
   if (servError) console.warn('Error al cargar servicios:', servError.message)
-  stats.value.services = servicios?.length || 0
-  stats.value.activeServices = servicios?.length || 0
+  stats.value.services = serviciosCount || 0
+  stats.value.activeServices = serviciosCount || 0
 
-  // Equipos médicos
-  const { data: equipos, error: eqError } = await supabase
+  // Equipos médicos (todos)
+  const { count: equiposCount, error: eqError } = await supabase
     .from('equiposmedicos')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
   if (eqError) console.warn('Error al cargar equipos:', eqError.message)
-  stats.value.equipment = equipos?.length || 0
+  stats.value.equipment = equiposCount || 0
 
-  // Testimonios pendientes
-  const { data: testimonios, error: testError } = await supabase
+  // Testimonios pendientes (no publicados)
+  const { count: testimoniosCount, error: testError } = await supabase
     .from('testimonios')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
     .eq('publicado', false)
   if (testError) console.warn('Error al cargar testimonios:', testError.message)
-  stats.value.testimonials = testimonios?.length || 0
+  stats.value.testimonials = testimoniosCount || 0
 
   // Configuraciones del sistema
-  const { data: configs, error: configError } = await supabase
+  const { count: configsCount, error: configError } = await supabase
     .from('configuracionesistema')
-    .select('clave')
+    .select('clave', { count: 'exact', head: true })
   if (configError) console.warn('Error al cargar configuraciones:', configError.message)
-  stats.value.configs = configs?.length || 0
+  stats.value.configs = configsCount || 0
 
   // Bitácora de acciones
-  const { data: audits, error: auditError } = await supabase
+  const { count: auditsCount, error: auditError } = await supabase
     .from('bitacoracitas')
-    .select('id')
+    .select('*', { count: 'exact', head: true })
   if (auditError) console.warn('Error al cargar bitácora:', auditError.message)
-  stats.value.audits = audits?.length || 0
+  stats.value.audits = auditsCount || 0
 
-  // Citas activas
-  const { data: citasActivas, error: citasActError } = await supabase
-    .from('citasmascotas')
-    .select('id')
-    .in('estado', ['programada', 'confirmada', 'completada'])
-  if (citasActError) console.warn('Error al cargar citas activas:', citasActError.message)
-  stats.value.activeAppointments = citasActivas?.length || 0
+  // Productos activos
+  const { count: productosCount, error: prodError } = await supabase
+    .from('productos')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_activo', true)
+  if (prodError) console.warn('Error al cargar productos:', prodError.message)
+  stats.value.products = productosCount || 0
+  stats.value.activeProducts = productosCount || 0
+
+  // Ventas totales (opcional, no mostrada en UI pero disponible)
+  const { count: ventasCount, error: ventasError } = await supabase
+    .from('ventas')
+    .select('*', { count: 'exact', head: true })
+  if (ventasError) console.warn('Error al cargar ventas:', ventasError.message)
+  stats.value.sales = ventasCount || 0
+
+  // Mensajes de contacto no leídos
+  const { count: mensajesCount, error: msgError } = await supabase
+    .from('mensajescontacto')
+    .select('*', { count: 'exact', head: true })
+    .eq('leido', false)
+  if (msgError) console.warn('Error al cargar mensajes:', msgError.message)
+  stats.value.contactMessages = mensajesCount || 0
+  stats.value.unreadMessages = mensajesCount || 0
 }
 
 onMounted(async () => {
@@ -262,7 +327,6 @@ onMounted(async () => {
 })
 
 // Navegación rápida
-// Navegación rápida por nombre de ruta
 const navigateTo = (routeName) => {
   router.push({ name: routeName })
 }
