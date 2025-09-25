@@ -1,351 +1,473 @@
 <template>
-  <div class="mis-horarios-container">
-    <div class="header-section">
-      <h1>🕒 Mi Horario Disponible</h1>
-      <p class="subtitle">
-        Configura tus horas de atención para que los clientes puedan agendar citas.
-      </p>
-    </div>
+  <div class="horarios-vet-container">
+    <AppSidebar />
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando tu horario...</p>
-    </div>
-
-    <div v-else-if="error" class="error">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="error-icon">
-        <circle cx="12" cy="12" r="10" stroke="#dc2626" stroke-width="2"/>
-        <path d="M15 9L9 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9 9L15 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <p>⚠️ {{ error }}</p>
-      <button @click="fetchHorario" class="btn-retry">Reintentar</button>
-    </div>
-
-    <div v-else class="horarios-content">
-      <!-- Si no hay ningún horario configurado -->
-      <div v-if="todosDiasCerrados" class="empty-state">
-        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="empty-icon">
-          <circle cx="12" cy="12" r="10" stroke="#94a3b8" stroke-width="2"/>
-          <path d="M12 6V12L16 14" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <h3>¡Aún no has configurado tu horario!</h3>
-        <p>Define tus horas de atención para empezar a recibir citas.</p>
-        <button @click="editarHorario" class="btn-primary">
-          ➕ Configurar Horario Ahora
-        </button>
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Mi Horario</h1>
+        <p class="subtitle">Gestiona tu disponibilidad semanal en la tabla <code>horarios_veterinarios</code>.</p>
       </div>
 
-      <!-- Grid de días -->
-      <div v-else class="horarios-grid">
-        <div
-          v-for="(bloques, dia) in horarioFormateado"
-          :key="dia"
-          class="dia-card"
-          :class="{ 'dia-inactivo': !bloques || bloques.length === 0 }"
-        >
-          <div class="dia-header">
-            <h3>{{ nombresDias[dia] || capitalize(dia) }}</h3>
-            <span v-if="!bloques || bloques.length === 0" class="badge-inactivo">
-              Cerrado
-            </span>
-          </div>
-          <div class="bloques-list">
-            <div v-if="!bloques || bloques.length === 0" class="no-horario">
-              <p>Sin horario disponible</p>
-              <button @click="editarHorario" class="btn-small">Configurar</button>
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando horarios...</p>
+        </div>
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadHorarios" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else class="horarios-grid">
+          <div
+            v-for="dia in diasSemana"
+            :key="dia.value"
+            class="dia-card"
+          >
+            <div class="dia-header">
+              <h3 class="dia-nombre">{{ dia.label }}</h3>
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  :checked="getDisponibilidad(dia.value)"
+                  @change="toggleDia(dia.value)"
+                  :disabled="isProcessing"
+                />
+                <span class="slider"></span>
+              </label>
             </div>
-            <div
-              v-else
-              v-for="(bloque, index) in bloques"
-              :key="index"
-              class="bloque-item"
-            >
-              {{ bloque }}
+
+            <div v-if="getDisponibilidad(dia.value)" class="dia-body">
+              <div class="time-range">
+                <div class="time-inputs">
+                  <input
+                    type="time"
+                    :value="getHoraInicio(dia.value)"
+                    @change="updateHoraInicio(dia.value, $event.target.value)"
+                    class="time-input"
+                    :disabled="isProcessing"
+                  />
+                  <span class="separator">—</span>
+                  <input
+                    type="time"
+                    :value="getHoraFin(dia.value)"
+                    @change="updateHoraFin(dia.value, $event.target.value)"
+                    class="time-input"
+                    :disabled="isProcessing"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="dia-inactivo">
+              <p>No disponible este día</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Botón de edición global -->
-      <div class="actions-section">
-        <button @click="editarHorario" class="btn-editar">
-          ✏️ Editar Horario Completo
-        </button>
+        <div class="save-section">
+          <button
+            @click="guardarCambios"
+            class="btn btn--success"
+            :disabled="isProcessing || !hayCambios"
+          >
+            {{ isProcessing ? 'Guardando...' : 'Guardar Cambios' }}
+          </button>
+        </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
-import { useRouter } from 'vue-router'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
-const router = useRouter()
-const horario = ref({})
-const loading = ref(true)
+// Estado
+const isLoading = ref(false)
+const isProcessing = ref(false)
 const error = ref(null)
+const horariosBase = ref([]) // [{ id, dia_semana, hora_inicio, hora_fin }]
+const horariosVet = ref([])  // [{ id, horario_base_id, es_disponible }]
+const cambios = ref({})     // { horario_base_id: { es_disponible, hora_inicio, hora_fin } }
 
-// Mapeo de días
-const nombresDias = {
-  lunes: 'Lunes',
-  martes: 'Martes',
-  miercoles: 'Miércoles',
-  jueves: 'Jueves',
-  viernes: 'Viernes',
-  sabado: 'Sábado',
-  domingo: 'Domingo'
-}
+// Días de la semana
+const diasSemana = [
+  { value: 'lunes', label: 'Lunes' },
+  { value: 'martes', label: 'Martes' },
+  { value: 'miércoles', label: 'Miércoles' },
+  { value: 'jueves', label: 'Jueves' },
+  { value: 'viernes', label: 'Viernes' },
+  { value: 'sábado', label: 'Sábado' },
+  { value: 'domingo', label: 'Domingo' }
+]
 
-// Capitalizar fallback
-const capitalize = (str) => {
-  if (!str) return ''
-  return str.charAt(0).toUpperCase() + str.slice(1)
-}
-
-// Verificar si todos los días están cerrados
-const todosDiasCerrados = computed(() => {
-  return Object.values(horarioFormateado.value).every(bloques => !bloques || bloques.length === 0)
+// ¿Hay cambios pendientes?
+const hayCambios = computed(() => {
+  return Object.keys(cambios.value).length > 0
 })
 
-// Obtener horario
-const fetchHorario = async () => {
-  loading.value = true
+// Obtener horario base por día
+const getHorarioBase = (dia) => {
+  return horariosBase.value.find(h => h.dia_semana === dia)
+}
+
+// Obtener horario veterinario por día
+const getHorarioVet = (dia) => {
+  const base = getHorarioBase(dia)
+  if (!base) return null
+  return horariosVet.value.find(h => h.horario_base_id === base.id)
+}
+
+// Obtener disponibilidad
+const getDisponibilidad = (dia) => {
+  const base = getHorarioBase(dia)
+  if (!base) return false
+
+  const cambio = cambios.value[base.id]
+  if (cambio !== undefined) {
+    return cambio.es_disponible
+  }
+
+  const vet = getHorarioVet(dia)
+  return vet ? vet.es_disponible : false
+}
+
+// Obtener hora de inicio
+const getHoraInicio = (dia) => {
+  const base = getHorarioBase(dia)
+  if (!base) return '09:00'
+
+  const cambio = cambios.value[base.id]
+  if (cambio && cambio.hora_inicio !== undefined) {
+    return cambio.hora_inicio
+  }
+
+  return base.hora_inicio || '09:00'
+}
+
+// Obtener hora de fin
+const getHoraFin = (dia) => {
+  const base = getHorarioBase(dia)
+  if (!base) return '18:00'
+
+  const cambio = cambios.value[base.id]
+  if (cambio && cambio.hora_fin !== undefined) {
+    return cambio.hora_fin
+  }
+
+  return base.hora_fin || '18:00'
+}
+
+// Cargar horarios
+const loadHorarios = async () => {
+  isLoading.value = true
   error.value = null
+  cambios.value = {}
 
   try {
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData?.user) {
-      throw new Error('Usuario no autenticado')
+    // 1. Obtener usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error('No autenticado')
     }
 
-    const user = authData.user
-
+    // 2. Obtener veterinario
     const { data: vetData, error: vetError } = await supabase
       .from('veterinarios')
-      .select('horario_disponible')
+      .select('id')
       .eq('usuario_id', user.id)
       .single()
 
-    if (vetError) {
-      throw new Error('No se encontró tu perfil de veterinario')
+    if (vetError || !vetData) {
+      throw new Error('No eres veterinario en el sistema')
     }
 
-    horario.value = (typeof vetData?.horario_disponible === 'object' && vetData.horario_disponible !== null)
-      ? vetData.horario_disponible
-      : {}
+    // 3. Cargar horarios base (todos los días)
+    const { data: baseData, error: baseError } = await supabase
+      .from('horarios_base')
+      .select('id, dia_semana, hora_inicio, hora_fin')
+      .order('id', { ascending: true })
+
+    if (baseError) {
+      console.error('Error al cargar horarios base:', baseError)
+      throw new Error('Error al cargar horarios base')
+    }
+
+    horariosBase.value = baseData
+
+    // 4. Cargar horarios del veterinario
+    const { data: vetHorarios, error: vetHorariosError } = await supabase
+      .from('horarios_veterinarios')
+      .select('id, horario_base_id, es_disponible')
+      .eq('veterinario_id', vetData.id)
+
+    if (vetHorariosError) {
+      console.error('Error al cargar horarios veterinario:', vetHorariosError)
+      throw new Error('Error al cargar tus horarios')
+    }
+
+    horariosVet.value = vetHorarios
+
   } catch (err) {
-    error.value = err.message || 'Error desconocido al cargar horario'
-    console.error('[MisHorarios] Error:', err)
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar horarios. Inténtalo más tarde.'
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
-// Horario formateado
-const horarioFormateado = computed(() => {
-  const ordenDias = [
-    'lunes',
-    'martes',
-    'miercoles',
-    'jueves',
-    'viernes',
-    'sabado',
-    'domingo'
-  ]
+// Toggle día
+const toggleDia = (dia) => {
+  const base = getHorarioBase(dia)
+  if (!base) return
 
-  const resultado = {}
-  ordenDias.forEach(dia => {
-    const bloques = horario.value?.[dia]
-    resultado[dia] = Array.isArray(bloques) ? bloques : []
-  })
-  return resultado
-})
+  const nuevoValor = !getDisponibilidad(dia)
+  if (!cambios.value[base.id]) {
+    cambios.value[base.id] = {}
+  }
+  cambios.value[base.id].es_disponible = nuevoValor
 
-// Navegar a edición
-const editarHorario = () => {
-  router.push({ name: 'EditarHorario' })
+  // Si se desactiva, limpiar horas
+  if (!nuevoValor) {
+    delete cambios.value[base.id].hora_inicio
+    delete cambios.value[base.id].hora_fin
+  }
+}
+
+// Actualizar hora de inicio
+const updateHoraInicio = (dia, valor) => {
+  const base = getHorarioBase(dia)
+  if (!base) return
+
+  if (!cambios.value[base.id]) {
+    cambios.value[base.id] = {}
+  }
+  cambios.value[base.id].hora_inicio = valor
+}
+
+// Actualizar hora de fin
+const updateHoraFin = (dia, valor) => {
+  const base = getHorarioBase(dia)
+  if (!base) return
+
+  if (!cambios.value[base.id]) {
+    cambios.value[base.id] = {}
+  }
+  cambios.value[base.id].hora_fin = valor
+}
+
+// Guardar cambios
+const guardarCambios = async () => {
+  if (isProcessing.value || !hayCambios.value) return
+
+  isProcessing.value = true
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: vetData } = await supabase
+      .from('veterinarios')
+      .select('id')
+      .eq('usuario_id', user.id)
+      .single()
+
+    const vetId = vetData.id
+
+    // Procesar cada cambio
+    for (const [horarioBaseId, cambiosDia] of Object.entries(cambios.value)) {
+      const horarioVetExistente = horariosVet.value.find(h => h.horario_base_id === parseInt(horarioBaseId))
+
+      if (cambiosDia.es_disponible === false) {
+        // Si se desactivó, eliminar o actualizar a false
+        if (horarioVetExistente) {
+          await supabase
+            .from('horarios_veterinarios')
+            .update({ es_disponible: false })
+            .eq('id', horarioVetExistente.id)
+        }
+        // Si no existía, no hacemos nada (no se crea un registro inactivo)
+      } else {
+        // Activar o actualizar
+        const updateData = {
+          veterinario_id: vetId,
+          horario_base_id: parseInt(horarioBaseId),
+          es_disponible: true
+        }
+
+        // Si hay cambios de horas, actualizar horarios_base
+        if (cambiosDia.hora_inicio || cambiosDia.hora_fin) {
+          const horaInicio = cambiosDia.hora_inicio || getHoraInicioPorId(horarioBaseId)
+          const horaFin = cambiosDia.hora_fin || getHoraFinPorId(horarioBaseId)
+
+          await supabase
+            .from('horarios_base')
+            .update({
+              hora_inicio: horaInicio,
+              hora_fin: horaFin
+            })
+            .eq('id', horarioBaseId)
+        }
+
+        if (horarioVetExistente) {
+          // Actualizar existente
+          await supabase
+            .from('horarios_veterinarios')
+            .update(updateData)
+            .eq('id', horarioVetExistente.id)
+        } else {
+          // Crear nuevo
+          await supabase
+            .from('horarios_veterinarios')
+            .insert(updateData)
+        }
+      }
+    }
+
+    // Recargar
+    await loadHorarios()
+    alert('Horarios actualizados correctamente')
+
+  } catch (err) {
+    console.error('Error al guardar:', err)
+    alert('Error al guardar los cambios')
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+// Helpers para obtener horas por ID
+const getHoraInicioPorId = (id) => {
+  const base = horariosBase.value.find(h => h.id === parseInt(id))
+  return base ? base.hora_inicio : '09:00'
+}
+
+const getHoraFinPorId = (id) => {
+  const base = horariosBase.value.find(h => h.id === parseInt(id))
+  return base ? base.hora_fin : '18:00'
 }
 
 onMounted(() => {
-  fetchHorario()
+  loadHorarios()
 })
 </script>
 
 <style scoped>
-.mis-horarios-container {
-  padding: 2rem;
-  background: #f8fafc;
+/* Estilos idénticos a los anteriores */
+.horarios-vet-container {
+  display: flex;
   min-height: 100vh;
-  margin-left: 240px; /* Ajuste por sidebar */
+  background-color: #f9fafb;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 240px;
   transition: margin-left 0.3s ease;
 }
 
-/* Responsive: Ajustar para sidebar colapsado o móvil */
 @media (max-width: 768px) {
-  .mis-horarios-container {
+  .main-content {
     margin-left: 0;
-    padding: 1.5rem 1rem;
+    padding: 1.5rem;
   }
 }
 
-.header-section {
-  margin-bottom: 2.5rem;
+.page-header {
+  margin-bottom: 2rem;
 }
 
-.header-section h1 {
-  font-size: 2rem;
-  color: #1e293b;
-  margin: 0 0 0.5rem 0;
+.page-header h1 {
+  font-size: 1.875rem;
   font-weight: 700;
-  line-height: 1.2;
+  color: #1e293b;
+  margin: 0;
 }
 
 .subtitle {
   color: #64748b;
-  margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  margin-top: 0.25rem;
 }
 
-/* Loading */
-.loading {
+.subtitle code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.content-area {
+  min-height: 400px;
+}
+
+.message {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
+  padding: 3rem 1rem;
+  color: #64748b;
   text-align: center;
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f4f6;
-  border-top: 4px solid #145a32;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
-.loading p {
-  font-size: 1.1rem;
-  color: #64748b;
-  margin: 0;
-}
-
-/* Error */
-.error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  text-align: center;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  margin: 2rem auto;
-  max-width: 500px;
-}
-
-.error-icon {
-  margin-bottom: 1rem;
-}
-
-.error p {
-  font-size: 1.1rem;
-  color: #dc2626;
-  margin: 0.5rem 0 1rem;
-  font-weight: 500;
-}
-
-.btn-retry {
-  background: #dc2626;
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 1rem;
   transition: background 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.btn-retry:hover {
-  background: #b91c1c;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  margin: 2rem auto;
-  max-width: 600px;
-}
-
-.empty-icon {
-  margin-bottom: 1.5rem;
-  color: #94a3b8;
-}
-
-.empty-state h3 {
-  font-size: 1.5rem;
-  color: #1e293b;
-  margin: 0 0 1rem;
-  font-weight: 600;
-}
-
-.empty-state p {
-  color: #64748b;
-  margin: 0 0 2rem;
-  font-size: 1.1rem;
-  line-height: 1.6;
-}
-
-/* Horarios Grid */
+/* Grid de días */
 .horarios-grid {
   display: grid;
-  gap: 1.5rem;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  margin-bottom: 2.5rem;
+  gap: 1.75rem;
+  margin-bottom: 2rem;
 }
 
 .dia-card {
   background: white;
+  border-radius: 12px;
   padding: 1.75rem;
-  border-radius: 16px;
-  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
-  border-left: 4px solid #145a32;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .dia-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-}
-
-.dia-inactivo {
-  border-left-color: #e5e7eb;
-  background: #f9fafb;
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .dia-header {
@@ -353,187 +475,135 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f1f5f9;
 }
 
-.dia-header h3 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1.35rem;
+.dia-nombre {
+  font-size: 1.25rem;
   font-weight: 700;
+  color: #1e293b;
+  margin: 0;
 }
 
-.badge-inactivo {
-  padding: 0.35rem 0.85rem;
-  border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  background: #f3e8ff;
-  color: #7e22ce;
-  border: 1px solid #ede9fe;
+/* Switch personalizado */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 24px;
 }
 
-.bloques-list {
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #145a32;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* Rango de tiempo */
+.time-range {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.time-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.time-input {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 1rem;
+  width: 120px;
+  background: white;
+}
+
+.separator {
+  font-weight: 700;
+  color: #475569;
+}
+
+.dia-inactivo {
+  text-align: center;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 1.5rem 0;
+}
+
+/* Botón guardar */
+.save-section {
+  text-align: center;
   margin-top: 1rem;
 }
 
-.no-horario {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem 1rem;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 2px dashed #e2e8f0;
-}
-
-.no-horario p {
-  color: #94a3b8;
-  font-style: italic;
-  margin: 0 0 1rem;
-  font-size: 0.95rem;
-}
-
-.bloque-item {
-  background: #ecfdf5;
-  color: #065f46;
-  padding: 0.75rem;
+.btn {
+  padding: 0.75rem 2rem;
   border-radius: 8px;
-  font-weight: 500;
-  margin-bottom: 0.75rem;
-  text-align: center;
-  font-family: 'Courier New', monospace;
+  font-weight: 600;
   font-size: 1rem;
-  border: 1px solid #ccfbf1;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  transition: all 0.2s;
-}
-
-.bloque-item:hover {
-  background: #d1fae5;
-  transform: scale(1.02);
-}
-
-/* Botones */
-.btn-small {
-  background: #dbeafe;
-  color: #1d4ed8;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  border: none;
+  transition: all 0.2s ease;
 }
 
-.btn-small:hover {
-  background: #bfdbfe;
-  transform: translateY(-1px);
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.actions-section {
-  text-align: center;
-  padding: 2rem 0 1rem;
-}
-
-.btn-editar {
+.btn--success {
   background: #145a32;
   color: white;
-  border: none;
-  padding: 0.85rem 2.5rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.15rem;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
 }
 
-.btn-editar:hover {
+.btn--success:hover:not(:disabled) {
   background: #0f4c28;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0,0,0,0.15);
 }
 
-.btn-primary {
-  background: #145a32;
-  color: white;
-  border: none;
-  padding: 0.85rem 2rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.btn-primary:hover {
-  background: #0f4c28;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
-}
-
-/* Extra Responsive */
-@media (max-width: 1024px) {
-  .mis-horarios-container {
-    margin-left: 0;
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 768px) {
+/* Responsive */
+@media (max-width: 480px) {
   .horarios-grid {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
   }
 
-  .dia-card {
-    padding: 1.5rem;
-  }
-
-  .header-section h1 {
-    font-size: 1.75rem;
-  }
-
-  .btn-editar,
-  .btn-primary {
-    padding: 0.75rem 1.75rem;
-    font-size: 1rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .mis-horarios-container {
-    padding: 1rem;
-  }
-
-  .header-section h1 {
-    font-size: 1.5rem;
-  }
-
-  .dia-header h3 {
-    font-size: 1.2rem;
-  }
-
-  .btn-editar,
-  .btn-primary,
-  .btn-retry {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .empty-state {
-    padding: 2rem 1rem;
+  .time-input {
+    width: 100px;
+    font-size: 0.9rem;
   }
 }
 </style>

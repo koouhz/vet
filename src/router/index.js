@@ -44,13 +44,12 @@ const routes = [
       { path: '', name: 'DashboardVet', component: () => import('@/views/DashboardVet.vue') },
       { path: 'mis-citas', name: 'MisCitas', component: () => import('@/views/Vet/MisCitas.vue') },
       { path: 'mis-mascotas', name: 'MisMascotas', component: () => import('@/views/Vet/MisMascotas.vue') },
+      { path: 'bitacora-citas', name: 'BitacoraCitasVet', component: () => import('@/views/Vet/BitacoraCitasVet.vue') },
+      { path: 'equipos-medicos', name: 'EquiposMedicosVet', component: () => import('@/views/Vet/EquiposMedicosVet.vue') },
+      { path: 'mis-testimonios', name: 'MisTestimonios', component: () => import('@/views/Vet/MisTestimonios.vue') },
+      { path: 'mis-productos', name: 'MisProductos', component: () => import('@/views/Vet/MisProductos.vue') },
       { path: 'mis-servicios', name: 'MisServicios', component: () => import('@/views/Vet/MisServicios.vue') },
-      { path: 'mis-horarios', name: 'MisHorarios', component: () => import('@/views/Vet/MisHorarios.vue') },
-      {
-        path: 'horario/editar',
-        name: 'EditarHorario',
-        component: () => import('@/components/features/EditarHorario.vue')
-      }
+      { path: 'mis-horarios', name: 'MisHorarios', component: () => import('@/views/Vet/MisHorarios.vue') }
     ]
   },
 

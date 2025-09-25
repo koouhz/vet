@@ -1,112 +1,187 @@
 <template>
-  <div class="mis-mascotas-container">
-    <div class="header-section">
-      <h1>🐶 Mis Mascotas Atendidas</h1>
-      <p class="subtitle">Mascotas bajo tu cuidado clínico</p>
-    </div>
+  <div class="mascotas-vet-container">
+    <AppSidebar />
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando tus mascotas...</p>
-    </div>
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Mis Mascotas</h1>
+        <p class="subtitle">Mascotas que has atendido según la tabla <code>citasmascotas</code>.</p>
+      </div>
 
-    <div v-else-if="error" class="error">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="error-icon">
-        <circle cx="12" cy="12" r="10" stroke="#dc2626" stroke-width="2"/>
-        <path d="M15 9L9 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9 9L15 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <p>⚠️ {{ error }}</p>
-      <button @click="fetchMascotas" class="btn-retry">Reintentar</button>
-    </div>
-
-    <div v-else-if="mascotas.length === 0" class="no-mascotas">
-      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="empty-icon">
-        <path d="M12 8C13.1046 8 14 7.10457 14 6C14 4.89543 13.1046 4 12 4C10.8954 4 10 4.89543 10 6C10 7.10457 10.8954 8 12 8Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M18 10C19.1046 10 20 9.10457 20 8C20 6.89543 19.1046 6 18 6C16.8954 6 16 6.89543 16 8C16 9.10457 16.8954 10 18 10Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M6 10C7.10457 10 8 9.10457 8 8C8 6.89543 7.10457 6 6 6C4.89543 6 4 6.89543 4 8C4 9.10457 4.89543 10 6 10Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M12 14C15.866 14 19 11.866 19 8H5C5 11.866 8.13401 14 12 14Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 20H21V18C21 15.2386 17.4183 13 12 13C6.58172 13 3 15.2386 3 18V20Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <h3>¡Aún no has atendido mascotas!</h3>
-      <p>Las mascotas que atiendas aparecerán aquí automáticamente.</p>
-    </div>
-
-    <div v-else class="mascotas-list">
-      <div v-for="mascota in mascotas" :key="mascota.id" class="mascota-card">
-        <div class="mascota-header">
-          <h3>{{ mascota.nombre }} 🐾</h3>
-          <span class="especie-tag">{{ mascota.especie }}</span>
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filter-especie" class="filter-label">Especie</label>
+          <select
+            id="filter-especie"
+            :value="selectedEspecie"
+            @change="handleEspecieChange"
+            class="status-select"
+          >
+            <option value="">Todas</option>
+            <option value="perro">Perro</option>
+            <option value="gato">Gato</option>
+            <option value="conejo">Conejo</option>
+            <option value="hámster">Hámster</option>
+            <option value="ave">Ave</option>
+            <option value="reptil">Reptil</option>
+            <option value="otros">Otros</option>
+          </select>
         </div>
-        <div class="mascota-body">
-          <div class="info-grid">
-            <div v-if="mascota.raza" class="info-item">
-              <span class="label">🏷️ Raza:</span>
-              <span class="value">{{ mascota.raza }}</span>
+        <div class="filter-item">
+          <label for="filter-estado" class="filter-label">Estado</label>
+          <select
+            id="filter-estado"
+            :value="selectedActiva"
+            @change="handleActivaChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option value="true">Activa</option>
+            <option value="false">Inactiva</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando mascotas...</p>
+        </div>
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadMascotas" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else-if="filteredMascotas.length === 0" class="message empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" />
+            <path d="M8.5 14.5L10 16L15.5 10.5" />
+          </svg>
+          <p>No has atendido ninguna mascota aún.</p>
+        </div>
+
+        <div v-else class="mascotas-grid">
+          <div
+            v-for="mascota in filteredMascotas"
+            :key="mascota.id"
+            class="mascota-card"
+          >
+            <div class="card-header">
+              <h3 class="mascota-nombre">
+                {{ mascota.nombre }}
+                <span class="mascota-especie">{{ mascota.especie }}</span>
+              </h3>
+              <span class="badge" :class="`badge--${mascota.is_activa ? 'activa' : 'inactiva'}`">
+                {{ mascota.is_activa ? 'Activa' : 'Inactiva' }}
+              </span>
             </div>
-            <div class="info-item">
-              <span class="label">🎂 Edad:</span>
-              <span class="value">{{ calcularEdad(mascota.fecha_nacimiento) }} años</span>
+
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Dueño:</span>
+                <span class="value">{{ mascota.dueño || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Raza:</span>
+                <span class="value">{{ mascota.raza || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Peso:</span>
+                <span class="value">{{ mascota.peso_kg ? `${mascota.peso_kg} kg` : '—' }}</span>
+              </div>
+              <div v-if="mascota.alergias" class="info-row">
+                <span class="label">Alergias:</span>
+                <span class="value">{{ mascota.alergias }}</span>
+              </div>
+              <div v-if="mascota.notas_medicas" class="info-row">
+                <span class="label">Notas médicas:</span>
+                <span class="value">{{ mascota.notas_medicas }}</span>
+              </div>
             </div>
-            <div class="info-item">
-              <span class="label">👤 Dueño:</span>
-              <span class="value">{{ mascota.usuario?.nombre_completo || 'No disponible' }}</span>
-            </div>
-            <div v-if="mascota.peso_kg" class="info-item">
-              <span class="label">⚖️ Peso:</span>
-              <span class="value">{{ mascota.peso_kg }} kg</span>
-            </div>
-            <div v-if="mascota.sexo" class="info-item">
-              <span class="label">🚻 Sexo:</span>
-              <span class="value">{{ formatSexo(mascota.sexo) }}</span>
+
+            <div class="card-footer">
+              <button @click="viewHistorial(mascota.id)" class="btn btn--outline">
+                Ver historial
+              </button>
+              <button @click="viewDetalles(mascota.id)" class="btn btn--success">
+                Detalles
+              </button>
             </div>
           </div>
         </div>
-        <div class="mascota-footer">
-          <button @click="verHistorial(mascota.id)" class="btn-ver">
-            📋 Ver Historial Clínico
-          </button>
-        </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'vue-router'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
+// Router
 const router = useRouter()
-const mascotas = ref([])
-const loading = ref(true)
-const error = ref('')
 
-// Obtener mascotas
-const fetchMascotas = async () => {
-  loading.value = true
-  error.value = ''
+// Estado
+const isLoading = ref(false)
+const error = ref(null)
+const rawMascotas = ref([])
+const selectedEspecie = ref('')
+const selectedActiva = ref('')
+
+// Handlers
+const handleEspecieChange = (event) => {
+  selectedEspecie.value = event.target.value
+}
+
+const handleActivaChange = (event) => {
+  selectedActiva.value = event.target.value
+}
+
+// Mascotas filtradas
+const filteredMascotas = computed(() => {
+  return rawMascotas.value.filter(mascota => {
+    const matchEspecie = !selectedEspecie.value || mascota.especie === selectedEspecie.value
+    const matchActiva = selectedActiva.value === '' ||
+      (selectedActiva.value === 'true' && mascota.is_activa) ||
+      (selectedActiva.value === 'false' && !mascota.is_activa)
+    return matchEspecie && matchActiva
+  })
+})
+
+// Cargar mascotas
+const loadMascotas = async () => {
+  isLoading.value = true
+  error.value = null
 
   try {
-    const { data: authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData?.user) {
-      throw new Error('Usuario no autenticado')
+    // 1. Obtener usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error('No autenticado')
     }
 
-    const user = authData.user
-
-    // Obtener ID del veterinario
+    // 2. Obtener veterinario
     const { data: vetData, error: vetError } = await supabase
       .from('veterinarios')
       .select('id')
       .eq('usuario_id', user.id)
       .single()
 
-    if (vetError) {
-      throw new Error('No se encontró tu perfil de veterinario')
+    if (vetError || !vetData) {
+      throw new Error('No eres veterinario en el sistema')
     }
 
-    // Obtener IDs de mascotas atendidas
+    // 3. Obtener IDs de mascotas atendidas
     const { data: citasData, error: citasError } = await supabase
       .from('citasmascotas')
       .select('mascota_id')
@@ -114,19 +189,20 @@ const fetchMascotas = async () => {
       .not('mascota_id', 'is', null)
 
     if (citasError) {
-      throw new Error('Error al cargar citas')
+      console.error('Error al cargar citas:', citasError)
+      throw new Error('Error al consultar citas')
     }
 
     if (!citasData || citasData.length === 0) {
-      mascotas.value = []
-      loading.value = false
+      rawMascotas.value = []
+      isLoading.value = false
       return
     }
 
-    // IDs únicos
+    // 4. Obtener IDs únicos de mascotas
     const mascotaIds = [...new Set(citasData.map(c => c.mascota_id))]
 
-    // Obtener detalles
+    // 5. Cargar datos de mascotas
     const { data: mascotasData, error: mascotasError } = await supabase
       .from('mascotas')
       .select(`
@@ -134,345 +210,336 @@ const fetchMascotas = async () => {
         nombre,
         especie,
         raza,
-        fecha_nacimiento,
         peso_kg,
-        sexo,
-        usuario_id,
-        usuarios (nombre_completo)
+        alergias,
+        notas_medicas,
+        is_activa,
+        usuario_id
       `)
       .in('id', mascotaIds)
       .order('nombre', { ascending: true })
 
     if (mascotasError) {
-      throw new Error('Error al cargar mascotas')
+      console.error('Error al cargar mascotas:', mascotasError)
+      throw new Error('Error al cargar datos de mascotas')
     }
 
-    mascotas.value = mascotasData || []
+    // 6. Obtener dueños
+    const usuarioIds = [...new Set(mascotasData.map(m => m.usuario_id).filter(Boolean))]
+    const dueñosMap = {}
+
+    if (usuarioIds.length > 0) {
+      const { data: usuariosData, error: usuariosError } = await supabase
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .in('id', usuarioIds)
+
+      if (!usuariosError && usuariosData) {
+        usuariosData.forEach(u => {
+          dueñosMap[u.id] = u.nombre_completo
+        })
+      }
+    }
+
+    // 7. Combinar datos
+    rawMascotas.value = mascotasData.map(m => ({
+      ...m,
+      dueño: dueñosMap[m.usuario_id] || null
+    }))
+
   } catch (err) {
-    error.value = err.message || 'Error desconocido'
-    console.error('[MisMascotas] Error:', err)
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar mascotas. Inténtalo más tarde.'
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
-// Calcular edad
-const calcularEdad = (fechaNac) => {
-  if (!fechaNac) return '?'
-  const hoy = new Date()
-  const nacimiento = new Date(fechaNac)
-  let edad = hoy.getFullYear() - nacimiento.getFullYear()
-  const mes = hoy.getMonth() - nacimiento.getMonth()
-  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-    edad--
-  }
-  return edad
+// Acciones
+const viewHistorial = (mascotaId) => {
+  // Navegar a historial de citas de esta mascota
+  router.push({ name: 'HistorialMascotaVet', params: { id: mascotaId } })
 }
 
-// Formatear sexo
-const formatSexo = (sexo) => {
-  if (!sexo) return 'No especificado'
-  const labels = {
-    macho: 'Macho',
-    hembra: 'Hembra',
-    castrado: 'Castrado',
-    esterilizado: 'Esterilizado'
-  }
-  return labels[sexo] || sexo
-}
-
-// Navegar a historial
-const verHistorial = (mascotaId) => {
-  router.push(`/dashboard-vet/mascotas/${mascotaId}`)
+const viewDetalles = (mascotaId) => {
+  // Navegar a detalles de la mascota
+  router.push({ name: 'DetalleMascotaVet', params: { id: mascotaId } })
 }
 
 onMounted(() => {
-  fetchMascotas()
+  loadMascotas()
 })
 </script>
 
 <style scoped>
-.mis-mascotas-container {
-  padding: 2rem;
-  background: #f8fafc;
+/* Estilos idénticos a MisCitasVet.vue */
+.mascotas-vet-container {
+  display: flex;
   min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
   margin-left: 240px;
   transition: margin-left 0.3s ease;
 }
 
-@media (max-width: 1024px) {
-  .mis-mascotas-container {
-    margin-left: 0;
-  }
-}
-
 @media (max-width: 768px) {
-  .mis-mascotas-container {
-    padding: 1.5rem 1rem;
+  .main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .status-select {
+    width: 100%;
   }
 }
 
-.header-section {
-  margin-bottom: 2.5rem;
-  text-align: center;
+.page-header {
+  margin-bottom: 2rem;
 }
 
-.header-section h1 {
-  font-size: 2rem;
-  color: #1e293b;
-  margin: 0 0 0.5rem 0;
+.page-header h1 {
+  font-size: 1.875rem;
   font-weight: 700;
-  line-height: 1.2;
+  color: #1e293b;
+  margin: 0;
 }
 
 .subtitle {
   color: #64748b;
-  margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  margin-top: 0.25rem;
 }
 
-.loading {
+.subtitle code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.filters-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.status-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.status-select:focus {
+  outline: none;
+  border-color: #145a32;
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
+}
+
+.content-area {
+  min-height: 400px;
+}
+
+.message {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4rem 2rem;
+  padding: 3rem 1rem;
+  color: #64748b;
   text-align: center;
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 5px solid #f3f4f6;
-  border-top: 5px solid #145a32;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
-.error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 2rem;
-  text-align: center;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin: 2rem auto;
-  max-width: 500px;
-}
-
-.error-icon {
-  margin-bottom: 1.5rem;
-}
-
-.error p {
-  font-size: 1.2rem;
-  color: #dc2626;
-  margin: 0.5rem 0 1.5rem;
-  font-weight: 600;
-}
-
-.btn-retry {
-  background: #dc2626;
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
   color: white;
   border: none;
-  padding: 0.8rem 2rem;
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s;
 }
 
-.btn-retry:hover {
-  background: #b91c1c;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
-.no-mascotas {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 4rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin: 2rem auto;
-  max-width: 600px;
-}
-
-.empty-icon {
-  margin-bottom: 1.5rem;
-  color: #94a3b8;
-}
-
-.no-mascotas h3 {
-  font-size: 1.5rem;
-  color: #1e293b;
-  margin: 0 0 1rem;
-  font-weight: 600;
-}
-
-.no-mascotas p {
-  color: #64748b;
-  margin: 0;
-  font-size: 1.1rem;
-  line-height: 1.6;
-}
-
-.mascotas-list {
+.mascotas-grid {
   display: grid;
-  gap: 2rem;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
 }
 
 .mascota-card {
   background: white;
-  padding: 2rem;
-  border-radius: 16px;
+  border-radius: 12px;
+  padding: 1.75rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  border-top: 4px solid #145a32;
-  transition: all 0.3s ease;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .mascota-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-6px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-.mascota-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1.25rem;
 }
 
-.mascota-header h3 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1.4rem;
+.mascota-nombre {
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1.3;
+  color: #1e293b;
+  margin: 0;
 }
 
-.especie-tag {
-  padding: 0.35rem 0.9rem;
+.mascota-especie {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-weight: normal;
+  margin-left: 0.5rem;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  background: #dbeafe;
-  color: #1d4ed8;
-  text-transform: capitalize;
-  border: 1px solid #bfdbfe;
+  text-transform: uppercase;
 }
 
-.info-grid {
-  display: grid;
-  gap: 0.75rem;
+.badge--activa { background: #dcfce7; color: #166534; }
+.badge--inactiva { background: #fee2e2; color: #dc2626; }
+
+.card-body {
   margin-bottom: 1.5rem;
 }
 
-.info-item {
+.info-row {
   display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
 }
 
 .label {
   font-weight: 600;
   color: #475569;
-  min-width: 80px;
-  font-size: 0.95rem;
+  min-width: 100px;
 }
 
 .value {
   color: #1e293b;
-  font-size: 0.95rem;
   flex: 1;
 }
 
-.mascota-footer {
+.card-footer {
   display: flex;
+  gap: 0.875rem;
   justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #f1f5f9;
 }
 
-.btn-ver {
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--success {
   background: #145a32;
   color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
-.btn-ver:hover {
+.btn--success:hover:not(:disabled) {
   background: #0f4c28;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
 }
 
-@media (max-width: 768px) {
-  .mascotas-list {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+.btn--outline {
+  background: #f1f5f9;
+  color: #1e293b;
+}
 
-  .mascota-card {
-    padding: 1.5rem;
-  }
-
-  .info-grid {
-    gap: 0.5rem;
-  }
-
-  .header-section h1 {
-    font-size: 1.75rem;
-  }
-
-  .mascota-header h3 {
-    font-size: 1.3rem;
-  }
+.btn--outline:hover:not(:disabled) {
+  background: #e2e8f0;
 }
 
 @media (max-width: 480px) {
-  .mis-mascotas-container {
-    padding: 1rem;
+  .mascotas-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 
-  .btn-ver {
+  .mascota-card {
+    padding: 1.25rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn {
     width: 100%;
-    justify-content: center;
-    font-size: 1rem;
-    padding: 0.75rem;
-  }
-
-  .mascota-footer {
     justify-content: center;
   }
 }

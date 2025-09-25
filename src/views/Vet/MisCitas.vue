@@ -1,110 +1,221 @@
 <template>
-  <div class="mis-citas-container">
-    <div class="header-section">
-      <h1>📅 Mis Citas</h1>
-      <div class="filters">
-        <select v-model="filtroEstado" @change="filtrarCitas">
-          <option value="todas">Todas</option>
-          <option value="programada">Programadas</option>
-          <option value="confirmada">Confirmadas</option>
-          <option value="completada">Completadas</option>
-          <option value="cancelada">Canceladas</option>
-          <option value="no_asistio">No asistió</option>
-        </select>
+  <div class="citas-vet-container">
+    <AppSidebar />
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1>Mis Citas</h1>
+        <p class="subtitle">Gestiona tus citas desde la tabla <code>citasmascotas</code>.</p>
       </div>
-    </div>
 
-    <div v-if="loading" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando tus citas...</p>
-    </div>
-
-    <div v-else-if="error" class="error">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="error-icon">
-        <circle cx="12" cy="12" r="10" stroke="#dc2626" stroke-width="2"/>
-        <path d="M15 9L9 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-        <path d="M9 9L15 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <p>⚠️ {{ error }}</p>
-      <button @click="fetchCitas" class="btn-retry">Reintentar</button>
-    </div>
-
-    <div v-else-if="citasFiltradas.length === 0" class="no-citas">
-      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="empty-icon">
-        <path d="M8 2V5" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M16 2V5" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 9H21" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 15H21" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M3 21H21" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <h3>¡No hay citas {{ filtroEstado !== 'todas' ? filtroEstado : '' }}!</h3>
-      <p>Agenda una nueva cita o cambia el filtro para ver otras.</p>
-      <button @click="navigateTo('/dashboard-vet/citas/nueva')" class="btn-primary">
-        ➕ Agendar Nueva Cita
-      </button>
-    </div>
-
-    <div v-else class="citas-list">
-      <div v-for="cita in citasFiltradas" :key="cita.id" class="cita-card" :class="cita.estado">
-        <div class="cita-header">
-          <h3>{{ cita.mascotas?.nombre || 'Sin nombre' }} 🐾</h3>
-          <span class="estado-badge">{{ getEstadoLabel(cita.estado) }}</span>
+      <!-- Filtros -->
+      <div class="filters-bar">
+        <div class="filter-item">
+          <label for="filter-date" class="filter-label">Fecha</label>
+          <input
+            id="filter-date"
+            type="date"
+            :value="selectedDate"
+            @input="handleDateInput"
+            class="date-input"
+            :max="today"
+          />
         </div>
-        <div class="cita-body">
-          <p><strong>📅 Fecha y Hora:</strong> {{ formatDate(cita.fecha) }} - {{ formatTime(cita.hora) }}</p>
-          <p><strong>📋 Servicio:</strong> {{ cita.servicios?.titulo || 'No especificado' }}</p>
-          <p><strong>👤 Cliente:</strong> {{ cita.usuarios?.nombre_completo || 'No disponible' }}</p>
-          <p v-if="cita.observaciones" class="observaciones">
-            <strong>📝 Observaciones:</strong> {{ cita.observaciones }}
-          </p>
-        </div>
-        <div class="cita-footer">
-          <button @click="verDetalles(cita.id)" class="btn-ver">
-            👁️ Ver Detalles
-          </button>
+        <div class="filter-item">
+          <label for="filter-status" class="filter-label">Estado</label>
+          <select
+            id="filter-status"
+            :value="selectedStatus"
+            @change="handleStatusChange"
+            class="status-select"
+          >
+            <option value="">Todos</option>
+            <option value="programada">Programada</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="completada">Completada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="no_asistio">No asistió</option>
+          </select>
         </div>
       </div>
-    </div>
+
+      <!-- Contenido -->
+      <div class="content-area">
+        <div v-if="isLoading" class="message">
+          <div class="spinner"></div>
+          <p>Cargando citas...</p>
+        </div>
+
+        <div v-else-if="error" class="message error">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p>{{ error }}</p>
+          <button @click="loadCitas" class="retry-btn">Reintentar</button>
+        </div>
+
+        <div v-else-if="filteredCitas.length === 0" class="message empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+            <path d="M8 2V5" /><path d="M16 2V5" />
+            <path d="M3 9H21" /><path d="M3 15H21" /><path d="M3 21H21" />
+          </svg>
+          <p>No tienes citas asignadas.</p>
+        </div>
+
+        <div v-else class="citas-grid">
+          <div
+            v-for="cita in filteredCitas"
+            :key="cita.id"
+            class="cita-card"
+          >
+            <div class="card-header">
+              <div>
+                <span class="time">{{ formatTime(cita.hora) }}</span>
+                <span class="date">{{ formatDate(cita.fecha) }}</span>
+              </div>
+              <span class="badge" :class="`badge--${cita.estado}`">
+                {{ getEstadoLabel(cita.estado) }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              <div class="info-row">
+                <span class="label">Mascota:</span>
+                <span class="value">{{ cita.mascota_nombre || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Dueño:</span>
+                <span class="value">{{ cita.usuario_nombre || '—' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Servicio:</span>
+                <span class="value">{{ cita.servicio_titulo || '—' }}</span>
+              </div>
+              <div v-if="cita.observaciones" class="info-row">
+                <span class="label">Notas:</span>
+                <span class="value">{{ cita.observaciones }}</span>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button
+                v-if="cita.estado === 'programada' || cita.estado === 'confirmada'"
+                @click="updateCita(cita.id, 'completada')"
+                class="btn btn--success"
+                :disabled="isProcessing"
+              >
+                Completar
+              </button>
+              <button
+                v-if="cita.estado === 'programada'"
+                @click="updateCita(cita.id, 'cancelada')"
+                class="btn btn--danger"
+                :disabled="isProcessing"
+              >
+                Cancelar
+              </button>
+              <button @click="viewCitaDetails(cita.id)" class="btn btn--outline">
+                Ver
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'vue-router'
+import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
+// Router
 const router = useRouter()
-const citas = ref([])
-const loading = ref(true)
-const error = ref('')
-const filtroEstado = ref('todas')
 
-// Obtener citas del veterinario
-const fetchCitas = async () => {
-  loading.value = true
-  error.value = ''
+// Estado
+const isLoading = ref(false)
+const isProcessing = ref(false)
+const error = ref(null)
+const rawCitas = ref([])
+const selectedDate = ref('')
+const selectedStatus = ref('')
+
+// Constantes
+const today = new Date().toISOString().split('T')[0]
+const estadoLabels = {
+  programada: 'Programada',
+  confirmada: 'Confirmada',
+  completada: 'Completada',
+  cancelada: 'Cancelada',
+  no_asistio: 'No asistió'
+}
+
+// Handlers
+const handleDateInput = (event) => {
+  selectedDate.value = event.target.value
+}
+
+const handleStatusChange = (event) => {
+  selectedStatus.value = event.target.value
+}
+
+// Citas filtradas
+const filteredCitas = computed(() => {
+  return rawCitas.value.filter(cita => {
+    const matchDate = !selectedDate.value || cita.fecha === selectedDate.value
+    const matchStatus = !selectedStatus.value || cita.estado === selectedStatus.value
+    return matchDate && matchStatus
+  })
+})
+
+// Formateo
+const formatDate = (dateStr) => {
+  return new Date(dateStr).toLocaleDateString('es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  })
+}
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '—'
+  const [h, m] = timeStr.split(':')
+  return `${h}:${m}`
+}
+
+const getEstadoLabel = (estado) => {
+  return estadoLabels[estado] || estado
+}
+
+// Cargar citas (versión robusta)
+const loadCitas = async () => {
+  isLoading.value = true
+  error.value = null
 
   try {
-    const {  authData, error: authError } = await supabase.auth.getUser()
-    if (authError || !authData?.user) {
-      throw new Error('Usuario no autenticado')
+    // 1. Obtener usuario autenticado
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new Error('No autenticado')
     }
 
-    const user = authData.user
-
-    // Obtener ID del veterinario
-    const {  vetData, error: vetError } = await supabase
+    // 2. Obtener veterinario
+    const { data: vetData, error: vetError } = await supabase
       .from('veterinarios')
       .select('id')
       .eq('usuario_id', user.id)
       .single()
 
-    if (vetError) {
-      throw new Error('No se encontró tu perfil de veterinario')
+    if (vetError || !vetData) {
+      throw new Error('No eres veterinario en el sistema')
     }
 
-    // Obtener todas las citas
-    const {  data, error: citasError } = await supabase
+    // 3. Cargar citas con relaciones EXPLÍCITAS
+    const { data, error: citasError } = await supabase
       .from('citasmascotas')
       .select(`
         id,
@@ -113,393 +224,414 @@ const fetchCitas = async () => {
         estado,
         observaciones,
         mascota_id,
-        servicio_id,
         usuario_id,
-        mascotas (nombre),
-        servicios (titulo),
-        usuarios (nombre_completo)
+        servicio_id
       `)
       .eq('veterinario_id', vetData.id)
       .order('fecha', { ascending: false })
       .order('hora', { ascending: true })
 
     if (citasError) {
-      throw new Error('Error al cargar citas')
+      console.error('Error Supabase:', citasError)
+      throw new Error('Error al consultar citas')
     }
 
-    citas.value = data || []
+    // 4. Si no hay citas, terminar
+    if (!data || data.length === 0) {
+      rawCitas.value = []
+      isLoading.value = false
+      return
+    }
+
+    // 5. Obtener datos relacionados en lotes
+    const mascotaIds = [...new Set(data.map(c => c.mascota_id).filter(Boolean))]
+    const usuarioIds = [...new Set(data.map(c => c.usuario_id).filter(Boolean))]
+    const servicioIds = [...new Set(data.map(c => c.servicio_id).filter(Boolean))]
+
+    // Cargar mascotas
+    const mascotasMap = {}
+    if (mascotaIds.length > 0) {
+      const { data: mascotas, error: mascotasError } = await supabase
+        .from('mascotas')
+        .select('id, nombre')
+        .in('id', mascotaIds)
+
+      if (!mascotasError && mascotas) {
+        mascotas.forEach(m => { mascotasMap[m.id] = m.nombre })
+      }
+    }
+
+    // Cargar usuarios
+    const usuariosMap = {}
+    if (usuarioIds.length > 0) {
+      const { data: usuarios, error: usuariosError } = await supabase
+        .from('usuarios')
+        .select('id, nombre_completo')
+        .in('id', usuarioIds)
+
+      if (!usuariosError && usuarios) {
+        usuarios.forEach(u => { usuariosMap[u.id] = u.nombre_completo })
+      }
+    }
+
+    // Cargar servicios
+    const serviciosMap = {}
+    if (servicioIds.length > 0) {
+      const { data: servicios, error: serviciosError } = await supabase
+        .from('servicios')
+        .select('id, titulo')
+        .in('id', servicioIds)
+
+      if (!serviciosError && servicios) {
+        servicios.forEach(s => { serviciosMap[s.id] = s.titulo })
+      }
+    }
+
+    // 6. Combinar datos
+    rawCitas.value = data.map(cita => ({
+      ...cita,
+      mascota_nombre: mascotasMap[cita.mascota_id] || null,
+      usuario_nombre: usuariosMap[cita.usuario_id] || null,
+      servicio_titulo: serviciosMap[cita.servicio_id] || null
+    }))
+
   } catch (err) {
-    error.value = err.message || 'Error desconocido al cargar citas'
-    console.error('[MisCitas] Error:', err)
+    console.error('Error crítico:', err)
+    error.value = err.message || 'Error al cargar citas. Inténtalo más tarde.'
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 }
 
-// Filtrar citas reactivamente
-const citasFiltradas = computed(() => {
-  if (filtroEstado.value === 'todas') return citas.value
-  return citas.value.filter(cita => cita.estado === filtroEstado.value)
-})
+// Actualizar cita
+const updateCita = async (citaId, nuevoEstado) => {
+  if (isProcessing.value) return
+  const action = nuevoEstado === 'completada' ? 'completar' : 'cancelar'
+  if (!confirm(`¿${action === 'completar' ? 'Completar' : 'Cancelar'} esta cita?`)) return
 
-// Formatear fecha
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'Fecha no disponible'
-  const date = new Date(dateStr)
-  return new Intl.DateTimeFormat('es-ES', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  }).format(date)
-}
+  isProcessing.value = true
+  try {
+    const updateData = { estado: nuevoEstado }
+    if (nuevoEstado === 'completada') {
+      updateData.hora_salida = new Date().toISOString()
+    }
 
-// Formatear hora
-const formatTime = (timeStr) => {
-  if (!timeStr) return 'Hora no disponible'
-  const [hours, minutes] = timeStr.split(':')
-  return `${hours}:${minutes}`
-}
+    const { error: updateError } = await supabase
+      .from('citasmascotas')
+      .update(updateData)
+      .eq('id', citaId)
 
-// Etiquetas amigables para estados
-const getEstadoLabel = (estado) => {
-  const labels = {
-    programada: 'Programada',
-    confirmada: 'Confirmada',
-    completada: 'Completada',
-    cancelada: 'Cancelada',
-    no_asistio: 'No Asistió'
+    if (updateError) {
+      console.error('Error al actualizar:', updateError)
+      throw new Error('No se pudo actualizar la cita')
+    }
+
+    await loadCitas()
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    isProcessing.value = false
   }
-  return labels[estado] || estado
 }
 
-// Navegar a detalles
-const verDetalles = (citaId) => {
-  router.push(`/dashboard-vet/citas/${citaId}`)
-}
-
-// Navegar a otras rutas
-const navigateTo = (path) => {
-  router.push(path)
-}
-
-// Método redundante (computed ya lo hace), pero lo dejamos por si quieres lógica adicional
-const filtrarCitas = () => {
-  // Puedes agregar lógica extra aquí si lo necesitas
+// Ver detalles
+const viewCitaDetails = (citaId) => {
+  router.push({ name: 'DetalleCitaVet', params: { id: citaId } })
 }
 
 onMounted(() => {
-  fetchCitas()
+  loadCitas()
 })
 </script>
 
 <style scoped>
-.mis-citas-container {
-  padding: 2rem;
-  background: #f8fafc;
+.citas-vet-container {
+  display: flex;
   min-height: 100vh;
-  margin-left: 240px; /* Para sidebar */
+  background-color: #f9fafb;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 240px;
   transition: margin-left 0.3s ease;
 }
 
-/* Responsive para sidebar colapsado o móvil */
-@media (max-width: 1024px) {
-  .mis-citas-container {
-    margin-left: 0;
-  }
-}
-
+/* Responsive: Ajustar para tablet y móvil */
 @media (max-width: 768px) {
-  .mis-citas-container {
-    padding: 1.5rem 1rem;
+  .main-content {
+    margin-left: 0;
+    padding: 1.5rem;
+  }
+
+  .filters-bar {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .filter-item {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .date-input,
+  .status-select {
+    width: 100%;
   }
 }
 
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
+/* Encabezado */
+.page-header {
+  margin-bottom: 2rem;
 }
 
-.header-section h1 {
-  font-size: 2rem;
+.page-header h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
   color: #1e293b;
   margin: 0;
-  font-weight: 700;
-  line-height: 1.2;
 }
 
-.filters select {
-  padding: 0.6rem 1.2rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 10px;
-  background: white;
+.subtitle {
+  color: #64748b;
   font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-top: 0.25rem;
 }
 
-.filters select:focus {
+.subtitle code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Filtros */
+.filters-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.date-input,
+.status-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.date-input:focus,
+.status-select:focus {
   outline: none;
   border-color: #145a32;
-  box-shadow: 0 2px 6px rgba(20, 90, 50, 0.2);
+  box-shadow: 0 0 0 3px rgba(20, 90, 50, 0.1);
 }
 
-.loading,
-.error,
-.no-citas {
-  text-align: center;
-  padding: 3rem 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  margin: 2rem auto;
-  max-width: 600px;
+/* Contenido */
+.content-area {
+  min-height: 400px;
 }
 
-.loading p,
-.error p,
-.no-citas p {
-  font-size: 1.1rem;
+.message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
   color: #64748b;
-  margin: 1rem 0;
+  text-align: center;
 }
 
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 5px solid #f3f4f6;
-  border-top: 5px solid #145a32;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #e2e8f0;
+  border-top: 3px solid #145a32;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin: 0 auto 1.5rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.empty-icon {
-  margin: 0 auto 1.5rem;
-  display: block;
-  color: #94a3b8;
-}
-
-.error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-}
-
-.error-icon {
   margin-bottom: 1rem;
 }
 
-.error p {
-  color: #dc2626;
-  font-weight: 600;
-  font-size: 1.2rem;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-.btn-retry {
-  background: #dc2626;
+.retry-btn {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #145a32;
   color: white;
   border: none;
-  padding: 0.8rem 2rem;
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  transition: background 0.2s;
 }
 
-.btn-retry:hover {
-  background: #b91c1c;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0,0,0,0.15);
+.retry-btn:hover {
+  background: #0f4c28;
 }
 
-.citas-list {
+/* Grid de citas */
+.citas-grid {
   display: grid;
-  gap: 2rem;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.75rem;
 }
 
 .cita-card {
   background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  border-left: 5px solid #cbd5e1;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  border-radius: 12px;
+  padding: 1.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .cita-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
-/* Colores por estado */
-.cita-card.programada { border-left-color: #3b82f6; }
-.cita-card.confirmada { border-left-color: #10b981; }
-.cita-card.completada { border-left-color: #8b5cf6; }
-.cita-card.cancelada { border-left-color: #ef4444; }
-.cita-card.no_asistio { border-left-color: #f59e0b; }
-
-.cita-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1.25rem;
 }
 
-.cita-header h3 {
-  margin: 0;
-  color: #1e293b;
-  font-size: 1.4rem;
+.time {
+  font-size: 1.5rem;
   font-weight: 700;
-  line-height: 1.3;
+  color: #1e293b;
 }
 
-.estado-badge {
-  padding: 0.4rem 1rem;
+.date {
+  font-size: 0.95rem;
+  color: #64748b;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  background: #e2e8f0;
-  color: #475569;
-  text-transform: capitalize;
-  border: 1px solid #cbd5e1;
+  text-transform: uppercase;
 }
 
-.cita-card.programada .estado-badge { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
-.cita-card.confirmada .estado-badge { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.cita-card.completada .estado-badge { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
-.cita-card.cancelada .estado-badge { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
-.cita-card.no_asistio .estado-badge { background: #fef3c7; color: #d97706; border-color: #fde68a; }
+.badge--programada { background: #dbeafe; color: #1d4ed8; }
+.badge--confirmada { background: #dcfce7; color: #166534; }
+.badge--completada { background: #ede9fe; color: #7c3aed; }
+.badge--cancelada { background: #fee2e2; color: #dc2626; }
+.badge--no_asistio { background: #ffedd5; color: #ea580c; }
 
-.cita-body p {
+.card-body {
+  margin-bottom: 1.5rem;
+}
+
+.info-row {
+  display: flex;
   margin: 0.5rem 0;
-  color: #475569;
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.observaciones {
-  background: #f1f5f9;
-  padding: 1rem;
-  border-radius: 10px;
-  margin-top: 1rem;
-  font-style: italic;
-  border-left: 4px solid #3b82f6;
   font-size: 0.95rem;
 }
 
-.cita-footer {
-  margin-top: 1.5rem;
+.label {
+  font-weight: 600;
+  color: #475569;
+  min-width: 85px;
+}
+
+.value {
+  color: #1e293b;
+  flex: 1;
+}
+
+.card-footer {
   display: flex;
+  gap: 0.875rem;
   justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #f1f5f9;
 }
 
-.btn-ver {
+.btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--success {
   background: #145a32;
   color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
 }
 
-.btn-ver:hover {
+.btn--success:hover:not(:disabled) {
   background: #0f4c28;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px rgba(0,0,0,0.15);
 }
 
-.btn-primary {
-  background: #145a32;
+.btn--danger {
+  background: #dc2626;
   color: white;
-  border: none;
-  padding: 0.8rem 2rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
-.btn-primary:hover {
-  background: #0f4c28;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+.btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .header-section {
+.btn--outline {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+
+/* Responsive extra: Móvil pequeño */
+@media (max-width: 480px) {
+  .citas-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .cita-card {
+    padding: 1.25rem;
+  }
+
+  .card-footer {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .filters select {
+  .btn {
     width: 100%;
-    max-width: 300px;
-    margin: 1rem auto 0;
-  }
-
-  .citas-list {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .cita-card {
-    padding: 1.5rem;
-  }
-
-  .header-section h1 {
-    font-size: 1.75rem;
-  }
-
-  .cita-header h3 {
-    font-size: 1.3rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .mis-citas-container {
-    padding: 1rem;
-  }
-
-  .btn-ver,
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .cita-footer {
     justify-content: center;
   }
 }

@@ -11,7 +11,7 @@
       <!-- Tarjetas de gestión rápida -->
       <section class="quick-actions">
         <!-- Citas de Hoy -->
-        <div class="action-card" @click="navigateTo('MisCitasVet')">
+        <div class="action-card" @click="navigateTo('MisCitas')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 2V5" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Mis Mascotas -->
-        <div class="action-card" @click="navigateTo('MisMascotasVet')">
+        <div class="action-card" @click="navigateTo('MisMascotas')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -38,7 +38,7 @@
         </div>
 
         <!-- Mis Servicios -->
-        <div class="action-card" @click="navigateTo('MisServiciosVet')">
+        <div class="action-card" @click="navigateTo('MisServicios')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -51,7 +51,7 @@
         </div>
 
         <!-- Mi Horario -->
-        <div class="action-card" @click="navigateTo('MisHorariosVet')">
+        <div class="action-card" @click="navigateTo('MisHorarios')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 8V12L15 15" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -88,7 +88,7 @@
         </div>
 
         <!-- Testimonios (solo los suyos) -->
-        <div class="action-card" @click="navigateTo('TestimoniosVet')">
+        <div class="action-card" @click="navigateTo('MisTestimonios')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -100,7 +100,7 @@
         </div>
 
         <!-- Productos (acceso a catálogo) -->
-        <div class="action-card" @click="navigateTo('ProductosVet')">
+        <div class="action-card" @click="navigateTo('MisProductos')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
