@@ -102,7 +102,7 @@
         </div>
 
         <!-- Mensajes de Contacto -->
-        <div class="action-card" @click="navigateTo('MensajesContactoAdmin')">
+        <div class="action-card" @click="navigateTo('MensajesAdmin')">
           <div class="icon-container">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

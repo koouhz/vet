@@ -139,6 +139,30 @@ const routes = [
       component: () => import('@/views/Admin/productosAdmin.vue')
     }
   ]
+},
+{
+  path: '/admin/mensajes',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'MensajesAdmin',
+      component: () => import('@/views/Admin/MensajesContactoAdmin.vue')
+    }
+  ]
+},
+{
+  path: '/admin/bitacora',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'BitacoraAdmin',
+      component: () => import('@/views/Admin/BitacoraAdmin.vue')
+    }
+  ]
 }
 ]
 
