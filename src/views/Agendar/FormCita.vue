@@ -2,6 +2,22 @@
   <div class="form-cita">
     <h2>Agendar una Cita</h2>
 
+    <!-- Selección de servicio -->
+    <label>Selecciona el servicio:</label>
+    <select v-model="servicioLocal" @change="actualizarServicio" required>
+      <option disabled value="">-- Selecciona servicio --</option>
+      <option v-for="s in servicios" :key="s.id" :value="s.id">{{ s.titulo }}</option>
+    </select>
+
+    <!-- Selección de veterinario -->
+    <label>Selecciona el veterinario:</label>
+    <select v-model="veterinarioId" @change="cargarHorarios" required>
+      <option disabled value="">-- Selecciona veterinario --</option>
+      <option v-for="v in veterinarios" :key="v.id" :value="v.id">
+        {{ v.usuarios.nombre_completo }} – {{ v.especialidades.nombre }}
+      </option>
+    </select>
+
     <!-- Selección de mascota -->
     <label>Selecciona tu mascota:</label>
     <select v-model="mascotaId" required>
@@ -10,16 +26,9 @@
     </select>
     <button type="button" @click="abrirNuevaMascota">+ Registrar nueva mascota</button>
 
-    <!-- Selección de veterinario -->
-    <SelectVeterinario 
-      v-model="veterinarioId" 
-      :servicio-id="servicioId"
-      @change="cargarHorarios"
-    />
-
-    <!-- Fecha (opcional, para filtrar horas ocupadas) -->
-    <label>Fecha (opcional):</label>
-    <input type="date" v-model="fecha" @change="cargarHorarios" />
+    <!-- Fecha -->
+    <label>Fecha:</label>
+    <input type="date" :min="fechaMinima" v-model="fecha" @change="actualizarServicio" required />
 
     <!-- Horarios disponibles -->
     <label>Hora:</label>
@@ -31,7 +40,7 @@
     <!-- Botón agendar -->
     <button @click="agendar">Agendar Cita</button>
 
-    <!-- Modal para nueva mascota -->
+    <!-- Modal nueva mascota -->
     <ModalNuevaMascota 
       v-if="mostrarModalMascota" 
       @cerrar="cerrarModalMascota" 
@@ -43,28 +52,44 @@
 <script>
 import { supabase } from '@/lib/supabaseClient'
 import ModalNuevaMascota from './ModalNuevaMascota.vue'
-import SelectVeterinario from './SelectVeterinario.vue'
 
 export default {
   props: {
-    servicioId: { type: [String, Number], required: true }
+    servicioId: { type: [String, Number], required: false }
   },
-  components: { ModalNuevaMascota, SelectVeterinario },
+  components: { ModalNuevaMascota },
   data() {
     return {
+      servicios: [],
+      veterinarios: [],
       mascotas: [],
-      mascotaId: '',
+      servicioLocal: this.servicioId || '',
       veterinarioId: '',
+      mascotaId: '',
       fecha: '',
       hora: '',
       horasDisponibles: [],
       mostrarModalMascota: false
     }
   },
+  computed: {
+    fechaMinima() {
+      return new Date().toISOString().split('T')[0]
+    }
+  },
   async created() {
+    await this.cargarServicios()
     await this.cargarMascotas()
   },
   methods: {
+    async cargarServicios() {
+      const { data, error } = await supabase
+        .from('servicios')
+        .select('*')
+        .eq('is_activo', true)
+      if (error) console.error(error)
+      else this.servicios = data
+    },
     async cargarMascotas() {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return
@@ -74,73 +99,105 @@ export default {
         .eq('usuario_id', user.user.id)
       this.mascotas = data || []
     },
-
     abrirNuevaMascota() { this.mostrarModalMascota = true },
     cerrarModalMascota() { this.mostrarModalMascota = false },
-    agregarMascota(mascota) { 
-      this.mascotas.push(mascota) 
-      this.mascotaId = mascota.id 
+    agregarMascota(m) {
+      this.mascotas.push(m)
+      this.mascotaId = m.id
+      this.cerrarModalMascota()
+    },
+
+    obtenerDiaSemana(fecha) {
+      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
+      return dias[new Date(fecha).getDay()]
+    },
+
+    async actualizarServicio() {
+      this.$emit('update:servicioId', this.servicioLocal)
+      this.veterinarioId = ''
+      this.horasDisponibles = []
+
+      if (!this.servicioLocal) {
+        this.veterinarios = []
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('servicios_veterinarios')
+        .select(`
+          veterinarios (
+            id,
+            usuarios (nombre_completo),
+            especialidades (nombre)
+          )
+        `)
+        .eq('servicio_id', this.servicioLocal)
+
+      if (error) {
+        console.error(error)
+        this.veterinarios = []
+        return
+      }
+
+      const diaSemana = this.fecha ? this.obtenerDiaSemana(this.fecha) : null
+
+      // Filtrar veterinarios por disponibilidad en el día seleccionado
+      this.veterinarios = []
+      for (const d of data) {
+        const vet = d.veterinarios
+        if (!diaSemana) {
+          this.veterinarios.push(vet)
+          continue
+        }
+
+        const { data: horarios, error: hError } = await supabase
+          .from('horarios_veterinarios')
+          .select('id, es_disponible, horario_base:horario_base_id(dia_semana)')
+          .eq('veterinario_id', vet.id)
+          .eq('es_disponible', true)
+
+        if (!hError && horarios.some(h => h.horario_base?.dia_semana.toLowerCase() === diaSemana)) {
+          this.veterinarios.push(vet)
+        }
+      }
     },
 
     async cargarHorarios() {
-  if (!this.veterinarioId) return
+      try {
+        if (!this.veterinarioId || !this.fecha) return
 
-  try {
-    // Obtener horarios del veterinario según día
-    const diaSemana = this.fecha
-      ? ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date(this.fecha).getDay()]
-      : null
+        const diaSemana = this.obtenerDiaSemana(this.fecha)
 
-    const { data: horariosVet, error } = await supabase
-      .from('horarios_veterinarios')
-      .select('hora_inicio,hora_fin,dia,es_disponible')
-      .eq('veterinario_id', this.veterinarioId)
-      .eq('es_disponible', true)
+        const { data, error } = await supabase
+          .from('horarios_veterinarios')
+          .select(`
+            id,
+            es_disponible,
+            horario_base:horario_base_id (
+              dia_semana,
+              hora_inicio,
+              hora_fin
+            )
+          `)
+          .eq('veterinario_id', this.veterinarioId)
+          .eq('es_disponible', true)
 
-    if (error) throw error
+        if (error) throw error
 
-    // Filtrar por día si se seleccionó fecha
-    let horariosFiltrados = horariosVet
-    if (diaSemana) {
-      horariosFiltrados = horariosVet.filter(h => h.dia === diaSemana)
-    }
+        this.horasDisponibles = data
+          .filter(h => h.horario_base && h.horario_base.dia_semana.toLowerCase() === diaSemana)
+          .map(h => `${h.horario_base.hora_inicio} - ${h.horario_base.hora_fin}`)
 
-    // Generar intervalos de 30 minutos
-    let horas = []
-    horariosFiltrados.forEach(hv => {
-      let [hora, minuto] = hv.hora_inicio.split(':').map(Number)
-      const [finHora, finMin] = hv.hora_fin.split(':').map(Number)
-
-      while (hora < finHora || (hora === finHora && minuto < finMin)) {
-        horas.push(`${String(hora).padStart(2,'0')}:${String(minuto).padStart(2,'0')}`)
-        minuto += 30
-        if (minuto >= 60) { minuto = 0; hora += 1 }
+      } catch (err) {
+        console.error('Error cargando horarios:', err.message)
+        this.horasDisponibles = []
       }
-    })
-
-    // Filtrar horas ya ocupadas en citasmascotas (si se eligió fecha)
-    if (this.fecha) {
-      const { data: citas } = await supabase
-        .from('citasmascotas')
-        .select('hora')
-        .eq('veterinario_id', this.veterinarioId)
-        .eq('fecha', this.fecha)
-      const ocupadas = citas.map(c => c.hora)
-      horas = horas.filter(h => !ocupadas.includes(h))
-    }
-
-    this.horasDisponibles = horas
-  } catch (err) {
-    console.error('Error cargando horarios del veterinario:', err.message)
-  }
-},
-
+    },
 
     async agendar() {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return alert('Debes iniciar sesión')
-
-      if (!this.mascotaId || !this.veterinarioId || !this.servicioId || !this.hora) {
+      if (!this.servicioLocal || !this.veterinarioId || !this.mascotaId || !this.fecha || !this.hora) {
         return alert('Completa todos los campos')
       }
 
@@ -148,22 +205,25 @@ export default {
         usuario_id: user.user.id,
         mascota_id: this.mascotaId,
         veterinario_id: this.veterinarioId,
-        servicio_id: this.servicioId,
-        fecha: this.fecha || new Date().toISOString().split('T')[0],
+        servicio_id: this.servicioLocal,
+        fecha: this.fecha,
         hora: this.hora
       }])
 
       if (error) return alert('Error: ' + error.message)
-
       alert('✅ Cita agendada correctamente')
       this.$router.push({ name: 'Home' })
     }
   }
 }
 </script>
+
 <style scoped>
-/* estilos idénticos a los anteriores */
-.form-cita { max-width: 500px; margin: 2rem auto; padding: 2rem; background: #ffffffff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 1rem; }
+.form-cita {
+  max-width: 500px; margin: 2rem auto; padding: 2rem;
+  background: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  display: flex; flex-direction: column; gap: 1rem;
+}
 .form-cita h2 { text-align: center; color: #2c3e50; margin-bottom: 1rem; }
 .form-cita label { font-weight: 600; margin-bottom: 0.3rem; color: #34495e; }
 .form-cita select, .form-cita input[type="date"] { padding: 0.5rem 0.8rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
