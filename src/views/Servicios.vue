@@ -1,43 +1,52 @@
 <template>
   <div class="servicios">
     <section class="hero">
-      <h1>Servicios con Veterinarios</h1>
+      <h1>Servicios disponibles</h1>
       <p>
-        Estos son los servicios disponibles junto con los veterinarios
-        que actualmente los atienden.
+        Estos son todos los servicios ofrecidos por la veterinaria. 
+        Puedes revisar la lista completa y luego agendar una cita.
       </p>
     </section>
 
+    <!-- Lista de servicios -->
     <section class="services-list">
       <div
         class="service-item"
-        v-for="rel in serviciosVeterinarios"
-        :key="rel.id"
+        v-for="servicio in servicios"
+        :key="servicio.id"
       >
-        <img :src="rel.servicios?.foto_url" :alt="rel.servicios?.titulo" />
-        <h3>{{ rel.servicios?.titulo }}</h3>
-        <p>{{ rel.servicios?.descripcion }}</p>
+        <img :src="servicio.foto_url" :alt="servicio.titulo" />
+        <h3>{{ servicio.titulo }}</h3>
+        <p>{{ servicio.descripcion }}</p>
 
-        <!-- Veterinario asignado -->
-        <div v-if="rel.veterinarios">
-          <h4>Veterinario:</h4>
-          <p>
-            {{ rel.veterinarios.usuarios?.nombre_completo }} – 
-            {{ rel.veterinarios.especialidades?.nombre }}
-          </p>
+        <!-- Veterinarios disponibles -->
+        <div v-if="servicio.servicios_veterinarios?.length">
+          <h4>Veterinarios disponibles:</h4>
+          <ul>
+            <li
+              v-for="rel in servicio.servicios_veterinarios"
+              :key="rel.veterinarios?.id"
+            >
+              {{ rel.veterinarios?.usuarios?.nombre_completo }} – 
+              {{ rel.veterinarios?.especialidades?.nombre }}
+            </li>
+          </ul>
         </div>
         <div v-else>
-          <p class="no-vet">⚠️ Sin veterinario asignado</p>
+          <p class="no-vet">⚠️ Sin veterinarios asignados por ahora</p>
         </div>
-
-        <button
-          class="btn-primary"
-          @click="irAgendarCita(rel.servicios.id, rel.veterinarios?.id)"
-        >
-          Agendar ahora
-        </button>
       </div>
     </section>
+
+    <!-- Botón único para agendar -->
+    <div class="agendar-btn-container">
+      <button
+        class="btn-primary"
+        @click="irAgendarCita"
+      >
+        Agendar cita
+      </button>
+    </div>
   </div>
 </template>
 
@@ -48,58 +57,50 @@ export default {
   name: 'ServiciosView',
   data() {
     return {
-      serviciosVeterinarios: []
+      servicios: []
     }
   },
   async created() {
-    await this.cargarServiciosVeterinarios()
+    await this.cargarServicios()
   },
   methods: {
-    async cargarServiciosVeterinarios() {
+    async cargarServicios() {
       try {
         const { data, error } = await supabase
-          .from('servicios_veterinarios')
+          .from('servicios')
           .select(`
             id,
-            servicios (
+            titulo,
+            descripcion,
+            foto_url,
+            is_activo,
+            servicios_veterinarios (
               id,
-              titulo,
-              descripcion,
-              foto_url,
-              is_activo
-            ),
-            veterinarios (
-              id,
-              usuarios (
-                nombre_completo
-              ),
-              especialidades (
-                nombre
+              veterinarios (
+                id,
+                usuarios (nombre_completo),
+                especialidades (nombre)
               )
             )
           `)
+          .eq('is_activo', true)
 
         if (error) throw error
-
-        this.serviciosVeterinarios = data
+        this.servicios = data
       } catch (err) {
-        console.error('Error cargando servicios con veterinarios:', err.message)
+        console.error('Error cargando servicios:', err.message)
       }
     },
 
-    async irAgendarCita(servicioId, veterinarioId) {
+    async irAgendarCita() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return this.$router.push({ name: 'Login' })
 
-      this.$router.push({
-        name: 'AgendarCita',
-        query: { servicioId, veterinarioId }
-      })
+      this.$router.push({ name: 'AgendarCita' })
     }
   }
 }
 </script>
-
 
 <style scoped>
 .servicios {
@@ -207,5 +208,26 @@ export default {
     grid-template-columns: 1fr;
     padding: 2rem 1rem;
   }
+}
+.agendar-btn-container {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.btn-primary {
+  margin-top: 0.5rem;
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
 }
 </style>
