@@ -14,21 +14,39 @@
     <!-- Navegación Principal -->
     <nav class="sidebar-nav">
       <ul class="nav-list">
+        <!-- Inicio: visible para todos -->
         <SidebarItem to="/" icon="ph-house" label="Inicio" :collapsed="isCollapsed" />
 
-        <!-- Dashboard según rol -->
+        <!-- Dashboard: solo admin y veterinario -->
         <SidebarItem
+          v-if="canAccessDashboard"
           :to="dashboardRoute"
           icon="ph-gauge"
-          label="Dashboard"
+          :label="dashboardLabel"
           :collapsed="isCollapsed"
         />
 
-        <SidebarItem to="/reportes" icon="ph-file-text" label="Reportes" :collapsed="isCollapsed" />
-        <SidebarItem to="/configuracion" icon="ph-gear" label="Configuración" :collapsed="isCollapsed" />
+        <!-- Reportes: solo admin o veterinario -->
+        <SidebarItem
+          v-if="canAccessReportes"
+          to="/reportes"
+          icon="ph-file-text"
+          label="Reportes"
+          :collapsed="isCollapsed"
+        />
+
+        <!-- Configuración: solo admin -->
+        <SidebarItem
+          v-if="isAdmin"
+          to="/configuracion"
+          icon="ph-gear"
+          label="Configuración"
+          :collapsed="isCollapsed"
+        />
 
         <li class="nav-divider"></li>
 
+        <!-- Perfil y Logout: visibles para todos -->
         <SidebarItem to="/perfil" icon="ph-user" label="Mi Perfil" :collapsed="isCollapsed" />
         <SidebarItem @click="handleLogout" icon="ph-sign-out" label="Cerrar Sesión" :collapsed="isCollapsed" class="logout-item" />
       </ul>
@@ -37,14 +55,13 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, watch } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { supabase } from '@/lib/supabaseClient';
 import SidebarItem from './SidebarItem.vue';
 
-// Inyectamos authStore global
-const authStore = inject('authStore') || { user: { role: 'cliente' } };
-
-const userRole = computed(() => authStore.user?.role || 'cliente');
+// Inyectamos authStore global o creamos uno temporal
+const authStore = inject('authStore') || { user: ref(null), loadUser: async () => {} };
 
 const router = useRouter();
 const isCollapsed = ref(false);
@@ -54,9 +71,45 @@ const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
 };
 
+// Función para cargar usuario al montar el sidebar
+onMounted(async () => {
+  if (!authStore.user.value) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (!error) authStore.user.value = userData;
+    }
+  }
+});
+
+// Computed para roles
+const userRole = computed(() => authStore.user?.value?.rol || 'cliente');
+const isAdmin = computed(() => userRole.value === 'admin');
+const isVet = computed(() => userRole.value === 'veterinario');
+
+// Permisos de acceso
+const canAccessDashboard = computed(() => isAdmin.value || isVet.value);
+const canAccessReportes = computed(() => isAdmin.value || isVet.value);
+
+// Dashboard dinámico
+const dashboardRoute = computed(() => {
+  if (isAdmin.value) return '/dashboard-admin';
+  if (isVet.value) return '/dashboard-vet';
+  return '/';
+});
+const dashboardLabel = computed(() => {
+  if (isAdmin.value) return 'Dashboard Admin';
+  if (isVet.value) return 'Dashboard Vet';
+  return 'Dashboard';
+});
+
+// Logout
 const handleLogout = async () => {
   try {
-    const { supabase } = await import('@/lib/supabaseClient.js');
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     router.push('/login');
@@ -64,14 +117,6 @@ const handleLogout = async () => {
     console.error('Error al cerrar sesión:', err.message);
   }
 };
-
-// Dashboard route dinámico según rol
-const dashboardRoute = ref('/');
-watch(userRole, (newRole) => {
-  if (newRole === 'admin') dashboardRoute.value = '/dashboard-admin';
-  else if (newRole === 'veterinario') dashboardRoute.value = '/dashboard-vet';
-  else dashboardRoute.value = '/';
-}, { immediate: true });
 </script>
 
 <style scoped>

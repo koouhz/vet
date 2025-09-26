@@ -195,56 +195,46 @@ const logout = async () => {
 
 <style scoped>
 /* ===== VARIABLES CSS ===== */
-:root {
-  --nav-height: 64px;
-  --nav-height-mobile: 56px;
-  --primary-color: #2563eb;
-  --text-primary: #111827; /* Negro oscuro — ahora usado para todo texto visible */
-  --text-secondary: #374151;
-  --text-disabled: #6b7280;
-  --border-color: #e5e7eb;
-  --bg-hover: #f9fafb;
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --transition-fast: 0.2s ease;
-  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
+/* ===== NAVBAR ===== */
 .navbar {
-  background: #fff;
-  border-bottom: 1px solid var(--border-color);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   width: 100%;
   z-index: 1000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: background var(--transition);
 }
 
 .nav-container {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  max-width: 1280px;
+  align-items: center;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1.5rem;
-  height: var(--nav-height);
+  padding: 0 2rem;
+  height: 64px;
   gap: 1.5rem;
 }
 
+/* LOGO */
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   text-decoration: none;
-  color: var(--text-primary); /* Texto del logo también en negro oscuro */
+  color: var(--color-accent);
 }
 
 .logo-img {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   object-fit: cover;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition);
 }
 
 .logo-img:hover {
@@ -253,15 +243,15 @@ const logout = async () => {
 
 .logo-text {
   font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
+/* LINKS DESKTOP */
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.5rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -269,30 +259,21 @@ const logout = async () => {
 
 .nav-link {
   text-decoration: none;
-  color: var(--text-primary);
-  font-size: 0.95rem;
+  color: var(--color-text);
   font-weight: 500;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  transition: color var(--transition-fast), background var(--transition-fast);
-  display: inline-block; /* Evita colapso */
-  height: 100%; /* Ocupa toda la altura del navbar */
-  line-height: var(--nav-height); /* Alinea verticalmente */
-  position: relative;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  transition: all var(--transition);
 }
 
 .nav-link:hover,
 .nav-link.active {
-  color: var(--primary-color);
-  font-weight: 600;
-  background: var(--bg-hover);
+  color: #ffffff;
+  background: var(--color-accent);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
-.nav-link.active {
-  box-shadow: inset 0 -2px 0 var(--primary-color);
-}
-
-/* === Profile Button === */
+/* PROFILE BUTTON */
 .nav-profile {
   position: relative;
   display: flex;
@@ -302,81 +283,54 @@ const logout = async () => {
 .btn-user {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  background: #fff;
-  border: 1px solid var(--border-color);
+  gap: 0.5rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
   border-radius: 9999px;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 0.85rem;
   cursor: pointer;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
   font-size: 0.9rem;
   font-weight: 500;
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-fast);
-  min-height: 36px;
+  color: var(--color-text);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: all var(--transition);
 }
 
 .btn-user:hover {
-  background: var(--bg-hover);
-  border-color: #d1d5db;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
 }
 
-.user-name {
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary); /* ¡Negro oscuro siempre! */
-  font-weight: 500;
-}
-
-/* === Dropdown Menu === */
+/* DROPDOWN */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: #fff;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
   padding: 0.5rem 0;
   min-width: 180px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
   list-style: none;
-  opacity: 0;
-  transform: translateY(-8px);
-  pointer-events: none;
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
   z-index: 1001;
-}
-
-.navbar .dropdown-menu {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: all;
 }
 
 .dropdown-item {
   display: block;
   padding: 0.6rem 1rem;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
+  color: var(--color-text);
   text-decoration: none;
-  font-size: 0.9rem;
   font-weight: 500;
-  border-radius: 8px;
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
+  border-radius: var(--radius);
   cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  margin: 0;
+  transition: background var(--transition), color var(--transition);
 }
 
-.dropdown-item:hover,
-.logout-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+.dropdown-item:hover {
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
 .logout-btn:hover {
@@ -384,83 +338,51 @@ const logout = async () => {
   color: #dc2626;
 }
 
-/* === Mobile Toggle === */
+/* MOBILE */
 .mobile-toggle {
   display: none;
   background: none;
   border: none;
   padding: 0.75rem;
   cursor: pointer;
-  color: var(--text-primary); /* ¡Negro oscuro aquí también! */
-  border-radius: 8px;
-  transition: background var(--transition-fast);
+  color: var(--color-text);
+  border-radius: var(--radius);
+  transition: background var(--transition);
 }
 
 .mobile-toggle:hover {
-  background: var(--bg-hover);
+  background: var(--color-border);
 }
 
-/* === Mobile Menu === */
 .mobile-menu {
-  background: #fff;
-  border-top: 1px solid var(--border-color);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border);
   padding: 1rem;
   position: absolute;
-  top: var(--nav-height);
+  top: 64px;
   left: 0;
   right: 0;
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-10px);
-  opacity: 0;
-  transition: opacity var(--transition-slow), transform var(--transition-slow);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
   z-index: 1000;
-  overflow: hidden;
-}
-
-.navbar .mobile-menu {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.mobile-nav-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
 }
 
 .mobile-nav-link {
-  text-decoration: none;
-  color: var(--text-primary);
-  font-size: 1rem;
+  display: block;
+  padding: 0.7rem 1rem;
+  color: var(--color-text);
   font-weight: 500;
-  padding: 0.75rem;
-  border-radius: 8px;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  display: block; /* Asegura bloque completo */
+  border-radius: var(--radius);
+  transition: all var(--transition);
 }
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
-  color: var(--primary-color);
-  font-weight: 600;
-  background: var(--bg-hover);
+  background: var(--color-accent);
+  color: #ffffff;
 }
 
-/* === MEDIA QUERIES === */
+/* MEDIA QUERIES */
 @media (max-width: 768px) {
-  .nav-container {
-    padding: 0 1rem;
-    height: var(--nav-height-mobile);
-    gap: 1rem;
-  }
-
-  .logo-text {
-    font-size: 1.25rem;
-  }
-
   .nav-links {
     display: none;
   }
@@ -468,38 +390,6 @@ const logout = async () => {
   .mobile-toggle {
     display: block;
   }
-
-  .btn-user {
-    padding: 0.5rem 0.75rem;
-    min-height: 32px;
-  }
-
-  .user-name {
-    max-width: 80px;
-    font-size: 0.85rem;
-  }
-
-  .dropdown-menu {
-    min-width: 160px;
-    right: -1rem;
-  }
-
-  .mobile-nav-link {
-    font-size: 1rem;
-  }
 }
 
-.navbar,
-.nav-link,
-.user-name,
-.dropdown-item,
-.mobile-nav-link,
-.nav-logo,
-.logo-text,
-.btn-user,
-.mobile-toggle {
-  filter: none !important;
-  -webkit-filter: none !important;
-  color: var(--text-primary) !important;
-}
 </style>
