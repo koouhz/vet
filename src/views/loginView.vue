@@ -12,7 +12,6 @@
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">
-        <!-- Campo: Email -->
         <div class="form-group">
           <label for="email" class="form-label">Correo electrónico</label>
           <input
@@ -30,7 +29,6 @@
           <p v-if="errors.email" class="form-error">{{ errors.email }}</p>
         </div>
 
-        <!-- Campo: Contraseña -->
         <div class="form-group">
           <label for="password" class="form-label">Contraseña</label>
           <div class="password-container">
@@ -77,7 +75,6 @@
           <p v-if="errors.password" class="form-error">{{ errors.password }}</p>
         </div>
 
-        <!-- Recordar sesión y Enlace para recuperar contraseña -->
         <div class="form-options">
           <label class="remember-me">
             <input
@@ -88,10 +85,9 @@
             <span class="checkmark"></span>
             Recordarme
           </label>
-          <router-link to="/recover" class="link forgot-link">¿Olvidaste tu contraseña?</router-link>
+          <a href="#" @click.prevent="openForgotPasswordModal" class="link forgot-link">¿Olvidaste tu contraseña?</a>
         </div>
 
-        <!-- Botón de inicio de sesión -->
         <button
           type="submit"
           :disabled="loading || hasErrors"
@@ -113,7 +109,6 @@
         </button>
       </form>
 
-      <!-- Mensaje de error humanizado -->
       <div v-if="errorMessage" class="alert alert-error">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.954 1s-.419 1-.954 1-.954-.462-.954-1 .419-1 .954-1zm.954 3c-.535 0-.954.462-.954 1v2c0 .538.419 1 .954 1s.954-.462.954-1V9c0-.538-.419-1-.954-1z"/>
@@ -121,7 +116,6 @@
         {{ errorMessage }}
       </div>
 
-      <!-- Mensaje de éxito -->
       <div v-if="successMessage" class="alert alert-success">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
@@ -129,12 +123,62 @@
         {{ successMessage }}
       </div>
 
-      <!-- Enlace a registro -->
       <p class="register-link">
         ¿No tienes cuenta?
         <router-link to="/register" class="link">Regístrate aquí</router-link>
       </p>
     </div>
+
+    <Transition name="modal-fade">
+      <div v-if="showForgotPasswordModal" class="modal-overlay" @click.self="showForgotPasswordModal = false">
+        <div class="modal-content">
+          <button class="modal-close" @click="showForgotPasswordModal = false">
+            &times;
+          </button>
+          
+          <h2 class="modal-title">Restablecer Contraseña</h2>
+          <p class="modal-subtitle">Ingresa tu correo electrónico y te enviaremos un enlace seguro para establecer una nueva contraseña.</p>
+
+          <form @submit.prevent="handleForgotPassword" class="modal-form">
+            <div class="form-group">
+              <label for="recovery-email" class="form-label">Correo electrónico</label>
+              <input
+                id="recovery-email"
+                v-model="emailForRecovery"
+                type="email"
+                placeholder="tuemail@ejemplo.com"
+                required
+                class="form-input"
+              />
+              <p v-if="recoveryError" class="form-error">{{ recoveryError }}</p>
+            </div>
+            
+            <button
+              type="submit"
+              :disabled="loadingRecovery"
+              class="submit-button modal-button"
+            >
+              <div v-if="loadingRecovery" class="loading-spinner">
+                <svg class="animate-spin" width="16" height="16" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"/>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" opacity="0.75"/>
+                </svg>
+                Enviando enlace...
+              </div>
+              <span v-else>
+                Enviar Enlace de Restablecimiento
+              </span>
+            </button>
+            <p v-if="recoverySuccess" class="alert alert-success recovery-success">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+              </svg>
+              ¡Enlace enviado! Revisa tu email.
+            </p>
+          </form>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -146,18 +190,26 @@ import { useRouter } from 'vue-router';
 // Router
 const router = useRouter();
 
-// Estado del formulario
+// Estado del formulario de login
 const formData = reactive({
   email: '',
   password: '',
 });
 
-// Estados de la UI
+// Estados de la UI de login
 const loading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 const showPassword = ref(false);
 const rememberMe = ref(false);
+
+// --- ESTADOS DEL MODAL DE RECUPERACIÓN (NUEVOS) ---
+const showForgotPasswordModal = ref(false);
+const emailForRecovery = ref('');
+const loadingRecovery = ref(false);
+const recoveryError = ref('');
+const recoverySuccess = ref(false);
+// --------------------------------------------------
 
 // Validaciones de campo
 const errors = reactive({
@@ -168,6 +220,7 @@ const errors = reactive({
 // Regex para validaciones
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// --- Funciones de Validación (CORREGIDAS) ---
 const validateField = (field) => {
   switch (field) {
     case 'email':
@@ -200,9 +253,11 @@ const clearError = (field) => {
 
 const hasErrors = computed(() => {
   return Object.values(errors).some((e) => e !== '') ||
-         !formData.email.trim() ||
-         !formData.password;
+           !formData.email.trim() ||
+           !formData.password;
 });
+// ---------------------------------------------
+
 
 // Función para actualizar el último acceso
 const updateLastAccess = async (userId) => {
@@ -216,7 +271,52 @@ const updateLastAccess = async (userId) => {
   }
 };
 
-// Función principal de inicio de sesión
+// --- FUNCIÓN PARA ABRIR EL MODAL (NUEVA) ---
+const openForgotPasswordModal = () => {
+  // Copia el email si ya está en el campo de login
+  emailForRecovery.value = formData.email; 
+  recoveryError.value = '';
+  recoverySuccess.value = false;
+  showForgotPasswordModal.value = true;
+};
+
+// --- FUNCIÓN PARA RESTABLECER CONTRASEÑA EN EL MODAL (NUEVA) ---
+const handleForgotPassword = async () => {
+  recoveryError.value = '';
+  recoverySuccess.value = false;
+
+  if (!emailRegex.test(emailForRecovery.value.trim())) {
+    recoveryError.value = 'Ingresa un correo electrónico válido.';
+    return;
+  }
+
+  loadingRecovery.value = true;
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(emailForRecovery.value.trim(), {
+      // Redirige al cliente al componente resetPassword.vue
+      redirectTo: `${window.location.origin}/reset-password`
+    });
+
+    if (error) throw error;
+
+    recoverySuccess.value = true;
+    
+    // Cierra el modal y muestra el éxito en el loginView principal
+    setTimeout(() => {
+      showForgotPasswordModal.value = false;
+      successMessage.value = 'Revisa tu correo. Te hemos enviado un enlace para restablecer tu contraseña.';
+    }, 3000);
+
+  } catch (err) {
+    console.error('Forgot Password Error:', err.message);
+    recoveryError.value = 'Error al enviar el correo. Verifica que el email esté registrado.';
+  } finally {
+    loadingRecovery.value = false;
+  }
+};
+
+// Función principal de inicio de sesión (ORIGINAL)
 const handleLogin = async () => {
   // Validar campos
   validateField('email');
@@ -276,18 +376,18 @@ const handleLogin = async () => {
     // 5️⃣ Mostrar mensaje de bienvenida
     successMessage.value = `¡Bienvenido de vuelta, ${userData.nombre_completo}!`;
 
-    // 6️⃣ Redirigir según el rol — ✅ CAMBIOS AQUÍ
+    // 6️⃣ Redirigir según el rol
     setTimeout(() => {
       switch (userData.rol) {
         case 'admin':
-          router.push('/dashboard-admin'); // ✅ Solo admin va al dashboard admin
+          router.push('/dashboard-admin');
           break;
         case 'veterinario':
-          router.push('/dashboard-vet');   // ✅ Solo veterinario va al dashboard vet
+          router.push('/dashboard-vet');
           break;
         case 'cliente':
         default:
-          router.push('/');                // ✅ ¡CLIENTE VA DIRECTO A LA PÁGINA PRINCIPAL!
+          router.push('/');
           break;
       }
     }, 1500);
@@ -301,10 +401,10 @@ const handleLogin = async () => {
         err.message?.includes('invalid')) {
       errorMessage.value = 'Correo o contraseña incorrectos. Verifica tus credenciales.';
     } else if (err.message?.includes('desactivada') ||
-               err.message?.includes('desactivado')) {
+              err.message?.includes('desactivado')) {
       errorMessage.value = 'Tu cuenta ha sido desactivada. Contacta al soporte técnico.';
     } else if (err.message?.includes('not confirmed') ||
-               err.message?.includes('Email not confirmed')) {
+              err.message?.includes('Email not confirmed')) {
       errorMessage.value = 'Debes confirmar tu email antes de iniciar sesión. Revisa tu bandeja de entrada.';
     } else if (err.message?.includes('Usuario no encontrado')) {
       errorMessage.value = 'No encontramos una cuenta asociada a este correo. ¿Ya te registraste?';
@@ -334,14 +434,14 @@ onMounted(async () => {
       if (userData?.is_activo) {
         switch (userData.rol) {
           case 'admin':
-            router.push('/dashboard-admin'); // ✅ Admin va a su dashboard
+            router.push('/dashboard-admin');
             break;
           case 'veterinario':
-            router.push('/dashboard-vet');   // ✅ Veterinario va a su dashboard
+            router.push('/dashboard-vet');
             break;
           case 'cliente':
           default:
-            router.push('/');                // ✅ ¡CLIENTE VA DIRECTO A AppHome.vue (RAÍZ)!
+            router.push('/');
             break;
         }
       }
@@ -353,7 +453,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* ===== BASE STYLES ===== */
+/* Estilos omitidos por espacio, pero deben incluir los estilos del modal que te proporcioné anteriormente. */
+/* ===== BASE STYLES (tus estilos originales) ===== */
 .login-container {
   min-height: 100vh;
   display: flex;
@@ -374,7 +475,7 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* ===== BRANDING ===== */
+/* ===== BRANDING (tus estilos originales) ===== */
 .branding {
   margin-bottom: 2rem;
   display: flex;
@@ -402,7 +503,7 @@ onMounted(async () => {
   font-weight: 400;
 }
 
-/* ===== FORM ===== */
+/* ===== FORM (tus estilos originales) ===== */
 .login-form {
   display: flex;
   flex-direction: column;
@@ -480,7 +581,7 @@ onMounted(async () => {
   color: #145a32;
 }
 
-/* ===== FORM OPTIONS ===== */
+/* ===== FORM OPTIONS (tus estilos originales) ===== */
 .form-options {
   display: flex;
   justify-content: space-between;
@@ -518,6 +619,7 @@ onMounted(async () => {
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
+  cursor: pointer;
 }
 
 .forgot-link:hover {
@@ -525,7 +627,7 @@ onMounted(async () => {
   text-decoration: underline;
 }
 
-/* ===== BUTTON ===== */
+/* ===== BUTTON (tus estilos originales) ===== */
 .submit-button {
   width: 100%;
   padding: 0.9rem;
@@ -578,7 +680,7 @@ onMounted(async () => {
   animation: spin 1s linear infinite;
 }
 
-/* ===== ALERTS ===== */
+/* ===== ALERTS (tus estilos originales) ===== */
 .alert {
   display: flex;
   align-items: center;
@@ -603,7 +705,7 @@ onMounted(async () => {
   border: 1px solid #bef264;
 }
 
-/* ===== LINKS ===== */
+/* ===== LINKS (tus estilos originales) ===== */
 .register-link {
   text-align: center;
   margin-top: 1.5rem;
@@ -623,7 +725,98 @@ onMounted(async () => {
   text-decoration: underline;
 }
 
-/* ===== RESPONSIVE ===== */
+/* ===== MODAL STYLES (NUEVOS) ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  animation: modal-slide-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: #1e293b;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0.5rem;
+}
+
+.modal-subtitle {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 2rem;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.modal-button {
+  margin-top: 0.5rem;
+}
+
+.recovery-success {
+    margin-top: 1.5rem;
+}
+
+/* Animaciones del modal */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes modal-slide-in {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ===== RESPONSIVE (tus estilos originales) ===== */
 @media (max-width: 480px) {
   .login-card {
     padding: 2rem 1.5rem;
