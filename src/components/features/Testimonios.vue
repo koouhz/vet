@@ -1,232 +1,145 @@
 <template>
-  <section class="testimonials-section">
-    <h2>Lo que dicen nuestros clientes</h2>
-    <div class="testimonials-grid">
-      <div class="testimonial-card" v-for="testimonio in testimonios" :key="testimonio.id">
-        <div class="testimonial-content">
-          <p class="testimonial-text">"{{ testimonio.contenido }}"</p>
+  <section class="testimonios">
+    <h2 class="title">Testimonios Destacados</h2>
+
+    <div v-if="loading" class="loading">Cargando testimonios...</div>
+    <div v-else-if="error" class="error">{{ error }}</div>
+    
+    <div v-else class="testimonios-list">
+      <div v-for="t in testimonios" :key="t.id" class="testimonio-card">
+        <div class="contenido">
+          <h3 class="cliente">{{ t.nombre_cliente }}</h3>
+          <p class="mascota">Mascota: <span>{{ t.nombre_mascota }}</span></p>
+          <p class="texto">"{{ t.contenido }}"</p>
         </div>
-        <div class="testimonial-author">
-          <img :src="testimonio.foto" :alt="testimonio.nombre" class="author-photo" />
-          <div class="author-info">
-            <h4 class="author-name">{{ testimonio.nombre }}</h4>
-            <p class="author-pet">{{ testimonio.mascota }}</p>
-            <p class="testimonial-date">{{ testimonio.fecha }}</p>
-          </div>
-        </div>
+        <div class="calificacion">⭐ {{ t.calificacion }}/5</div>
+      </div>
+      <div v-if="testimonios.length === 0" class="no-testimonios">
+        No hay testimonios destacados por el momento.
       </div>
     </div>
   </section>
 </template>
 
 <script>
+import { ref, onMounted } from "vue";
+import { supabase } from "@/lib/supabaseClient";
+
 export default {
-  name: 'TestimonialSection',
-  data() {
-    return {
-      testimonios: [
-        {
-          id: 1,
-          contenido: "Mi perrito Leo tuvo una emergencia y la atención fue increíble. Están siempre disponibles, compasivos y profesionales. ¡Gracias por salvarle la vida!",
-          nombre: "María G.",
-          mascota: "Leo, Pastor Alemán",
-          fecha: "Enero 2025",
-          foto: new URL('@/assets/img/testimonio.png', import.meta.url).href
-        },
-        {
-          id: 2,
-          contenido: "Llevo a mi gato Whiskers aquí desde que era cachorro. Nunca he visto un equipo tan atento y detallista. La peluquería también es perfecta.",
-          nombre: "Carlos R.",
-          mascota: "Whiskers, Persa",
-          fecha: "Diciembre 2024",
-          foto: new URL('@/assets/img/testimonio3.jpeg', import.meta.url).href
-        },
-        {
-          id: 3,
-          contenido: "Después de perder a mi perro hace dos años, pensé que no volvería a confiar... pero Veterinaria Paws me devolvió la fe. Gracias por su humanidad.",
-          nombre: "Ana M.",
-          mascota: "Buddy, Golden Retriever",
-          fecha: "Noviembre 2024",
-          foto: new URL('@/assets/img/testimonio2.png', import.meta.url).href
-        }
-      ]
-    }
+  name: "Testimonios",
+  setup() {
+    const testimonios = ref([]);
+    const loading = ref(true);
+    const error = ref(null);
+
+    const cargarTestimonios = async () => {
+      loading.value = true;
+      error.value = null;
+
+      const { data, error: err } = await supabase
+        .from("testimonios")
+        .select("*")
+        .eq("publicado", true)
+        .eq("destacado", true)
+        .order("creado_en", { ascending: false })
+        .limit(3);
+
+      if (err) {
+        console.error("Error al cargar testimonios:", err);
+        error.value = "No se pudieron cargar los testimonios. Intente más tarde.";
+      } else {
+        testimonios.value = data;
+      }
+
+      loading.value = false;
+    };
+
+    onMounted(() => {
+      cargarTestimonios();
+    });
+
+    return { testimonios, loading, error };
   }
-}
+};
 </script>
 
 <style scoped>
-.testimonials-section {
-  padding: 5rem 2rem;
+.testimonios {
+  padding: 3rem 1rem;
+  background: #f0f4f8;
+}
+
+.title {
   text-align: center;
-  background-color: #f9f9f9;
-  font-family: 'Inter', sans-serif;
-}
-
-.testimonials-section h2 {
-  font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 3rem;
-  font-weight: 500;
-}
-
-.testimonials-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.testimonial-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2.5rem;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-}
-
-.testimonial-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
-}
-
-.testimonial-content {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
   margin-bottom: 2rem;
 }
 
-.testimonial-text {
+.loading, .error, .no-testimonios {
+  text-align: center;
   font-size: 1.1rem;
-  line-height: 1.6;
-  color: #555;
-  font-weight: 300;
-  font-style: italic;
-  margin: 0;
-  text-align: left;
+  color: #475569;
+  margin: 1rem 0;
 }
 
-.testimonial-author {
+.testimonios-list {
   display: flex;
-  align-items: center;
-  text-align: left;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
 }
 
-.author-photo {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin-right: 1rem;
-  border: 3px solid #f0f0f0;
+.testimonio-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.author-info {
-  flex: 1;
+.testimonio-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15);
 }
 
-.author-name {
-  font-size: 1.1rem;
+.contenido {
+  margin-bottom: 1rem;
+}
+
+.cliente {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 0.3rem;
+}
+
+.mascota {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-bottom: 0.7rem;
+}
+
+.mascota span {
   font-weight: 500;
-  color: #2c3e50;
-  margin: 0 0 0.2rem 0;
+  color: #1e293b;
 }
 
-.author-pet {
-  font-size: 0.9rem;
-  color: #3498db;
-  font-weight: 400;
-  margin: 0 0 0.2rem 0;
+.texto {
+  font-size: 1rem;
+  font-style: italic;
+  color: #334155;
 }
 
-.testimonial-date {
-  font-size: 0.85rem;
-  color: #777;
-  font-weight: 300;
-  margin: 0;
-}
-
-@media (max-width: 1024px) {
-  .testimonials-grid {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .testimonial-card {
-    padding: 2rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .testimonials-section {
-    padding: 4rem 1.5rem;
-  }
-
-  .testimonials-section h2 {
-    font-size: 2rem;
-    margin-bottom: 2.5rem;
-  }
-
-  .testimonials-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    max-width: 500px;
-  }
-
-  .testimonial-card {
-    padding: 2rem;
-  }
-
-  .testimonial-text {
-    font-size: 1rem;
-  }
-
-  .author-photo {
-    width: 50px;
-    height: 50px;
-  }
-}
-
-@media (max-width: 480px) {
-  .testimonials-section {
-    padding: 3rem 1rem;
-  }
-
-  .testimonials-section h2 {
-    font-size: 1.8rem;
-  }
-
-  .testimonial-card {
-    padding: 1.5rem;
-  }
-
-  .testimonial-author {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .author-photo {
-    margin-right: 0;
-    margin-bottom: 1rem;
-  }
-
-  .testimonial-text {
-    font-size: 0.95rem;
-  }
-
-  .author-name {
-    font-size: 1rem;
-  }
-
-  .author-pet {
-    font-size: 0.85rem;
-  }
-
-  .testimonial-date {
-    font-size: 0.8rem;
-  }
+.calificacion {
+  text-align: right;
+  font-weight: 600;
+  color: #f59e0b;
+  font-size: 1rem;
 }
 </style>
