@@ -3,170 +3,92 @@
     <AppSidebar />
 
     <main class="dashboard-main">
+      <!-- Sección de bienvenida -->
       <section class="welcome-section">
-        <h1>Panel de Administración</h1>
-        <p>Bienvenido, <strong>{{ adminName }}</strong>. Gestiona todo el sistema desde aquí.</p>
+        <h1>Panel de Veterinario</h1>
+        <p>Bienvenido, <strong>{{ vetName }}</strong>. Gestiona tus citas, pacientes y servicios desde aquí.</p>
       </section>
 
       <!-- Tarjetas de gestión rápida -->
       <section class="quick-actions">
-        <!-- Usuarios -->
-        <div class="action-card" @click="navigateTo('UsuarioAdmin')">
+        <!-- Citas de Hoy -->
+        <div class="action-card" @click="navigateTo('MisCitas')">
           <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M20 21C20 19.3431 18.6569 18 17 18H7C5.34315 18 4 19.3431 4 21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <!-- Icono -->
           </div>
-          <h3>Usuarios</h3>
-          <p>{{ stats.users }} totales</p>
+          <h3>Citas de Hoy</h3>
+          <p>{{ stats.todayAppointments }} programadas</p>
         </div>
 
-        <!-- Citas -->
-        <div class="action-card" @click="navigateTo('CitasAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 2V5" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 2V5" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M3 9H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M3 15H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M3 21H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Citas</h3>
-          <p>{{ stats.appointments }} totales</p>
+        <!-- Mis Mascotas -->
+        <div class="action-card" @click="navigateTo('MisMascotas')">
+          <div class="icon-container"></div>
+          <h3>Mis Mascotas</h3>
+          <p>{{ stats.myPetsToday }} atendidas hoy</p>
         </div>
 
-        <!-- Veterinarios -->
-        <div class="action-card" @click="navigateTo('VeterinariosAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 8V16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M8 12H16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Veterinarios</h3>
-          <p>{{ stats.veterinarians }} activos</p>
+        <!-- Mis Servicios -->
+        <div class="action-card" @click="navigateTo('MisServicios')">
+          <div class="icon-container"></div>
+          <h3>Mis Servicios</h3>
+          <p>{{ stats.myServices }} activos</p>
         </div>
 
-        <!-- Servicios -->
-        <div class="action-card" @click="navigateTo('ServiciosAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 8V16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M8 12H16" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Servicios</h3>
-          <p>{{ stats.services }} activos</p>
+        <!-- Mi Horario -->
+        <div class="action-card" @click="navigateTo('MisHorarios')">
+          <div class="icon-container"></div>
+          <h3>Mi Horario</h3>
+          <p>Ver disponibilidad</p>
         </div>
 
-        <!-- Equipos Médicos -->
-        <div class="action-card" @click="navigateTo('EquiposAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 11H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 15H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Equipos Médicos</h3>
-          <p>{{ stats.equipment }} registrados</p>
-        </div>
-
-        <!-- Testimonios -->
-        <div class="action-card" @click="navigateTo('TestimoniosAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M8 12L10 14L16 8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Testimonios</h3>
-          <p>{{ stats.testimonials }} pendientes</p>
-        </div>
-
-        <!-- Productos -->
-        <div class="action-card" @click="navigateTo('ProductosAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 11H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M16 15H8" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Productos</h3>
-          <p>{{ stats.products }} activos</p>
-        </div>
-
-        <!-- Mensajes de Contacto -->
-        <div class="action-card" @click="navigateTo('MensajesAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 6L12 13L22 6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Mensajes</h3>
-          <p>{{ stats.contactMessages }} no leídos</p>
-        </div>
-
-        <!-- Configuración -->
-        <div class="action-card" @click="navigateTo('ConfiguracionAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M19.4 15C19.9523 15.6152 20.2845 16.3455 20.3452 17.1C20.4059 17.8545 20.1925 18.5889 19.7462 19.1991C19.2999 19.8093 18.655 20.2509 17.9366 20.4277C17.2182 20.6046 16.4693 20.5014 15.8 20.14C14.2874 19.3326 13.1573 18.0549 12.6293 16.5C12.1013 14.9451 12.2162 13.269 12.9482 11.85C13.6802 10.431 14.9533 9.39837 16.4 9C17.8467 8.60163 19.4425 8.65789 20.8 9.14C22.1575 9.62211 23.1595 10.5076 23.54 11.6C23.9205 12.6924 23.656 13.874 22.84 14.8C22.024 15.726 20.7753 16.2496 19.4 15Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4.6 15C5.15231 15.6152 5.48448 16.3455 5.54518 17.1C5.60588 17.8545 5.39252 18.5889 4.94618 19.1991C4.49984 19.8093 3.85494 20.2509 3.13656 20.4277C2.41819 20.6046 1.66932 20.5014 1 20.14C-0.51264 19.3326 -1.64268 18.0549 -2.17066 16.5C-2.69864 14.9451 -2.58378 13.269 -1.85178 11.85C-1.11979 10.431 0.153339 9.39837 1.6 9C3.04666 8.60163 4.64249 8.65789 6 9.14C7.35751 9.62211 8.35952 10.5076 8.74 11.6C9.12048 12.6924 8.85599 13.874 8.04 14.8C7.224 15.726 5.97527 16.2496 4.6 15Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h3>Configuración</h3>
-          <p>{{ stats.configs }} parámetros</p>
-        </div>
-
-        <!-- Bitácora -->
-        <div class="action-card" @click="navigateTo('BitacoraAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 8V12L15 15" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
+        <!-- Bitácora Personal -->
+        <div class="action-card" @click="navigateTo('BitacoraCitasVet')">
+          <div class="icon-container"></div>
           <h3>Bitácora</h3>
-          <p>{{ stats.audits }} registros</p>
+          <p>{{ stats.myAudits }} acciones hoy</p>
         </div>
       </section>
 
-      <!-- Estadísticas Generales -->
+      <!-- Sección de estadísticas rápidas -->
       <section class="stats-section">
-        <h2>Resumen General</h2>
+        <h2>Resumen Clínico - Hoy</h2>
         <div class="stats-grid">
           <div class="stat-item">
-            <span class="stat-number">{{ stats.totalUsers }}</span>
-            <span class="stat-label">Usuarios totales</span>
+            <span class="stat-number">{{ stats.todayAppointments }}</span>
+            <span class="stat-label">Citas programadas</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">{{ stats.activeAppointments }}</span>
-            <span class="stat-label">Citas activas</span>
+            <span class="stat-number">{{ stats.completedToday }}</span>
+            <span class="stat-label">Citas completadas</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">{{ stats.activeVeterinarians }}</span>
-            <span class="stat-label">Veterinarios activos</span>
+            <span class="stat-number">{{ stats.myPetsToday }}</span>
+            <span class="stat-label">Mascotas atendidas</span>
           </div>
           <div class="stat-item">
-            <span class="stat-number">{{ stats.activeServices }}</span>
-            <span class="stat-label">Servicios activos</span>
+            <span class="stat-number">{{ stats.emergenciesToday }}</span>
+            <span class="stat-label">Emergencias hoy</span>
           </div>
-          <div class="stat-item">
-            <span class="stat-number">{{ stats.activeProducts }}</span>
-            <span class="stat-label">Productos activos</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-number">{{ stats.unreadMessages }}</span>
-            <span class="stat-label">Mensajes sin leer</span>
-          </div>
+        </div>
+      </section>
+
+      <!-- Sección de gráficas -->
+      <section class="stats-section">
+        <h2>Estadísticas Veterinario</h2>
+
+        <!-- Gráfico 1: Citas últimos 7 días -->
+        <div class="chart-container">
+          <canvas id="chartCitas7Dias"></canvas>
+        </div>
+
+        <!-- Gráfico 2: Mascotas atendidas últimos 7 días -->
+        <div class="chart-container">
+          <canvas id="chartMascotas7Dias"></canvas>
+        </div>
+
+        <!-- Gráfico 3: Servicios activos y emergencias -->
+        <div class="chart-container">
+          <canvas id="chartServiciosEmergencias"></canvas>
         </div>
       </section>
     </main>
@@ -174,38 +96,70 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'vue-router'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
+import {
+  Chart,
+  BarController,
+  LineController,
+  PieController,
+  ArcElement,
+  BarElement,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js'
 
+// --- Registro de Chart.js ---
+Chart.register(
+  BarController,
+  LineController,
+  PieController,
+  ArcElement,
+  BarElement,
+  LineElement,
+  PointElement,
+  CategoryScale,
+  LinearScale,
+  Title,
+  Tooltip,
+  Legend
+)
+
+// --- Router ---
 const router = useRouter()
-const adminName = ref('')
-const stats = ref({
-  // Tarjetas rápidas
-  users: 0,
-  appointments: 0,
-  veterinarians: 0,
-  services: 0,
-  equipment: 0,
-  testimonials: 0,
-  configs: 0,
-  audits: 0,
-  products: 0,
-  sales: 0,
-  contactMessages: 0,
 
-  // Resumen general
-  totalUsers: 0,
-  activeAppointments: 0,
-  activeVeterinarians: 0,
-  activeServices: 0,
-  activeProducts: 0,
-  unreadMessages: 0,
+// --- Datos principales ---
+const vetName = ref('')
+const stats = ref({
+  todayAppointments: 0,
+  completedToday: 0,
+  myPetsToday: 0,
+  emergenciesToday: 0,
+  myServices: 0,
+  myAudits: 0,
+  equipment: 0,
+  myTestimonials: 0
 })
 
-// Obtener nombre del admin logueado
-const fetchAdminData = async () => {
+// --- Referencias de canvas para las gráficas ---
+const citasChart = ref(null)
+const usuariosChart = ref(null)
+const tendenciaChart = ref(null)
+
+// --- Función de navegación rápida ---
+const navigateTo = (routeName) => {
+  router.push({ name: routeName })
+}
+
+// --- Obtener datos del veterinario logueado ---
+const fetchVetData = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
@@ -216,121 +170,177 @@ const fetchAdminData = async () => {
     .single()
 
   if (!error && userData) {
-    adminName.value = userData.nombre_completo.split(' ')[0]
+    vetName.value = userData.nombre_completo.split(' ')[0]
   }
 }
 
-// Cargar todas las estadísticas desde la BD
+// --- Cargar estadísticas del veterinario ---
 const fetchStats = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return
 
-  // Usuarios totales (todos los roles)
-  const { count: usersCount, error: usersError } = await supabase
-    .from('usuarios')
-    .select('*', { count: 'exact', head: true })
-  if (usersError) console.warn('Error al cargar usuarios:', usersError.message)
-  stats.value.users = usersCount || 0
-  stats.value.totalUsers = usersCount || 0
-
-  // Citas (todas)
-  const { count: citasCount, error: citasError } = await supabase
-    .from('citasmascotas')
-    .select('*', { count: 'exact', head: true })
-  if (citasError) console.warn('Error al cargar citas:', citasError.message)
-  stats.value.appointments = citasCount || 0
-
-  // Citas activas: programadas o confirmadas
-  const { count: citasActivasCount, error: citasActError } = await supabase
-    .from('citasmascotas')
-    .select('*', { count: 'exact', head: true })
-    .in('estado', ['programada', 'confirmada'])
-  if (citasActError) console.warn('Error al cargar citas activas:', citasActError.message)
-  stats.value.activeAppointments = citasActivasCount || 0
-
-  // Veterinarios activos
-  const { count: vetsCount, error: vetsError } = await supabase
+  // Obtener ID del veterinario
+  const { data: vetData, error: vetError } = await supabase
     .from('veterinarios')
+    .select('id')
+    .eq('usuario_id', user.id)
+    .single()
+
+  if (vetError || !vetData) return
+  const vetId = vetData.id
+  const today = new Date().toISOString().split('T')[0]
+
+  // --- Citas de hoy ---
+  const { data: todayCitas } = await supabase
+    .from('citasmascotas')
+    .select('id, estado, mascota_id, servicios!inner(categoria)')
+    .eq('veterinario_id', vetId)
+    .eq('fecha', today)
+
+  if (todayCitas) {
+    stats.value.todayAppointments = todayCitas.filter(c => ['programada','confirmada'].includes(c.estado)).length
+    stats.value.completedToday = todayCitas.filter(c => c.estado === 'completada').length
+    stats.value.emergenciesToday = todayCitas.filter(c => c.servicios?.categoria === 'emergencia').length
+    stats.value.myPetsToday = [...new Set(todayCitas.map(c => c.mascota_id))].length
+  }
+
+  // --- Mis Servicios Activos ---
+  const { count: myServicesCount } = await supabase
+    .from('servicios_veterinarios')
     .select('*', { count: 'exact', head: true })
+    .eq('veterinario_id', vetId)
     .eq('is_activo', true)
-  if (vetsError) console.warn('Error al cargar veterinarios:', vetsError.message)
-  stats.value.veterinarians = vetsCount || 0
-  stats.value.activeVeterinarians = vetsCount || 0
+  stats.value.myServices = myServicesCount || 0
 
-  // Servicios activos
-  const { count: serviciosCount, error: servError } = await supabase
-    .from('servicios')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_activo', true)
-  if (servError) console.warn('Error al cargar servicios:', servError.message)
-  stats.value.services = serviciosCount || 0
-  stats.value.activeServices = serviciosCount || 0
-
-  // Equipos médicos (todos)
-  const { count: equiposCount, error: eqError } = await supabase
-    .from('equiposmedicos')
-    .select('*', { count: 'exact', head: true })
-  if (eqError) console.warn('Error al cargar equipos:', eqError.message)
-  stats.value.equipment = equiposCount || 0
-
-  // Testimonios pendientes (no publicados)
-  const { count: testimoniosCount, error: testError } = await supabase
-    .from('testimonios')
-    .select('*', { count: 'exact', head: true })
-    .eq('publicado', false)
-  if (testError) console.warn('Error al cargar testimonios:', testError.message)
-  stats.value.testimonials = testimoniosCount || 0
-
-  // Configuraciones del sistema
-  const { count: configsCount, error: configError } = await supabase
-    .from('configuracionesistema')
-    .select('clave', { count: 'exact', head: true })
-  if (configError) console.warn('Error al cargar configuraciones:', configError.message)
-  stats.value.configs = configsCount || 0
-
-  // Bitácora de acciones
-  const { count: auditsCount, error: auditError } = await supabase
+  // --- Bitácora personal ---
+  const { count: auditsCount } = await supabase
     .from('bitacoracitas')
     .select('*', { count: 'exact', head: true })
-  if (auditError) console.warn('Error al cargar bitácora:', auditError.message)
-  stats.value.audits = auditsCount || 0
+    .eq('usuario_id', user.id)
+    .gte('creado_en', `${today}T00:00:00`)
+    .lte('creado_en', `${today}T23:59:59`)
+  stats.value.myAudits = auditsCount || 0
 
-  // Productos activos
-  const { count: productosCount, error: prodError } = await supabase
-    .from('productos')
+  // --- Equipos médicos totales ---
+  const { count: equiposCount } = await supabase
+    .from('equiposmedicos')
     .select('*', { count: 'exact', head: true })
-    .eq('is_activo', true)
-  if (prodError) console.warn('Error al cargar productos:', prodError.message)
-  stats.value.products = productosCount || 0
-  stats.value.activeProducts = productosCount || 0
+  stats.value.equipment = equiposCount || 0
 
-  // Ventas totales (opcional, no mostrada en UI pero disponible)
-  const { count: ventasCount, error: ventasError } = await supabase
-    .from('ventas')
+  // --- Mis testimonios ---
+  const { count: testCount } = await supabase
+    .from('testimonios')
     .select('*', { count: 'exact', head: true })
-  if (ventasError) console.warn('Error al cargar ventas:', ventasError.message)
-  stats.value.sales = ventasCount || 0
-
-  // Mensajes de contacto no leídos
-  const { count: mensajesCount, error: msgError } = await supabase
-    .from('mensajescontacto')
-    .select('*', { count: 'exact', head: true })
-    .eq('leido', false)
-  if (msgError) console.warn('Error al cargar mensajes:', msgError.message)
-  stats.value.contactMessages = mensajesCount || 0
-  stats.value.unreadMessages = mensajesCount || 0
+    .eq('veterinario_id', vetId)
+  stats.value.myTestimonials = testCount || 0
 }
 
+// --- Funciones para crear gráficas ---
+const createCitasChart = (labels, data) => {
+  if (citasChart.value._chartInstance) citasChart.value._chartInstance.destroy()
+  const ctx = citasChart.value.getContext('2d')
+  const chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Citas Hoy', data, backgroundColor: ['#3b82f6','#10b981','#8b5cf6','#ef4444','#f59e0b'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  })
+  citasChart.value._chartInstance = chart
+}
+
+const createUsuariosChart = (labels, data) => {
+  if (usuariosChart.value._chartInstance) usuariosChart.value._chartInstance.destroy()
+  const ctx = usuariosChart.value.getContext('2d')
+  const chart = new Chart(ctx, {
+    type: 'pie',
+    data: { labels, datasets: [{ data, backgroundColor: ['#3b82f6','#10b981','#8b5cf6'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  })
+  usuariosChart.value._chartInstance = chart
+}
+
+const createTendenciaChart = (labels, data) => {
+  if (tendenciaChart.value._chartInstance) tendenciaChart.value._chartInstance.destroy()
+  const ctx = tendenciaChart.value.getContext('2d')
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Citas últimos 7 días', data, borderColor: '#145a32', backgroundColor: 'rgba(20,90,50,0.1)', fill: true, tension: 0.3 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  })
+  tendenciaChart.value._chartInstance = chart
+}
+
+// --- Cargar datos de gráficas ---
+const loadChartData = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: vetData } = await supabase
+    .from('veterinarios')
+    .select('id')
+    .eq('usuario_id', user.id)
+    .single()
+  if (!vetData) return
+  const vetId = vetData.id
+
+  // --- Citas por estado ---
+  const { data: citas } = await supabase.from('citasmascotas').select('estado').eq('veterinario_id', vetId)
+  if (citas) {
+    const estados = ['programada','confirmada','completada','cancelada','no_asistio']
+    const counts = estados.map(e => citas.filter(c => c.estado === e).length)
+    createCitasChart(estados, counts)
+  }
+
+  // --- Distribución de clientes (solo mascotas atendidas por este vet) ---
+  const { data: mascotas } = await supabase.from('citasmascotas').select('mascota_id').eq('veterinario_id', vetId)
+  if (mascotas) {
+    const uniqueClients = [...new Set(mascotas.map(m => m.mascota_id))].length
+    createUsuariosChart(['Clientes únicos'], [uniqueClients])
+  }
+
+  // --- Tendencia últimos 7 días ---
+  const today = new Date()
+  const dates = []
+  const dateCounts = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const iso = d.toISOString().split('T')[0]
+    dates.push(iso)
+    dateCounts.push(0)
+  }
+
+  const { data: citas7 } = await supabase
+    .from('citasmascotas')
+    .select('fecha')
+    .eq('veterinario_id', vetId)
+    .gte('fecha', dates[0])
+    .lte('fecha', dates[6])
+
+  if (citas7) {
+    citas7.forEach(c => {
+      const idx = dates.indexOf(c.fecha)
+      if (idx !== -1) dateCounts[idx]++
+    })
+  }
+
+  const labels = dates.map(d => new Date(d).toLocaleDateString('es-ES', { weekday:'short', day:'numeric' }))
+  createTendenciaChart(labels, dateCounts)
+}
+
+// --- Mounted / Unmounted ---
 onMounted(async () => {
-  await fetchAdminData()
+  await fetchVetData()
   await fetchStats()
+  await loadChartData()
 })
 
-// Navegación rápida
-const navigateTo = (routeName) => {
-  router.push({ name: routeName })
-}
+onUnmounted(() => {
+  if (citasChart.value?._chartInstance) citasChart.value._chartInstance.destroy()
+  if (usuariosChart.value?._chartInstance) usuariosChart.value._chartInstance.destroy()
+  if (tendenciaChart.value?._chartInstance) tendenciaChart.value._chartInstance.destroy()
+})
 </script>
+
 
 <style scoped>
 .dashboard-admin-container {
@@ -347,7 +357,6 @@ const navigateTo = (routeName) => {
   transition: margin-left 0.3s ease;
 }
 
-/* Responsive: Ajustar para móvil */
 @media (max-width: 768px) {
   .dashboard-main {
     margin-left: 0;
@@ -355,13 +364,12 @@ const navigateTo = (routeName) => {
   }
 }
 
-/* Welcome Section */
 .welcome-section {
   margin-bottom: 2.5rem;
   padding: 2rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .welcome-section h1 {
@@ -369,7 +377,6 @@ const navigateTo = (routeName) => {
   font-weight: 700;
   color: #1e293b;
   margin: 0 0 0.75rem 0;
-  line-height: 1.2;
 }
 
 .welcome-section p {
@@ -378,7 +385,7 @@ const navigateTo = (routeName) => {
   margin: 0;
 }
 
-/* Quick Actions */
+/* Grid para tarjetas rápidas */
 .quick-actions {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -391,7 +398,7 @@ const navigateTo = (routeName) => {
   border-radius: 12px;
   padding: 1.75rem;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
   border: 1px solid #e2e8f0;
@@ -399,7 +406,7 @@ const navigateTo = (routeName) => {
 
 .action-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
   border-color: #145a32;
 }
 
@@ -432,13 +439,13 @@ const navigateTo = (routeName) => {
   background: #d1fae5;
 }
 
-/* Stats Section */
+/* Sección de estadísticas */
 .stats-section {
   margin-bottom: 3.5rem;
   padding: 2rem;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .stats-section h2 {
@@ -460,13 +467,13 @@ const navigateTo = (routeName) => {
   background: #f8fafc;
   border-radius: 12px;
   padding: 1.75rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .stat-item:hover {
   transform: translateY(-4px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.08);
 }
 
 .stat-number {
@@ -480,5 +487,28 @@ const navigateTo = (routeName) => {
 .stat-label {
   font-size: 1rem;
   color: #64748b;
+}
+
+/* Estilo para gráficas (canvas) */
+.chart-container {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  margin-bottom: 2.5rem;
+  height: 320px; /* Altura fija para cada gráfico */
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Responsive charts */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 280px;
+    padding: 1rem;
+  }
 }
 </style>
