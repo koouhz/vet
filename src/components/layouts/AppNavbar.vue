@@ -21,6 +21,11 @@
           </router-link>
         </li>
         <li>
+          <router-link to="/productos" class="nav-link" exact-active-class="active" exact>
+            Productos
+          </router-link>
+        </li>
+        <li>
           <router-link to="/equipo" class="nav-link" exact-active-class="active" exact>
             Equipo
           </router-link>
@@ -84,6 +89,11 @@
         <li>
           <router-link to="/servicios" @click="closeMobileMenu" exact-active-class="active" exact>
             Servicios
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/productos" @click="closeMobileMenu" exact-active-class="active" exact>
+            Productos
           </router-link>
         </li>
         <li>
