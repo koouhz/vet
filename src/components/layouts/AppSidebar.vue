@@ -26,19 +26,19 @@
           :collapsed="isCollapsed"
         />
 
-        <!-- Reportes: solo admin o veterinario -->
         <SidebarItem
           v-if="canAccessReportes"
-          to="/reportes"
+          :to="{ name: 'ReportesAdmin' }"
           icon="ph-file-text"
           label="Reportes"
           :collapsed="isCollapsed"
         />
 
+
         <!-- Configuración: solo admin -->
         <SidebarItem
           v-if="isAdmin"
-          to="/configuracion"
+          :to="{ name: 'ConfiguracionAdmin' }"
           icon="ph-gear"
           label="Configuración"
           :collapsed="isCollapsed"
@@ -102,8 +102,8 @@ const dashboardRoute = computed(() => {
   return '/';
 });
 const dashboardLabel = computed(() => {
-  if (isAdmin.value) return 'Dashboard Admin';
-  if (isVet.value) return 'Dashboard Vet';
+  if (isAdmin.value) return 'Dashboard';
+  if (isVet.value) return 'Dashboard';
   return 'Dashboard';
 });
 

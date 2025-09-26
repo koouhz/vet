@@ -9,9 +9,25 @@
 
       <!-- Desktop Links -->
       <ul class="nav-links" v-if="!isMobile">
-        <li v-for="item in navItems" :key="item.to">
-          <router-link :to="item.to" active-class="active" class="nav-link">
-            {{ item.label }}
+        <li>
+          <router-link to="/" class="nav-link" exact-active-class="active">
+            Inicio
+          </router-link>
+
+        </li>
+        <li>
+          <router-link to="/servicios" class="nav-link" exact-active-class="active" exact>
+            Servicios
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/equipo" class="nav-link" exact-active-class="active" exact>
+            Equipo
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/contacto" class="nav-link" exact-active-class="active" exact>
+            Contacto
           </router-link>
         </li>
       </ul>
@@ -31,12 +47,7 @@
           <span v-if="userLogged" class="user-name" :title="userName">{{ userName }}</span>
         </button>
 
-        <ul
-          v-if="dropdownOpen"
-          class="dropdown-menu"
-          role="menu"
-          aria-labelledby="profile-button"
-        >
+        <ul v-if="dropdownOpen" class="dropdown-menu" role="menu">
           <template v-if="userLogged">
             <li><router-link to="/perfil" class="dropdown-item">Mi Perfil</router-link></li>
             <li><button @click="logout" class="dropdown-item logout-btn">Salir</button></li>
@@ -63,22 +74,26 @@
     </div>
 
     <!-- Mobile Menu -->
-    <div
-      v-if="isMobile && mobileMenuOpen"
-      class="mobile-menu"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Menú de navegación móvil"
-    >
+    <div v-if="isMobile && mobileMenuOpen" class="mobile-menu" role="dialog" aria-modal="true">
       <ul class="mobile-nav-links">
-        <li v-for="item in navItems" :key="item.to">
-          <router-link
-            :to="item.to"
-            @click="closeMobileMenu"
-            active-class="active"
-            class="mobile-nav-link"
-          >
-            {{ item.label }}
+        <li>
+          <router-link to="/" @click="closeMobileMenu" exact-active-class="active" exact>
+            Inicio
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/servicios" @click="closeMobileMenu" exact-active-class="active" exact>
+            Servicios
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/equipo" @click="closeMobileMenu" exact-active-class="active" exact>
+            Equipo
+          </router-link>
+        </li>
+        <li>
+          <router-link to="/contacto" @click="closeMobileMenu" exact-active-class="active" exact>
+            Contacto
           </router-link>
         </li>
       </ul>
@@ -98,105 +113,60 @@ const userLogged = ref(false)
 const userName = ref('')
 const dropdownRef = ref(null)
 
-// --- Navigation Items ---
-const navItems = [
-  { label: 'Inicio', to: '/' },
-  { label: 'Servicios', to: '/servicios' },
-  { label: 'Equipo', to: '/equipo' },
-  { label: 'Contacto', to: '/contacto' }
-]
-
 // --- Dropdown Logic ---
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
   if (dropdownOpen.value) mobileMenuOpen.value = false
 }
 
-const closeDropdown = () => {
-  dropdownOpen.value = false
-}
+const closeDropdown = () => { dropdownOpen.value = false }
+const toggleMobileMenu = () => { mobileMenuOpen.value = !mobileMenuOpen.value; if(mobileMenuOpen.value) dropdownOpen.value=false }
+const closeMobileMenu = () => { mobileMenuOpen.value = false }
 
-// --- Mobile Menu Logic ---
-const toggleMobileMenu = () => {
-  mobileMenuOpen.value = !mobileMenuOpen.value
-  if (mobileMenuOpen.value) dropdownOpen.value = false
-}
-
-const closeMobileMenu = () => {
-  mobileMenuOpen.value = false
-}
-
-// --- Mouse Events for Dropdown ---
 let mouseLeaveTimeout
-const handleMouseEnter = () => {
-  if (mouseLeaveTimeout) clearTimeout(mouseLeaveTimeout)
-}
-const handleMouseLeave = () => {
-  mouseLeaveTimeout = setTimeout(() => {
-    dropdownOpen.value = false
-  }, 200)
-}
+const handleMouseEnter = () => { if(mouseLeaveTimeout) clearTimeout(mouseLeaveTimeout) }
+const handleMouseLeave = () => { mouseLeaveTimeout = setTimeout(()=>dropdownOpen.value=false,200) }
 
-// --- Click Outside Dropdown ---
 onMounted(() => {
   const handleClickOutside = (event) => {
-    if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
-      dropdownOpen.value = false
-    }
+    if (dropdownRef.value && !dropdownRef.value.contains(event.target)) dropdownOpen.value=false
   }
-
   document.addEventListener('click', handleClickOutside)
-  onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+  onUnmounted(()=>document.removeEventListener('click', handleClickOutside))
 })
 
-// --- Responsive Detection ---
 const checkScreenSize = () => {
   isMobile.value = window.innerWidth <= 768
-  if (!isMobile.value) {
-    mobileMenuOpen.value = false
-    dropdownOpen.value = false
-  }
+  if (!isMobile.value) { mobileMenuOpen.value=false; dropdownOpen.value=false }
 }
 
-// --- Auth & User Data ---
-onMounted(async () => {
+onMounted(async()=>{
   checkScreenSize()
-  window.addEventListener('resize', checkScreenSize)
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
+  window.addEventListener('resize',checkScreenSize)
+  const { data:{user} } = await supabase.auth.getUser()
+  if(user){
     userLogged.value = true
-    const { data, error } = await supabase
-      .from('usuarios')
-      .select('nombre_completo')
-      .eq('id', user.id)
-      .single()
-
-    if (!error && data) {
-      userName.value = data.nombre_completo.split(' ')[0] || 'Usuario'
-    }
+    const { data, error } = await supabase.from('usuarios').select('nombre_completo').eq('id',user.id).single()
+    if(!error && data) userName.value = data.nombre_completo.split(' ')[0]||'Usuario'
   }
 })
 
-onUnmounted(() => {
-  window.removeEventListener('resize', checkScreenSize)
-  if (mouseLeaveTimeout) clearTimeout(mouseLeaveTimeout)
+onUnmounted(()=>{
+  window.removeEventListener('resize',checkScreenSize)
+  if(mouseLeaveTimeout) clearTimeout(mouseLeaveTimeout)
 })
 
-// --- Logout ---
-const logout = async () => {
+const logout = async()=>{
   await supabase.auth.signOut()
-  userLogged.value = false
-  userName.value = ''
+  userLogged.value=false
+  userName.value=''
   closeDropdown()
   closeMobileMenu()
 }
 </script>
 
-<style scoped>
-/* ===== VARIABLES CSS ===== */
 
-/* ===== NAVBAR ===== */
+<style scoped>
 .navbar {
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
@@ -303,6 +273,7 @@ const logout = async () => {
 }
 
 /* DROPDOWN */
+/* Contenedor del dropdown */
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -317,25 +288,78 @@ const logout = async () => {
   z-index: 1001;
 }
 
-.dropdown-item {
-  display: block;
-  padding: 0.6rem 1rem;
-  color: var(--color-text);
-  text-decoration: none;
+/* Estilo base para todos los items del dropdown */
+/* Contenedor del dropdown */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0;
+  min-width: 180px;
+  max-width: 220px; /* para móviles no se haga gigante */
+  box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+  list-style: none;
+  z-index: 1001;
+}
+
+/* Estilo base para todos los items del dropdown */
+.dropdown-item,
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: 0.6rem 1rem; /* padding más adaptable */
+  font-size: 0.95rem;
   font-weight: 500;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: all 0.25s ease-in-out;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  text-decoration: none;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  box-sizing: border-box; /* asegura que el padding no haga overflow */
 }
 
+/* Hover de los items normales */
 .dropdown-item:hover {
   background: var(--color-accent);
   color: #ffffff;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+
+/* Hover del botón logout */
+.logout-btn {
+  border-color: #ef4444;
+  color: #ef4444;
 }
 
 .logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+
+/* RESPONSIVIDAD */
+@media (max-width: 768px) {
+  .dropdown-menu {
+    right: 0.5rem;
+    min-width: 140px;
+    max-width: 90vw;
+  }
+
+  .dropdown-item,
+  .logout-btn {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.9rem;
+  }
 }
 
 /* MOBILE */
@@ -381,7 +405,6 @@ const logout = async () => {
   color: #ffffff;
 }
 
-/* MEDIA QUERIES */
 @media (max-width: 768px) {
   .nav-links {
     display: none;
