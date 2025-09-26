@@ -316,10 +316,10 @@ const loadBitacora = async (loadMore = false) => {
     const usuariosMap = {}
 
     if (usuarioIds.length > 0) {
-      const {  usuariosBitacora, error: usuariosBitacoraError } = await supabase
-        .from('usuarios')
-        .select('id, nombre_completo')
-        .in('id', usuarioIds)
+      const { data: usuariosBitacora, error: usuariosBitacoraError } = await supabase
+      .from('usuarios')
+      .select('id, nombre_completo')
+      .in('id', usuarioIds)
 
       if (!usuariosBitacoraError && usuariosBitacora) {
         usuariosBitacora.forEach(u => { usuariosMap[u.id] = u.nombre_completo })
