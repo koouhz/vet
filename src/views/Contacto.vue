@@ -49,7 +49,7 @@
           <p>📞 (555) 123-4567</p>
         </div>
         <div class="info-item">
-          <p>✉️ contacto@veterinariapaws.com</p>
+          <p>✉ contacto@veterinariapaws.com</p>
         </div>
         <div class="info-item">
           <p><strong>Horarios</strong></p>
@@ -193,6 +193,7 @@ export default {
   font-size: 1rem;
   transition: border-color 0.3s ease;
   background: #f8f9fa;
+  color: black;
 }
 
 .form-group input:focus,
