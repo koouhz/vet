@@ -242,6 +242,7 @@ const filteredVeterinarios = computed(() => {
 })
 
 // Cargar datos
+// Cargar datos
 const loadVeterinarios = async () => {
   isLoading.value = true
   error.value = null
@@ -301,12 +302,12 @@ const loadVeterinarios = async () => {
       })
     }
 
-    // 5. Combinar datos
+    // 5. Combinar datos (corregido para leer bien la especialidad)
     rawVeterinarios.value = vetsData.map(vet => ({
       ...vet,
       nombre_completo: usuariosMap[vet.usuario_id]?.nombre || '—',
       email: usuariosMap[vet.usuario_id]?.email || '—',
-      especialidad_nombre: vet.especialidades?.[0]?.nombre || '—'
+      especialidad_nombre: vet.especialidades?.nombre || '—' // ✅ CORREGIDO
     }))
 
   } catch (err) {
