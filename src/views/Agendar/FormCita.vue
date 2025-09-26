@@ -1,5 +1,5 @@
 <template>
-  <div class="form-cita">
+  <div class="form-cita card">
     <h2>Agendar una Cita</h2>
 
     <!-- Selección de servicio -->
@@ -18,27 +18,32 @@
       </option>
     </select>
 
+    <!-- Si no hay veterinarios -->
+    <div v-if="veterinarios.length === 0 && servicioLocal" class="vet-warning">
+      ⚠️ No hay veterinarios disponibles para este servicio
+    </div>
+
     <!-- Selección de mascota -->
     <label>Selecciona tu mascota:</label>
     <select v-model="mascotaId" required>
       <option disabled value="">-- Selecciona mascota --</option>
       <option v-for="m in mascotas" :key="m.id" :value="m.id">{{ m.nombre }}</option>
     </select>
-    <button type="button" @click="abrirNuevaMascota">+ Registrar nueva mascota</button>
-
-    <!-- Fecha -->
-    <label>Fecha:</label>
-    <input type="date" :min="fechaMinima" v-model="fecha" @change="actualizarServicio" required />
+    <button type="button" class="btn-secondary" @click="abrirNuevaMascota">
+      + Registrar nueva mascota
+    </button>
 
     <!-- Horarios disponibles -->
     <label>Hora:</label>
     <select v-model="hora" required>
       <option disabled value="">-- Selecciona hora --</option>
-      <option v-for="h in horasDisponibles" :key="h" :value="h">{{ h }}</option>
+      <option v-for="h in horasDisponibles" :key="h.id" :value="h.id">
+        {{ h.texto }}
+      </option>
     </select>
 
     <!-- Botón agendar -->
-    <button @click="agendar">Agendar Cita</button>
+    <button class="btn-primary" @click="agendar">Agendar Cita</button>
 
     <!-- Modal nueva mascota -->
     <ModalNuevaMascota
@@ -66,15 +71,9 @@ export default {
       servicioLocal: this.servicioId || '',
       veterinarioId: '',
       mascotaId: '',
-      fecha: '',
       hora: '',
       horasDisponibles: [],
       mostrarModalMascota: false
-    }
-  },
-  computed: {
-    fechaMinima() {
-      return new Date().toISOString().split('T')[0]
     }
   },
   async created() {
@@ -90,6 +89,7 @@ export default {
       if (error) console.error(error)
       else this.servicios = data
     },
+
     async cargarMascotas() {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return
@@ -99,6 +99,7 @@ export default {
         .eq('usuario_id', user.user.id)
       this.mascotas = data || []
     },
+
     abrirNuevaMascota() { this.mostrarModalMascota = true },
     cerrarModalMascota() { this.mostrarModalMascota = false },
     agregarMascota(m) {
@@ -107,13 +108,7 @@ export default {
       this.cerrarModalMascota()
     },
 
-    obtenerDiaSemana(fecha) {
-      const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
-      return dias[new Date(fecha).getDay()]
-    },
-
     async actualizarServicio() {
-      this.$emit('update:servicioId', this.servicioLocal)
       this.veterinarioId = ''
       this.horasDisponibles = []
 
@@ -139,76 +134,52 @@ export default {
         return
       }
 
-      const diaSemana = this.fecha ? this.obtenerDiaSemana(this.fecha) : null
-
-      // Filtrar veterinarios por disponibilidad en el día seleccionado
-      this.veterinarios = []
-      for (const d of data) {
-        const vet = d.veterinarios
-        if (!diaSemana) {
-          this.veterinarios.push(vet)
-          continue
-        }
-
-        const { data: horarios, error: hError } = await supabase
-          .from('horarios_veterinarios')
-          .select('id, es_disponible, horario_base:horario_base_id(dia_semana)')
-          .eq('veterinario_id', vet.id)
-          .eq('es_disponible', true)
-
-        if (!hError && horarios.some(h => h.horario_base?.dia_semana.toLowerCase() === diaSemana)) {
-          this.veterinarios.push(vet)
-        }
-      }
+      this.veterinarios = data.map(d => d.veterinarios)
     },
 
     async cargarHorarios() {
-      try {
-        if (!this.veterinarioId || !this.fecha) return
+      if (!this.veterinarioId) return
 
-        const diaSemana = this.obtenerDiaSemana(this.fecha)
+      const { data, error } = await supabase
+        .from('horarios_veterinarios')
+        .select(`
+          id,
+          es_disponible,
+          horario_base:horario_base_id(dia_semana,hora_inicio,hora_fin)
+        `)
+        .eq('veterinario_id', this.veterinarioId)
+        .eq('es_disponible', true)
 
-        const { data, error } = await supabase
-          .from('horarios_veterinarios')
-          .select(`
-            id,
-            es_disponible,
-            horario_base:horario_base_id (
-              dia_semana,
-              hora_inicio,
-              hora_fin
-            )
-          `)
-          .eq('veterinario_id', this.veterinarioId)
-          .eq('es_disponible', true)
-
-        if (error) throw error
-
-        this.horasDisponibles = data
-          .filter(h => h.horario_base && h.horario_base.dia_semana.toLowerCase() === diaSemana)
-          .map(h => `${h.horario_base.hora_inicio} - ${h.horario_base.hora_fin}`)
-
-      } catch (err) {
-        console.error('Error cargando horarios:', err.message)
+      if (error) {
+        console.error(error)
         this.horasDisponibles = []
+        return
       }
+
+      // Mapear solo el día y las horas
+      this.horasDisponibles = data.map(h => ({
+        id: h.id,
+        texto: `${h.horario_base.dia_semana} | ${h.horario_base.hora_inicio} - ${h.horario_base.hora_fin}`
+      }))
     },
 
-    async agendar() {
+        async agendar() {
       const { data: user } = await supabase.auth.getUser()
       if (!user.user) return alert('Debes iniciar sesión')
-      if (!this.servicioLocal || !this.veterinarioId || !this.mascotaId || !this.fecha || !this.hora) {
+      if (!this.servicioLocal || !this.veterinarioId || !this.mascotaId || !this.hora) {
         return alert('Completa todos los campos')
       }
 
-      const { error } = await supabase.from('citasmascotas').insert([{
-        usuario_id: user.user.id,
-        mascota_id: this.mascotaId,
-        veterinario_id: this.veterinarioId,
-        servicio_id: this.servicioLocal,
-        fecha: this.fecha,
-        hora: this.hora
-      }])
+        const { error } = await supabase.from('citasmascotas').insert([{
+          usuario_id: user.user.id,
+          mascota_id: this.mascotaId,
+          veterinario_id: this.veterinarioId,
+          servicio_id: this.servicioLocal,
+          id_horario_veterinario: this.hora, // si quieres usar horario seleccionado
+          fecha: new Date(),                 // fecha automática
+          hora: new Date().toLocaleTimeString() // hora automática
+        }])
+
 
       if (error) return alert('Error: ' + error.message)
       alert('✅ Cita agendada correctamente')
@@ -220,16 +191,101 @@ export default {
 
 <style scoped>
 .form-cita {
-  max-width: 500px; margin: 2rem auto; padding: 2rem;
-  background: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-  display: flex; flex-direction: column; gap: 1rem;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2.5rem;
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 6px 20px rgba(0, 128, 150, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: transform var(--transition), box-shadow var(--transition);
+  color: #000; /* Texto principal en negro */
 }
-.form-cita h2 { text-align: center; color: #2c3e50; margin-bottom: 1rem; }
-.form-cita label { font-weight: 600; margin-bottom: 0.3rem; color: #34495e; }
-.form-cita select, .form-cita input[type="date"] { padding: 0.5rem 0.8rem; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
-.form-cita button { padding: 0.7rem 1.5rem; border: none; border-radius: 50px; background-color: #3498db; color: #fff; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-.form-cita button:hover { background-color: #2980b9; transform: translateY(-2px); }
-.form-cita button[type="button"] { background-color: #2ecc71; }
-.form-cita button[type="button"]:hover { background-color: #27ae60; }
-.form-cita select:disabled { background-color: #f0f0f0; }
+
+.form-cita:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 128, 150, 0.12);
+}
+
+.form-cita h2 {
+  text-align: center;
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: #000; /* Título en negro */
+}
+
+label {
+  font-weight: 500;
+  color: #000; /* Etiquetas en negro */
+  margin-bottom: 0.3rem;
+}
+
+select, input, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: #fff; /* Fondo blanco */
+  color: #000; /* Texto negro */
+  outline: none;
+  transition: border-color var(--transition);
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+/* Opciones de select */
+select option {
+  color: #000; /* Texto negro */
+  background: #fff; /* Fondo blanco */
+}
+
+select:focus, input:focus, textarea:focus {
+  border-color: var(--color-accent);
+}
+
+button {
+  padding: 0.8rem 2rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: #000; /* Texto negro por defecto */
+}
+
+/* Botón primario mantiene texto blanco para contraste */
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #005f6b;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #000; /* Texto negro */
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 128, 150, 0.1);
+}
+
+.vet-warning {
+  background: #fff4f4;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: 500;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
 </style>

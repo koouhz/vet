@@ -4,7 +4,7 @@
       <h3>Registrar nueva mascota</h3>
 
       <label>Nombre:</label>
-      <input v-model="nombre" />
+      <input v-model="nombre" placeholder="Ingresa el nombre" />
 
       <label>Especie:</label>
       <select v-model="especie">
@@ -18,13 +18,13 @@
       </select>
 
       <label>Raza:</label>
-      <input v-model="raza" />
+      <input v-model="raza" placeholder="Ingresa la raza" />
 
       <label>Fecha de nacimiento:</label>
       <input type="date" v-model="fecha_nacimiento" />
 
       <label>Peso (kg):</label>
-      <input type="number" step="0.01" v-model="peso_kg" />
+      <input type="number" step="0.01" v-model="peso_kg" placeholder="0.00" />
 
       <label>Sexo:</label>
       <select v-model="sexo">
@@ -35,14 +35,14 @@
       </select>
 
       <label>Alergias:</label>
-      <input v-model="alergias" />
+      <input v-model="alergias" placeholder="Describe alergias si aplica" />
 
       <label>Notas médicas:</label>
-      <textarea v-model="notas_medicas"></textarea>
+      <textarea v-model="notas_medicas" placeholder="Notas médicas adicionales"></textarea>
 
       <div class="buttons">
-        <button @click="guardarMascota">Guardar</button>
-        <button @click="$emit('cerrar')">Cancelar</button>
+        <button class="btn-primary" @click="guardarMascota">Guardar</button>
+        <button class="btn-secondary" @click="$emit('cerrar')">Cancelar</button>
       </div>
     </div>
   </div>
@@ -87,7 +87,16 @@ export default {
 
       if (error) return alert(error.message)
       this.$emit('nueva', data)
-      this.$emit('cerrar')
+
+      // Reset form
+      this.nombre = ''
+      this.raza = ''
+      this.fecha_nacimiento = ''
+      this.peso_kg = ''
+      this.alergias = ''
+      this.notas_medicas = ''
+      this.especie = 'perro'
+      this.sexo = 'macho'
     }
   }
 }
@@ -96,55 +105,116 @@ export default {
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  top:0; left:0; right:0; bottom:0;
-  background: rgba(0,0,0,0.5);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  z-index:999;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* importante para que no se tape con navbar */
+  padding: 2rem 1rem;
+  z-index: 1000;
+  overflow-y: auto; /* scroll si la pantalla es pequeña */
 }
+
 .modal {
-  background:white;
-  padding:2rem;
-  border-radius:10px;
-  width:350px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow:0 5px 20px rgba(0,0,0,0.3);
-  display:flex;
+  background: #fff;
+  color: #000;
+  border-radius: var(--radius);
+  padding: 2rem;
+  max-width: 500px;
+  width: 100%;
+  max-height: calc(100vh - 4rem); /* no sobrepasa la pantalla */
+  overflow-y: auto; /* scroll interno si el contenido es largo */
+  box-shadow: 0 6px 20px rgba(0, 128, 150, 0.08);
+  display: flex;
   flex-direction: column;
-  gap:0.7rem;
+  gap: 1rem;
 }
-.modal label {
-  font-weight:600;
+
+.modal h3 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
 }
-.modal input, .modal select, .modal textarea {
-  padding:0.4rem 0.6rem;
-  border-radius:5px;
-  border:1px solid #ccc;
-  font-size:0.95rem;
-  width:100%;
+
+label {
+  font-weight: 500;
+  margin-bottom: 0.3rem;
 }
-.modal textarea {
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: #000;
+  outline: none;
+  transition: border-color var(--transition);
+  width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-accent);
+}
+
+textarea {
+  min-height: 80px;
   resize: vertical;
-  min-height: 50px;
 }
+
 .buttons {
-  margin-top:1rem;
-  display:flex;
-  justify-content:space-between;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
 }
-.buttons button {
-  padding:0.5rem 1.2rem;
-  border:none;
-  border-radius:50px;
-  cursor:pointer;
-  font-weight:600;
-  color:white;
-  transition:0.3s;
+
+button {
+  padding: 0.8rem 2rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
 }
-.buttons button:first-child { background:#3498db; }
-.buttons button:first-child:hover { background:#2980b9; }
-.buttons button:last-child { background:#e74c3c; }
-.buttons button:last-child:hover { background:#c0392b; }
+
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #005f6b;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 128, 150, 0.1);
+}
+
+/* Responsivo */
+@media (max-width: 600px) {
+  .modal {
+    padding: 1rem;
+    max-width: 100%;
+  }
+
+  button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
 </style>
