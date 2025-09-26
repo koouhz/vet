@@ -41,10 +41,10 @@
     <button @click="agendar">Agendar Cita</button>
 
     <!-- Modal nueva mascota -->
-    <ModalNuevaMascota 
-      v-if="mostrarModalMascota" 
-      @cerrar="cerrarModalMascota" 
-      @nueva="agregarMascota" 
+    <ModalNuevaMascota
+      v-if="mostrarModalMascota"
+      @cerrar="cerrarModalMascota"
+      @nueva="agregarMascota"
     />
   </div>
 </template>
