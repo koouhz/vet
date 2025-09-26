@@ -193,6 +193,7 @@ export default {
   font-size: 1rem;
   transition: border-color 0.3s ease;
   background: #f8f9fa;
+  color: black;
 }
 
 .form-group input:focus,
