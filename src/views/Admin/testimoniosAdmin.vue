@@ -245,10 +245,10 @@ const loadTestimonios = async () => {
 
     if (vetIds.length > 0) {
       // Cargar veterinarios
-      const {  vetsData, error: vetsError } = await supabase
-        .from('veterinarios')
-        .select('id, usuario_id')
-        .in('id', vetIds)
+      const { data: vetsData, error: vetsError } = await supabase
+      .from('veterinarios')
+      .select('id, usuario_id')
+      .in('id', vetIds)
 
       if (vetsError) {
         console.warn('Error al cargar veterinarios:', vetsError)

@@ -336,7 +336,6 @@ const logout = async()=>{
 
 /* Hover del botón logout */
 .logout-btn {
-  border-color: #ef4444;
   color: #ef4444;
 }
 

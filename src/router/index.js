@@ -19,6 +19,7 @@ const routes = [
       { path: 'login', name: 'Login', component: () => import('@/views/loginView.vue') },
       { path: 'register', name: 'Register', component: () => import('@/views/registerView.vue') },
       { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') },
+      { path: 'perfil', name: 'Perfil', component: () => import('@/views/viewProfile.vue') },
       // Añadir la nueva ruta para el restablecimiento de contraseña
       { path: 'reset-password', name: 'ResetPassword', component: ResetPassword },
       { path: 'agendar-cita', name: 'AgendarCita', component: () => import('@/views/Agendar/AgendarCita.vue') } // ← nueva
@@ -51,14 +52,6 @@ const routes = [
       { path: 'mis-servicios', name: 'MisServicios', component: () => import('@/views/Vet/MisServicios.vue') },
       { path: 'mis-horarios', name: 'MisHorarios', component: () => import('@/views/Vet/MisHorarios.vue') }
     ]
-  },
-
-  // Perfil
-  {
-    path: '/perfil',
-    name: 'Perfil',
-    component: () => import('@/views/viewProfile.vue'),
-    meta: { requiresAuth: true }
   },
   {
     path: '/admin/usuarios',
