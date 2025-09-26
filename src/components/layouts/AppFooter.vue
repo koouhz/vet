@@ -9,7 +9,7 @@
         <h4>Contacto</h4>
         <p>📍 Calle Veterinaria 123, Ciudad</p>
         <p>📞 <a href="tel:5551234567"> (555) 123-4567</a></p>
-        <p>✉️ <a href="mailto:contacto@veterinariavet.com">contacto@veterinariavet.com</a></p>
+        <p>✉️ <a href="mailto:vetcare2509@gmail.com">vetcare2509@gmail.com</a></p>
       </div>
       <div class="footer-column">
         <h4>Horarios</h4>

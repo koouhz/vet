@@ -44,14 +44,14 @@
       <div class="contact-info">
         <h2>Visítanos</h2>
         <div class="info-item">
-          <p><strong>Veterinaria Paws</strong></p>
+          <p><strong>Veterinaria Vet Care</strong></p>
           <p>Calle Veterinaria 123, Ciudad</p>
         </div>
         <div class="info-item">
           <p>📞 (555) 123-4567</p>
         </div>
         <div class="info-item">
-          <p>✉ contacto@veterinariapaws.com</p>
+          <p>✉️ vetcare2509@gmail.com</p>
         </div>
         <div class="info-item">
           <p><strong>Horarios</strong></p>
