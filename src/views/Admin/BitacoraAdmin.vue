@@ -445,6 +445,7 @@ onMounted(() => {
 
 .date-input,
 .status-select {
+  color: #1e293b;
   padding: 0.625rem 0.875rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;

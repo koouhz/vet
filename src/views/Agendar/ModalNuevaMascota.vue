@@ -137,6 +137,7 @@ export default {
 }
 
 label {
+  color: #1e293b;
   font-weight: 500;
   margin-bottom: 0.3rem;
 }
@@ -148,7 +149,7 @@ input, select, textarea {
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: #fff;
-  color: #000;
+  color: #1e293b;
   outline: none;
   transition: border-color var(--transition);
   width: 100%;

@@ -306,7 +306,7 @@ button { cursor:pointer; padding:0.6rem 1.2rem; border-radius:6px;}
 
 label {
   font-weight: 500;
-  color: #000;
+  color: #1e293b;
   margin-bottom: 0.3rem;
 }
 
@@ -317,7 +317,7 @@ select, input, textarea {
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
   background: #fff;
-  color: #000;
+  color: #1e293b;
   outline: none;
   transition: border-color var(--transition);
   width: 100%;

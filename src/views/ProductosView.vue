@@ -430,7 +430,7 @@ onMounted(() => {
 }
 
 .filter-select {
-  color: black;
+  color: #1e293b;
   padding: 0.5rem 0.75rem;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
