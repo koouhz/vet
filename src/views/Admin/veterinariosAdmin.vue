@@ -6,7 +6,10 @@
       <div class="page-header">
         <h1>Veterinarios</h1>
         <p class="subtitle">Gestiona los perfiles de veterinarios del sistema.</p>
-        <button @click="openCrearModal" class="btn btn--success">+ Nuevo Veterinario</button>
+        <div class="page-header-actions">
+          <button @click="openCrearModal" class="btn btn--success">+ Nuevo Veterinario</button>
+          <button @click="editarHorariosGlobales" class="btn btn--primary">Editar Horarios</button>
+        </div>
       </div>
 
       <!-- Filtros -->
@@ -115,7 +118,7 @@
         </div>
       </div>
 
-      <!-- Modal Crear/Editar -->
+      <!-- Modal Crear/Editar Veterinario -->
       <div v-if="showModal" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -188,6 +191,45 @@
           </div>
         </div>
       </div>
+
+      <!-- Modal Editar Horarios Globales -->
+      <div v-if="showHorariosGlobalModal" class="modal-overlay" @click="showHorariosGlobalModal = false">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>Editar Horarios Globales</h2>
+            <button @click="showHorariosGlobalModal = false" class="modal-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>Estos horarios se aplican a todos los veterinarios.</p>
+            <div class="form-group" v-for="dia in diasSemana" :key="dia">
+              <label class="horario-dia">
+                <span style="font-weight:600; text-transform:capitalize">{{ dia }}</span>
+                <div class="horario-inputs">
+                  <input
+                    v-model="horariosGlobales[dia].inicio"
+                    type="time"
+                    class="form-input time-input"
+                    step="900"
+                  />
+                  <span class="separator">–</span>
+                  <input
+                    v-model="horariosGlobales[dia].fin"
+                    type="time"
+                    class="form-input time-input"
+                    step="900"
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button @click="showHorariosGlobalModal = false" class="btn btn--outline">Cancelar</button>
+            <button @click="guardarHorariosGlobales" class="btn btn--success" :disabled="isSavingHorarios">
+              {{ isSavingHorarios ? 'Guardando...' : 'Guardar Horarios' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -197,9 +239,10 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabaseClient'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
 
-// Estado
+// Estado principal
 const isLoading = ref(false)
 const isProcessing = ref(false)
+const isSavingHorarios = ref(false)
 const error = ref(null)
 const rawVeterinarios = ref([])
 const selectedActivo = ref('')
@@ -209,7 +252,7 @@ const selectedEspecialidad = ref('')
 const especialidades = ref([])
 const usuariosClientes = ref([])
 
-// Modal
+// Modal crear/editar
 const showModal = ref(false)
 const editingVet = ref(null)
 const formVet = ref({
@@ -220,6 +263,11 @@ const formVet = ref({
   bio: '',
   is_activo: true
 })
+
+// Modal horarios globales
+const showHorariosGlobalModal = ref(false)
+const diasSemana = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+const horariosGlobales = ref({})
 
 // Handlers
 const handleActivoChange = (event) => {
@@ -242,7 +290,6 @@ const filteredVeterinarios = computed(() => {
 })
 
 // Cargar datos
-// Cargar datos
 const loadVeterinarios = async () => {
   isLoading.value = true
   error.value = null
@@ -255,9 +302,9 @@ const loadVeterinarios = async () => {
       .eq('is_activa', true)
 
     if (espError) throw new Error('Error al cargar especialidades')
-    especialidades.value = espData
+    especialidades.value = espData || []
 
-    // 2. Cargar usuarios con rol cliente (para asignar como veterinarios)
+    // 2. Cargar usuarios con rol cliente
     const { data: usuariosData, error: usuariosError } = await supabase
       .from('usuarios')
       .select('id, nombre_completo, email')
@@ -265,9 +312,9 @@ const loadVeterinarios = async () => {
       .eq('is_activo', true)
 
     if (usuariosError) throw new Error('Error al cargar usuarios')
-    usuariosClientes.value = usuariosData
+    usuariosClientes.value = usuariosData || []
 
-    // 3. Cargar veterinarios con relaciones
+    // 3. Cargar veterinarios
     const { data: vetsData, error: vetsError } = await supabase
       .from('veterinarios')
       .select(`
@@ -288,7 +335,7 @@ const loadVeterinarios = async () => {
     }
 
     // 4. Obtener nombres de usuarios
-    const usuarioIds = vetsData.map(v => v.usuario_id)
+    const usuarioIds = (vetsData || []).map(v => v.usuario_id)
     const usuariosMap = {}
     if (usuarioIds.length > 0) {
       const { data: usuariosVets, error: usuariosVetsError } = await supabase
@@ -302,12 +349,12 @@ const loadVeterinarios = async () => {
       })
     }
 
-    // 5. Combinar datos (corregido para leer bien la especialidad)
-    rawVeterinarios.value = vetsData.map(vet => ({
+    // 5. Combinar datos
+    rawVeterinarios.value = (vetsData || []).map(vet => ({
       ...vet,
       nombre_completo: usuariosMap[vet.usuario_id]?.nombre || '—',
       email: usuariosMap[vet.usuario_id]?.email || '—',
-      especialidad_nombre: vet.especialidades?.nombre || '—' // ✅ CORREGIDO
+      especialidad_nombre: vet.especialidades?.nombre || '—'
     }))
 
   } catch (err) {
@@ -355,9 +402,7 @@ const guardarVeterinario = async () => {
   isProcessing.value = true
 
   try {
-    let result
     if (editingVet.value) {
-      // Actualizar
       const { error: updateError } = await supabase
         .from('veterinarios')
         .update({
@@ -371,8 +416,7 @@ const guardarVeterinario = async () => {
 
       if (updateError) throw updateError
     } else {
-      // Crear
-      const { error: insertError } = await supabase
+      const { data: newVet, error: insertError } = await supabase
         .from('veterinarios')
         .insert([{
           usuario_id: formVet.value.usuario_id,
@@ -382,10 +426,10 @@ const guardarVeterinario = async () => {
           bio: formVet.value.bio,
           is_activo: formVet.value.is_activo
         }])
+        .select()
 
       if (insertError) throw insertError
 
-      // Actualizar rol del usuario a 'veterinario'
       const { error: updateRolError } = await supabase
         .from('usuarios')
         .update({ rol: 'veterinario' })
@@ -424,13 +468,136 @@ const toggleEstado = async (vet) => {
   }
 }
 
+// ====== HORARIOS GLOBALES ======
+const cargarHorariosGlobales = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('horarios_base')
+      .select('dia_semana, hora_inicio, hora_fin')
+      .order('id', { ascending: true })
+
+    if (error) throw error
+
+    const horarios = {}
+    ;(data || []).forEach(h => {
+      horarios[h.dia_semana] = {
+        inicio: h.hora_inicio,
+        fin: h.hora_fin
+      }
+    })
+
+    // Asegurar que todos los días estén presentes
+    diasSemana.forEach(dia => {
+      if (!horarios[dia]) {
+        horarios[dia] = {
+          inicio: dia === 'domingo' ? '10:00' : '09:00',
+          fin: dia === 'domingo' ? '22:00' : '20:00'
+        }
+      }
+    })
+
+    horariosGlobales.value = horarios
+  } catch (err) {
+    console.error('Error al cargar horarios globales:', err)
+    // Valores por defecto
+    const defaultHorarios = {}
+    diasSemana.forEach(dia => {
+      defaultHorarios[dia] = {
+        inicio: dia === 'domingo' ? '10:00' : '09:00',
+        fin: dia === 'domingo' ? '22:00' : '20:00'
+      }
+    })
+    horariosGlobales.value = defaultHorarios
+  }
+}
+
+const editarHorariosGlobales = async () => {
+  await cargarHorariosGlobales()
+  showHorariosGlobalModal.value = true
+}
+
+// ✅ FUNCIÓN CORREGIDA: Actualiza o inserta SIN eliminar
+const guardarHorariosGlobales = async () => {
+  isSavingHorarios.value = true
+  try {
+    for (const dia of diasSemana) {
+      const { error: updateError } = await supabase
+        .from('horarios_base')
+        .update({
+          hora_inicio: horariosGlobales.value[dia].inicio,
+          hora_fin: horariosGlobales.value[dia].fin
+        })
+        .eq('dia_semana', dia)
+
+      if (updateError) {
+        // Si no existe la fila, créala
+        if (updateError.code === 'PGRST116') { // No rows updated
+          const { error: insertError } = await supabase
+            .from('horarios_base')
+            .insert({
+              dia_semana: dia,
+              hora_inicio: horariosGlobales.value[dia].inicio,
+              hora_fin: horariosGlobales.value[dia].fin
+            })
+
+          if (insertError) throw insertError
+        } else {
+          throw updateError
+        }
+      }
+    }
+
+    alert('Horarios globales actualizados correctamente')
+    showHorariosGlobalModal.value = false
+  } catch (err) {
+    console.error('Error al guardar horarios globales:', err)
+    alert('Error al guardar los horarios: ' + (err.message || 'Verifica la consola'))
+  } finally {
+    isSavingHorarios.value = false
+  }
+}
+
 onMounted(() => {
   loadVeterinarios()
 })
 </script>
 
 <style scoped>
-/* Estilos coherentes con el dashboard admin */
+/* ... tus estilos existentes ... */
+
+.page-header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Estilos para horarios globales */
+.horario-dia {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+.horario-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.time-input {
+  width: auto;
+  padding: 0.5rem;
+  font-size: 1rem;
+}
+
+.separator {
+  color: #64748b;
+  font-weight: bold;
+}
+
+/* El resto de tus estilos permanecen igual */
 .veterinarios-admin-container {
   display: flex;
   min-height: 100vh;
@@ -499,6 +666,21 @@ onMounted(() => {
 
 .btn--success:hover {
   background: #0f4c28;
+}
+
+.btn--primary {
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn--primary:hover {
+  background: #1e40af;
 }
 
 .filters-bar {
