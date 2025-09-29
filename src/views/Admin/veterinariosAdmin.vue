@@ -407,12 +407,11 @@ const guardarVeterinario = async () => {
 
     // ===== VALIDAR DUPLICADO =====
     if (!editingVet.value) {
-      // Verificar si ya existe un veterinario con ese usuario
       const { data: existingVet, error: checkError } = await supabase
         .from('veterinarios')
         .select('id')
         .eq('usuario_id', formVet.value.usuario_id)
-        .single() // devuelve 1 solo registro o null
+        .single()
 
       if (checkError && checkError.code !== 'PGRST116') throw checkError
       if (existingVet) {
@@ -421,10 +420,9 @@ const guardarVeterinario = async () => {
         return
       }
     }
-    // ===============================
 
+    // ===== CREAR O ACTUALIZAR VETERINARIO =====
     if (editingVet.value) {
-      // Actualizar veterinario existente
       const { error: updateError } = await supabase
         .from('veterinarios')
         .update({
@@ -440,7 +438,6 @@ const guardarVeterinario = async () => {
       vetId = editingVet.value.id
 
     } else {
-      // Crear nuevo veterinario
       const { data: newVet, error: insertError } = await supabase
         .from('veterinarios')
         .insert([{
@@ -457,6 +454,30 @@ const guardarVeterinario = async () => {
       vetId = newVet[0].id
     }
 
+    // ===== ENLAZAR AUTOMÁTICAMENTE CON SERVICIOS DE ESA ESPECIALIDAD =====
+    // 1. Obtener servicios de la especialidad seleccionada
+    const { data: serviciosEspecialidad, error: serviciosError } = await supabase
+      .from('servicios')
+      .select('id')
+      .eq('especialidad_id', formVet.value.especialidad_id)
+
+    if (serviciosError) throw serviciosError
+
+    if (serviciosEspecialidad && serviciosEspecialidad.length > 0) {
+      // 2. Crear entradas en servicios_veterinarios
+      const { error: linkError } = await supabase
+        .from('servicios_veterinarios')
+        .upsert(
+          serviciosEspecialidad.map(s => ({
+            veterinario_id: vetId,
+            servicio_id: s.id
+          })),
+          { onConflict: ['veterinario_id', 'servicio_id'] } // Evita duplicados
+        )
+
+      if (linkError) throw linkError
+    }
+
     await loadVeterinarios()
     closeModal()
     alert(editingVet.value ? 'Veterinario actualizado correctamente' : 'Veterinario creado correctamente')
@@ -468,8 +489,6 @@ const guardarVeterinario = async () => {
     isProcessing.value = false
   }
 }
-
-
 // Toggle estado
 const toggleEstado = async (vet) => {
   if (!confirm(`¿${vet.is_activo ? 'Desactivar' : 'Activar'} a ${vet.nombre_completo}?`)) return

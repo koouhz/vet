@@ -47,21 +47,25 @@ export default {
             id,
             usuario_id,
             especialidad_id,
+            is_activo,
             usuarios ( nombre_completo ),
             especialidades ( nombre )
           )
         `)
         .eq('servicio_id', this.servicioId)
-        .eq('is_activo', true)   // opcional: solo veterinarios activos
+        .eq('is_activo', true)   // relación activo
 
       if (error) {
         console.error('Error cargando veterinarios:', error)
         return
       }
 
-      // Extraer los veterinarios de la relación
-      this.veterinarios = (data || []).map(sv => sv.veterinarios)
+      // Extraer los veterinarios activos
+      this.veterinarios = (data || [])
+        .map(sv => sv.veterinarios)
+        .filter(v => v.is_activo)  // <-- filtrar solo veterinarios activos
     }
+
   }
 }
 </script>

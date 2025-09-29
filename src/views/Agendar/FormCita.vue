@@ -149,35 +149,38 @@ export default {
     },
 
     async actualizarServicio() {
-      this.veterinarioId = ''
-      this.horasDisponibles = []
+  this.veterinarioId = ''
+  this.horasDisponibles = []
 
-      if (!this.servicioLocal) {
-        this.veterinarios = []
-        return
-      }
+  if (!this.servicioLocal) {
+    this.veterinarios = []
+    return
+  }
 
-      const { data, error } = await supabase
-        .from('servicios_veterinarios')
-        .select(`
-          veterinarios (
-            id,
-            usuarios (nombre_completo),
-            especialidades (nombre)
-          )
-        `)
-        .eq('servicio_id', this.servicioLocal)
-        .eq('is_activo', true)
+  const { data, error } = await supabase
+    .from('servicios_veterinarios')
+    .select(`
+      veterinarios (
+        id,
+        is_activo,
+        usuarios (nombre_completo),
+        especialidades (nombre)
+      )
+    `)
+    .eq('servicio_id', this.servicioLocal)
+    .eq('is_activo', true) // para servicios_veterinarios activo
 
-      if (error) {
-        console.error(error)
-        this.veterinarios = []
-        return
-      }
+  if (error) {
+    console.error(error)
+    this.veterinarios = []
+    return
+  }
 
-      this.veterinarios = data.map(d => d.veterinarios)
-    },
-
+  // Filtrar solo veterinarios activos
+  this.veterinarios = data
+    .map(d => d.veterinarios)
+    .filter(v => v.is_activo)
+},
     resetHorarios() {
       this.fecha = ''
       this.horasDisponibles = []
