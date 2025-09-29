@@ -174,7 +174,10 @@ const filteredCitas = computed(() => {
 
 // Formateo
 const formatDate = (dateStr) => {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
+  // Forzar que se interprete como fecha "local" sin restar horas
+  const [year, month, day] = dateStr.split('-') // Asume formato YYYY-MM-DD
+  const date = new Date(Number(year), Number(month) - 1, Number(day)) // Crea fecha en zona local
+  return date.toLocaleDateString('es-ES', {
     weekday: 'short',
     day: 'numeric',
     month: 'short'
