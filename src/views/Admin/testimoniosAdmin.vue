@@ -52,6 +52,27 @@
             <option value="1">1 estrella</option>
           </select>
         </div>
+        <!-- ✅ Nuevos filtros de fecha -->
+        <div class="filter-item">
+          <label for="filter-fecha-desde" class="filter-label">Fecha desde</label>
+          <input
+            id="filter-fecha-desde"
+            type="date"
+            :value="fechaDesde"
+            @input="handleFechaDesdeInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-fecha-hasta" class="filter-label">Fecha hasta</label>
+          <input
+            id="filter-fecha-hasta"
+            type="date"
+            :value="fechaHasta"
+            @input="handleFechaHastaInput"
+            class="date-input"
+          />
+        </div>
       </div>
 
       <!-- Contenido -->
@@ -165,6 +186,9 @@ const rawTestimonios = ref([])
 const selectedPublicado = ref('')
 const selectedDestacado = ref('')
 const selectedCalificacion = ref('')
+// ✅ Nuevas refs para filtros de fecha
+const fechaDesde = ref('')
+const fechaHasta = ref('')
 
 // Handlers
 const handlePublicadoChange = (event) => {
@@ -177,6 +201,26 @@ const handleDestacadoChange = (event) => {
 
 const handleCalificacionChange = (event) => {
   selectedCalificacion.value = event.target.value
+}
+
+// ✅ Handlers para fechas
+const handleFechaDesdeInput = (event) => {
+  fechaDesde.value = event.target.value
+}
+
+const handleFechaHastaInput = (event) => {
+  fechaHasta.value = event.target.value
+}
+
+// ✅ FUNCIÓN CLAVE: Convierte una fecha UTC (de Supabase) a YYYY-MM-DD en la zona horaria LOCAL del usuario
+const getLocalDateFromUTC = (utcDateString) => {
+  if (!utcDateString) return ''
+  const date = new Date(utcDateString)
+  if (isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 const filteredTestimonios = computed(() => {
@@ -202,13 +246,24 @@ const filteredTestimonios = computed(() => {
       matchCalificacion = testimonio.calificacion === 1
     }
 
-    return matchPublicado && matchDestacado && matchCalificacion
+    // ✅ Filtro por rango de fechas
+    let matchFecha = true
+    if (testimonio.creado_en) {
+      const fechaTestimonioLocal = getLocalDateFromUTC(testimonio.creado_en)
+      if (fechaDesde.value && fechaTestimonioLocal < fechaDesde.value) matchFecha = false
+      if (fechaHasta.value && fechaTestimonioLocal > fechaHasta.value) matchFecha = false
+    }
+
+    return matchPublicado && matchDestacado && matchCalificacion && matchFecha
   })
 })
 
+// ✅ Formateo de fecha también corregido para mostrar la fecha LOCAL
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
-  const date = new Date(dateStr)
+  const localDateStr = getLocalDateFromUTC(dateStr)
+  const [year, month, day] = localDateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: '2-digit',
@@ -410,7 +465,8 @@ onMounted(() => {
     min-width: auto;
   }
 
-  .status-select {
+  .status-select,
+  .date-input {
     width: 100%;
   }
 }
@@ -452,6 +508,7 @@ onMounted(() => {
   color: #475569;
 }
 
+.date-input,
 .status-select {
   color: #1e293b;
   padding: 0.625rem 0.875rem;
@@ -462,6 +519,7 @@ onMounted(() => {
   transition: border-color 0.2s;
 }
 
+.date-input:focus,
 .status-select:focus {
   outline: none;
   border-color: #145a32;

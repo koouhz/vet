@@ -41,6 +41,46 @@
             <option value="archivado">Archivado</option>
           </select>
         </div>
+        <div class="filter-item">
+          <label for="filter-compra-desde" class="filter-label">Compra desde</label>
+          <input
+            id="filter-compra-desde"
+            type="date"
+            :value="fechaCompraDesde"
+            @input="handleFechaCompraDesdeInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-compra-hasta" class="filter-label">Compra hasta</label>
+          <input
+            id="filter-compra-hasta"
+            type="date"
+            :value="fechaCompraHasta"
+            @input="handleFechaCompraHastaInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-garantia-desde" class="filter-label">Garantía desde</label>
+          <input
+            id="filter-garantia-desde"
+            type="date"
+            :value="fechaGarantiaDesde"
+            @input="handleFechaGarantiaDesdeInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-garantia-hasta" class="filter-label">Garantía hasta</label>
+          <input
+            id="filter-garantia-hasta"
+            type="date"
+            :value="fechaGarantiaHasta"
+            @input="handleFechaGarantiaHastaInput"
+            class="date-input"
+          />
+        </div>
       </div>
 
       <!-- Contenido -->
@@ -281,6 +321,10 @@ const error = ref(null)
 const rawEquipos = ref([])
 const selectedTipo = ref('')
 const selectedEstado = ref('')
+const fechaCompraDesde = ref('')
+const fechaCompraHasta = ref('')
+const fechaGarantiaDesde = ref('')
+const fechaGarantiaHasta = ref('')
 
 // Modal crear/editar
 const showModal = ref(false)
@@ -312,12 +356,57 @@ const handleEstadoChange = (event) => {
   selectedEstado.value = event.target.value
 }
 
-// Equipos filtrados
+const handleFechaCompraDesdeInput = (event) => {
+  fechaCompraDesde.value = event.target.value
+}
+
+const handleFechaCompraHastaInput = (event) => {
+  fechaCompraHasta.value = event.target.value
+}
+
+const handleFechaGarantiaDesdeInput = (event) => {
+  fechaGarantiaDesde.value = event.target.value
+}
+
+const handleFechaGarantiaHastaInput = (event) => {
+  fechaGarantiaHasta.value = event.target.value
+}
+
+// ✅ FUNCIÓN CLAVE: Convierte una fecha UTC (de Supabase) a YYYY-MM-DD en la zona horaria LOCAL del usuario
+const getLocalDateFromUTC = (utcDateString) => {
+  if (!utcDateString) return ''
+  const date = new Date(utcDateString)
+  if (isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// ✅ Filtro corregido: aplica los 4 filtros de fecha con zona horaria local
 const filteredEquipos = computed(() => {
   return rawEquipos.value.filter(equipo => {
+    // Filtros básicos
     const matchTipo = !selectedTipo.value || equipo.tipo === selectedTipo.value
     const matchEstado = !selectedEstado.value || equipo.estado === selectedEstado.value
-    return matchTipo && matchEstado
+
+    // Filtro por fecha de compra
+    let matchCompra = true
+    if (equipo.fecha_compra) {
+      const fechaCompraLocal = getLocalDateFromUTC(equipo.fecha_compra)
+      if (fechaCompraDesde.value && fechaCompraLocal < fechaCompraDesde.value) matchCompra = false
+      if (fechaCompraHasta.value && fechaCompraLocal > fechaCompraHasta.value) matchCompra = false
+    }
+
+    // Filtro por fecha de garantía
+    let matchGarantia = true
+    if (equipo.garantia_expira) {
+      const fechaGarantiaLocal = getLocalDateFromUTC(equipo.garantia_expira)
+      if (fechaGarantiaDesde.value && fechaGarantiaLocal < fechaGarantiaDesde.value) matchGarantia = false
+      if (fechaGarantiaHasta.value && fechaGarantiaLocal > fechaGarantiaHasta.value) matchGarantia = false
+    }
+
+    return matchTipo && matchEstado && matchCompra && matchGarantia
   })
 })
 
@@ -340,9 +429,12 @@ const estadoLabels = {
 const getTipoLabel = (tipo) => tipoLabels[tipo] || tipo
 const getEstadoLabel = (estado) => estadoLabels[estado] || estado
 
+// ✅ Formateo de fecha también corregido para mostrar la fecha LOCAL
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
-  const date = new Date(dateStr)
+  const localDateStr = getLocalDateFromUTC(dateStr)
+  const [year, month, day] = localDateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: '2-digit',
@@ -519,7 +611,8 @@ onMounted(() => {
     min-width: auto;
   }
 
-  .status-select {
+  .status-select,
+  .date-input {
     width: 100%;
   }
 }
@@ -572,7 +665,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 180px;
+  min-width: 160px;
 }
 
 .filter-label {
@@ -581,6 +674,7 @@ onMounted(() => {
   color: #475569;
 }
 
+.date-input,
 .status-select {
   color: #1e293b;
   padding: 0.625rem 0.875rem;
@@ -591,6 +685,7 @@ onMounted(() => {
   transition: border-color 0.2s;
 }
 
+.date-input:focus,
 .status-select:focus {
   outline: none;
   border-color: #145a32;

@@ -39,12 +39,22 @@
           </select>
         </div>
         <div class="filter-item">
-          <label for="filter-fecha" class="filter-label">Registrado desde</label>
+          <label for="filter-fecha-desde" class="filter-label">Registrado desde</label>
           <input
-            id="filter-fecha"
+            id="filter-fecha-desde"
             type="date"
-            :value="selectedFecha"
-            @input="handleFechaInput"
+            :value="fechaDesde"
+            @input="handleFechaDesdeInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-fecha-hasta" class="filter-label">Registrado hasta</label>
+          <input
+            id="filter-fecha-hasta"
+            type="date"
+            :value="fechaHasta"
+            @input="handleFechaHastaInput"
             class="date-input"
           />
         </div>
@@ -204,7 +214,8 @@ const error = ref(null)
 const rawUsuarios = ref([])
 const selectedRol = ref('')
 const selectedActivo = ref('')
-const selectedFecha = ref('')
+const fechaDesde = ref('')
+const fechaHasta = ref('')
 
 // Modal
 const showModal = ref(false)
@@ -226,19 +237,50 @@ const handleActivoChange = (event) => {
   selectedActivo.value = event.target.value
 }
 
-const handleFechaInput = (event) => {
-  selectedFecha.value = event.target.value
+const handleFechaDesdeInput = (event) => {
+  fechaDesde.value = event.target.value
 }
 
-// Usuarios filtrados
+const handleFechaHastaInput = (event) => {
+  fechaHasta.value = event.target.value
+}
+
+// ✅ FUNCIÓN CLAVE: Convierte una fecha UTC (de Supabase) a YYYY-MM-DD en la zona horaria LOCAL del usuario
+const getLocalDateFromUTC = (utcDateString) => {
+  if (!utcDateString) return ''
+  const date = new Date(utcDateString)
+  if (isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// ✅ Filtro corregido: usa getLocalDateFromUTC para comparar fechas en zona local
 const filteredUsuarios = computed(() => {
   return rawUsuarios.value.filter(usuario => {
+    // Filtro por rol
     const matchRol = !selectedRol.value || usuario.rol === selectedRol.value
+    
+    // Filtro por estado
     const matchActivo = selectedActivo.value === '' ||
       (selectedActivo.value === 'true' && usuario.is_activo) ||
       (selectedActivo.value === 'false' && !usuario.is_activo)
-    const matchFecha = !selectedFecha.value ||
-      new Date(usuario.fecha_registro) >= new Date(selectedFecha.value)
+    
+    // Si no tiene fecha de registro, mostrarlo sin filtro de fecha
+    if (!usuario.fecha_registro) return matchRol && matchActivo
+
+    // ✅ Corrección: convertir la fecha UTC a fecha local antes de comparar
+    const fechaRegistroLocal = getLocalDateFromUTC(usuario.fecha_registro)
+    
+    // Filtro por rango de fechas (comparación de cadenas en formato YYYY-MM-DD)
+    const desde = fechaDesde.value
+    const hasta = fechaHasta.value
+    
+    let matchFecha = true
+    if (desde && fechaRegistroLocal < desde) matchFecha = false
+    if (hasta && fechaRegistroLocal > hasta) matchFecha = false
+    
     return matchRol && matchActivo && matchFecha
   })
 })
@@ -249,9 +291,12 @@ const getRolLabel = (rol) => {
   return labels[rol] || rol
 }
 
+// ✅ Formateo de fecha también corregido para mostrar la fecha LOCAL
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
-  const date = new Date(dateStr)
+  const localDateStr = getLocalDateFromUTC(dateStr)
+  const [year, month, day] = localDateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('es-ES', {
     day: '2-digit',
     month: '2-digit',
@@ -259,7 +304,6 @@ const formatDate = (dateStr) => {
   })
 }
 
-// Cargar usuarios
 const loadUsuarios = async () => {
   isLoading.value = true
   error.value = null
@@ -466,7 +510,6 @@ onMounted(() => {
 
 .date-input,
 .status-select {
-  color: #1e293b;
   padding: 0.625rem 0.875rem;
   border: 1px solid #d1d5db;
   border-radius: 8px;

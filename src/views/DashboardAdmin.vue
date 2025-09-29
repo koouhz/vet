@@ -14,7 +14,6 @@
         <!-- Usuarios -->
         <div class="action-card" @click="navigateTo('UsuarioAdmin')">
           <div class="icon-container">
-            <!-- Icono -->
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
               <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z"
                 stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -110,19 +109,6 @@
           <p>{{ stats.products }} activos</p>
         </div>
 
-        <!-- Mensajes de Contacto -->
-        <div class="action-card" @click="navigateTo('MensajesAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M4 4H20C21.1046 4 22 4.89543 22 6V18C22 19.1046 21.1046 20 20 20H4C2.89543 20 2 19.1046 2 18V6C2 4.89543 2.89543 4 4 4Z"
-                stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M2 6L12 13L22 6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </div>
-          <h3>Mensajes</h3>
-          <p>{{ stats.contactMessages }} no leídos</p>
-        </div>
-
         <!-- Configuración -->
         <div class="action-card" @click="navigateTo('ConfiguracionAdmin')">
           <div class="icon-container">
@@ -133,20 +119,6 @@
           </div>
           <h3>Configuración</h3>
           <p>{{ stats.configs }} parámetros</p>
-        </div>
-
-        <!-- Bitácora -->
-        <div class="action-card" @click="navigateTo('BitacoraAdmin')">
-          <div class="icon-container">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 8V12L15 15" stroke="#145A32" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
-                stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </div>
-          <h3>Bitácora</h3>
-          <p>{{ stats.audits }} registros</p>
         </div>
       </section>
 
@@ -213,16 +185,14 @@ const stats = ref({
   equipment: 0,
   testimonials: 0,
   configs: 0,
-  audits: 0,
   products: 0,
   sales: 0,
-  contactMessages: 0,
   totalUsers: 0,
   activeAppointments: 0,
   activeVeterinarians: 0,
   activeServices: 0,
-  activeProducts: 0,
-  unreadMessages: 0
+  activeProducts: 0
+  // contactMessages y unreadMessages eliminados
 })
 
 // --- Obtener datos del admin ---
@@ -254,10 +224,10 @@ const fetchStats = async () => {
     { name: 'equiposmedicos', statKey: 'equipment' },
     { name: 'testimonios', statKey: 'testimonials', activeFilterCol: 'publicado', activeFilterVal: false },
     { name: 'configuracionesistema', statKey: 'configs' },
-    { name: 'bitacoracitas', statKey: 'audits' },
+    // { name: 'bitacoracitas', statKey: 'audits' }, // Eliminado
     { name: 'productos', statKey: 'products', activeKey: 'activeProducts', isActiveCol: 'is_activo' },
-    { name: 'ventas', statKey: 'sales' },
-    { name: 'mensajescontacto', statKey: 'contactMessages', activeKey: 'unreadMessages', isActiveCol: 'leido', isActiveVal: false }
+    { name: 'ventas', statKey: 'sales' }
+    // { name: 'mensajescontacto', ... } // Eliminado
   ]
 
   for (let table of tables) {
@@ -424,7 +394,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Contenedor principal del dashboard */
 /* Contenedor principal del dashboard */
 .dashboard-admin-container {
   display: flex;
@@ -614,5 +583,4 @@ onUnmounted(() => {
     padding: 1rem;
   }
 }
-
 </style>
