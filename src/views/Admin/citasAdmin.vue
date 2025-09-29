@@ -11,12 +11,22 @@
       <!-- Filtros -->
       <div class="filters-bar">
         <div class="filter-item">
-          <label for="filter-fecha" class="filter-label">Fecha</label>
+          <label for="filter-fecha-desde" class="filter-label">Desde</label>
           <input
-            id="filter-fecha"
+            id="filter-fecha-desde"
             type="date"
-            :value="selectedFecha"
-            @input="handleFechaInput"
+            :value="selectedFechaDesde"
+            @input="handleFechaDesdeInput"
+            class="date-input"
+          />
+        </div>
+        <div class="filter-item">
+          <label for="filter-fecha-hasta" class="filter-label">Hasta</label>
+          <input
+            id="filter-fecha-hasta"
+            type="date"
+            :value="selectedFechaHasta"
+            @input="handleFechaHastaInput"
             class="date-input"
           />
         </div>
@@ -151,10 +161,85 @@
               >
                 Cancelar
               </button>
-              <button @click="verDetalles(cita.id)" class="btn btn--outline">
+              <button @click="verDetalles(cita)" class="btn btn--outline">
                 Ver
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Detalle -->
+      <div v-if="citaSeleccionada" class="modal-overlay" @click="cerrarModal">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h2>Detalle de la Cita #{{ citaSeleccionada.id }}</h2>
+            <button @click="cerrarModal" class="modal-close">&times;</button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="detail-grid">
+              <div class="detail-item">
+                <label>Fecha:</label>
+                <span>{{ formatDate(citaSeleccionada.fecha) }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Hora:</label>
+                <span>{{ formatTime(citaSeleccionada.hora) }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Estado:</label>
+                <span class="badge" :class="`badge--${citaSeleccionada.estado}`">
+                  {{ getEstadoLabel(citaSeleccionada.estado) }}
+                </span>
+              </div>
+              <div class="detail-item">
+                <label>Mascota:</label>
+                <span>{{ citaSeleccionada.mascota_nombre || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Dueño:</label>
+                <span>{{ citaSeleccionada.usuario_nombre || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Veterinario:</label>
+                <span>{{ citaSeleccionada.veterinario_nombre || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Servicio:</label>
+                <span>{{ citaSeleccionada.servicio_titulo || '—' }}</span>
+              </div>
+              <div class="detail-item">
+                <label>Estado de Pago:</label>
+                <span :class="`pago--${citaSeleccionada.estado_pago}`">
+                  {{ getEstadoPagoLabel(citaSeleccionada.estado_pago) }}
+                </span>
+              </div>
+              <div v-if="citaSeleccionada.observaciones" class="detail-item full-width">
+                <label>Observaciones:</label>
+                <span>{{ citaSeleccionada.observaciones }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button
+              v-if="citaSeleccionada.estado === 'programada'"
+              @click="actualizarEstadoModal('confirmada')"
+              class="btn btn--success"
+            >
+              Confirmar Cita
+            </button>
+            <button
+              v-if="citaSeleccionada.estado === 'programada' || citaSeleccionada.estado === 'confirmada'"
+              @click="actualizarEstadoModal('cancelada')"
+              class="btn btn--danger"
+            >
+              Cancelar Cita
+            </button>
+            <button @click="cerrarModal" class="btn btn--outline">
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
@@ -172,18 +257,24 @@ const router = useRouter()
 const isLoading = ref(false)
 const error = ref(null)
 const rawCitas = ref([])
-const selectedFecha = ref('')
+const selectedFechaDesde = ref('')
+const selectedFechaHasta = ref('')
 const selectedEstado = ref('')
 const selectedVeterinario = ref('')
 const selectedServicio = ref('')
+const citaSeleccionada = ref(null)
 
 // Listas para filtros
 const veterinarios = ref([])
 const servicios = ref([])
 
 // Handlers
-const handleFechaInput = (event) => {
-  selectedFecha.value = event.target.value
+const handleFechaDesdeInput = (event) => {
+  selectedFechaDesde.value = event.target.value
+}
+
+const handleFechaHastaInput = (event) => {
+  selectedFechaHasta.value = event.target.value
 }
 
 const handleEstadoChange = (event) => {
@@ -198,12 +289,37 @@ const handleServicioChange = (event) => {
   selectedServicio.value = event.target.value
 }
 
+// ✅ FUNCIÓN CLAVE: Convierte una fecha UTC (de Supabase) a YYYY-MM-DD en la zona horaria LOCAL del usuario
+const getLocalDateFromUTC = (utcDateString) => {
+  if (!utcDateString) return ''
+  const date = new Date(utcDateString)
+  if (isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// ✅ Filtro corregido: usa getLocalDateFromUTC para comparar fechas en zona local
 const filteredCitas = computed(() => {
   return rawCitas.value.filter(cita => {
-    const matchFecha = !selectedFecha.value || cita.fecha === selectedFecha.value
+    let matchFecha = true
+
+    if (selectedFechaDesde.value || selectedFechaHasta.value) {
+      const fechaCita = getLocalDateFromUTC(cita.fecha)
+
+      if (selectedFechaDesde.value && fechaCita < selectedFechaDesde.value) {
+        matchFecha = false
+      }
+      if (selectedFechaHasta.value && fechaCita > selectedFechaHasta.value) {
+        matchFecha = false
+      }
+    }
+
     const matchEstado = !selectedEstado.value || cita.estado === selectedEstado.value
     const matchVeterinario = !selectedVeterinario.value || cita.veterinario_id == selectedVeterinario.value
     const matchServicio = !selectedServicio.value || cita.servicio_id == selectedServicio.value
+
     return matchFecha && matchEstado && matchVeterinario && matchServicio
   })
 })
@@ -226,9 +342,12 @@ const estadoPagoLabels = {
 const getEstadoLabel = (estado) => estadoLabels[estado] || estado
 const getEstadoPagoLabel = (estado) => estadoPagoLabels[estado] || estado
 
+// ✅ Formateo de fecha también corregido para mostrar la fecha LOCAL
 const formatDate = (dateStr) => {
   if (!dateStr) return '—'
-  const date = new Date(dateStr)
+  const localDateStr = getLocalDateFromUTC(dateStr)
+  const [year, month, day] = localDateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   return date.toLocaleDateString('es-ES', {
     weekday: 'short',
     day: 'numeric',
@@ -242,7 +361,7 @@ const formatTime = (timeStr) => {
   return `${h}:${m}`
 }
 
-// Cargar datos (versión robusta)
+// Cargar datos (sin cambios, ya que el problema era solo de visualización/filtro)
 const loadCitas = async () => {
   isLoading.value = true
   error.value = null
@@ -256,7 +375,6 @@ const loadCitas = async () => {
 
     if (vetsError) throw new Error('Error al cargar veterinarios')
 
-    // Obtener nombres de veterinarios
     const vetUsuarioIds = vetsData.map(v => v.usuario_id)
     const vetNombres = {}
     if (vetUsuarioIds.length > 0) {
@@ -283,7 +401,7 @@ const loadCitas = async () => {
     if (servsError) throw new Error('Error al cargar servicios')
     servicios.value = servsData
 
-    // 3. Cargar citas (solo IDs y campos básicos)
+    // 3. Cargar citas
     const { data: citasData, error: citasError } = await supabase
       .from('citasmascotas')
       .select('id, fecha, hora, estado, observaciones, estado_pago, mascota_id, usuario_id, veterinario_id, servicio_id')
@@ -301,7 +419,7 @@ const loadCitas = async () => {
       return
     }
 
-    // 4. Obtener IDs únicos para relaciones
+    // 4. IDs únicos
     const mascotaIds = [...new Set(citasData.map(c => c.mascota_id).filter(Boolean))]
     const usuarioIds = [...new Set(citasData.map(c => c.usuario_id).filter(Boolean))]
     const servicioIds = [...new Set(citasData.map(c => c.servicio_id).filter(Boolean))]
@@ -331,13 +449,12 @@ const loadCitas = async () => {
         : Promise.resolve({ data: [], error: null })
     ])
 
-    // Verificar errores
     if (mascotasRes.error) throw new Error('Error al cargar mascotas')
     if (usuariosRes.error) throw new Error('Error al cargar usuarios')
     if (serviciosRes.error) throw new Error('Error al cargar servicios')
     if (vetsRes.error) throw new Error('Error al cargar veterinarios')
 
-    // Crear mapas
+    // 6. Mapas
     const mascotasMap = {}
     mascotasRes.data.forEach(m => { mascotasMap[m.id] = m.nombre })
 
@@ -347,7 +464,6 @@ const loadCitas = async () => {
     const serviciosMap = {}
     serviciosRes.data.forEach(s => { serviciosMap[s.id] = s.titulo })
 
-    // Obtener nombres de veterinarios
     const vetUsuarioMap = {}
     if (vetsRes.data.length > 0) {
       const vetUserIds = vetsRes.data.map(v => v.usuario_id)
@@ -367,7 +483,7 @@ const loadCitas = async () => {
       veterinariosMap[v.id] = vetUsuarioMap[v.usuario_id] || 'Veterinario'
     })
 
-    // 6. Combinar datos
+    // 7. Combinar
     rawCitas.value = citasData.map(cita => ({
       ...cita,
       mascota_nombre: mascotasMap[cita.mascota_id] || null,
@@ -399,13 +515,47 @@ const actualizarEstado = async (citaId, nuevoEstado) => {
     }
 
     await loadCitas()
+    // Si el modal está abierto, cerrarlo o actualizar los datos
+    if (citaSeleccionada.value && citaSeleccionada.value.id === citaId) {
+      citaSeleccionada.value.estado = nuevoEstado
+    }
   } catch (err) {
     alert(err.message)
   }
 }
 
-const verDetalles = (citaId) => {
-  router.push({ name: 'DetalleCitaAdmin', params: { id: citaId } })
+// Nuevas funciones para el modal
+const verDetalles = (cita) => {
+  citaSeleccionada.value = { ...cita } // Crear copia para no modificar los datos originales
+}
+
+const cerrarModal = () => {
+  citaSeleccionada.value = null
+}
+
+const actualizarEstadoModal = async (nuevoEstado) => {
+  if (!citaSeleccionada.value) return
+  
+  if (!confirm(`¿${nuevoEstado === 'confirmada' ? 'Confirmar' : 'Cancelar'} esta cita?`)) return
+
+  try {
+    const { error: updateError } = await supabase
+      .from('citasmascotas')
+      .update({ estado: nuevoEstado })
+      .eq('id', citaSeleccionada.value.id)
+
+    if (updateError) {
+      console.error('Error al actualizar:', updateError)
+      throw new Error('No se pudo actualizar la cita')
+    }
+
+    // Actualizar la cita en la lista principal
+    await loadCitas()
+    // Actualizar el estado en el modal
+    citaSeleccionada.value.estado = nuevoEstado
+  } catch (err) {
+    alert(err.message)
+  }
 }
 
 onMounted(() => {
@@ -677,6 +827,104 @@ onMounted(() => {
   background: #e2e8f0;
 }
 
+/* Estilos para el modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #1e293b;
+  background: #f1f5f9;
+  border-radius: 50%;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-item label {
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.detail-item span {
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.modal-footer {
+  padding: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 480px) {
   .citas-grid {
     grid-template-columns: 1fr;
@@ -694,6 +942,19 @@ onMounted(() => {
 
   .btn {
     width: 100%;
+    justify-content: center;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-footer {
     justify-content: center;
   }
 }
