@@ -64,6 +64,13 @@
     <!-- Botón agendar -->
     <button class="btn-primary" @click="agendar">Agendar Cita</button>
 
+    <!-- Botón para ver baucher -->
+    <div v-if="citaReciente" style="margin-top:1rem;">
+      <button class="btn-primary" @click="generarVoucher">
+        📄 Ver / Descargar Baucher
+      </button>
+    </div>
+
     <!-- Modal nueva mascota -->
     <ModalNuevaMascota
       v-if="mostrarModalMascota"
@@ -76,6 +83,7 @@
 <script>
 import { supabase } from '@/lib/supabaseClient'
 import ModalNuevaMascota from './ModalNuevaMascota.vue'
+import { generarVoucherCita } from './voucherService.js' // <-- misma carpeta
 
 export default {
   props: {
@@ -95,7 +103,8 @@ export default {
       horasDisponibles: [],
       mostrarModalMascota: false,
       fechaMin: '',
-      fechaMax: ''
+      fechaMax: '',
+      citaReciente: null // <--- Nueva propiedad
     }
   },
   async created() {
@@ -248,18 +257,39 @@ export default {
         return alert('Completa todos los campos')
       }
 
-      const { error } = await supabase.from('citasmascotas').insert([{
+      const { data, error } = await supabase.from('citasmascotas').insert([{
         usuario_id: user.user.id,
         mascota_id: this.mascotaId,
         veterinario_id: this.veterinarioId,
         servicio_id: this.servicioLocal,
         fecha: this.fecha,
         hora: this.hora,
-      }])
+      }]).select() // obtener registro insertado
 
       if (error) return alert('Error: ' + error.message)
+
+      // Guardamos la cita reciente para el baucher
+      this.citaReciente = data[0]
+
       alert('✅ Cita agendada correctamente')
-      this.$router.push({ name: 'Home' })
+      // Opcional: resetear campos si quieres
+      // this.servicioLocal = ''; this.veterinarioId = ''; ...
+    },
+
+   generarVoucher() {
+      if (!this.citaReciente) return;
+
+      const servicio = this.servicios.find(s => s.id === this.citaReciente.servicio_id);
+      const veterinario = this.veterinarios.find(v => v.id === this.citaReciente.veterinario_id);
+      const mascota = this.mascotas.find(m => m.id === this.citaReciente.mascota_id);
+
+      generarVoucherCita({
+        servicio,
+        veterinario,
+        mascota,
+        fecha: this.citaReciente.fecha,
+        hora: this.citaReciente.hora
+      });
     }
   }
 }
