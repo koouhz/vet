@@ -231,17 +231,6 @@ const filteredCitas = computed(() => {
 
 // Formateo
 const formatDate = (dateStr) => {
-<<<<<<< HEAD
-  // Forzar que se interprete como fecha "local" sin restar horas
-  const [year, month, day] = dateStr.split('-') // Asume formato YYYY-MM-DD
-  const date = new Date(Number(year), Number(month) - 1, Number(day)) // Crea fecha en zona local
-  return date.toLocaleDateString('es-ES', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short'
-  })
-}
-=======
   if (!dateStr) return "—";
 
   // 🔹 Separar año, mes y día de la BD
@@ -264,7 +253,6 @@ const formatDate = (dateStr) => {
   // 🔹 Ejemplo: "Domingo, 28 de septiembre de 2025"
   return `${diaNombre.charAt(0).toUpperCase() + diaNombre.slice(1)}, ${day} de ${mesNombre} de ${year}`;
 };
->>>>>>> b623939 (PDF)
 
 const formatTime = (timeStr) => {
   if (!timeStr) return "—";
