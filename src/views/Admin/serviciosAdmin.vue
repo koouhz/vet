@@ -101,7 +101,7 @@
               </div>
               <div class="info-row">
                 <span class="label">Especialidad:</span>
-                <span class="value">{{ servicio.especialidad_nombre || 'General' }}</span>
+                <span class="value">{{ getEspecialidadNombre(servicio.especialidad_id) }}</span>
               </div>
               <div class="info-row">
                 <span class="label">Duración:</span>
@@ -189,7 +189,7 @@
             </div>
             <div class="form-group">
               <label>Precio ($) *</label>
-                <input
+              <input
                 v-model="formServicio.precio"
                 type="number"
                 class="form-input"
@@ -252,20 +252,12 @@ const formServicio = ref({
   is_activo: true
 })
 
-// Handlers
-const handleCategoriaChange = (event) => {
-  selectedCategoria.value = event.target.value
-}
+// Handlers de filtros
+const handleCategoriaChange = (event) => selectedCategoria.value = event.target.value
+const handleActivoChange = (event) => selectedActivo.value = event.target.value
+const handleEspecialidadChange = (event) => selectedEspecialidad.value = event.target.value
 
-const handleActivoChange = (event) => {
-  selectedActivo.value = event.target.value
-}
-
-const handleEspecialidadChange = (event) => {
-  selectedEspecialidad.value = event.target.value
-}
-
-// Servicios filtrados
+// Filtrado de servicios
 const filteredServicios = computed(() => {
   return rawServicios.value.filter(servicio => {
     const matchCategoria = !selectedCategoria.value || servicio.categoria === selectedCategoria.value
@@ -277,7 +269,7 @@ const filteredServicios = computed(() => {
   })
 })
 
-// Formateo
+// Helpers
 const getCategoriaLabel = (categoria) => {
   const labels = {
     consulta: 'Consulta',
@@ -286,6 +278,13 @@ const getCategoriaLabel = (categoria) => {
     emergencia: 'Emergencia'
   }
   return labels[categoria] || categoria
+}
+
+// Mapeo confiable de especialidad
+const getEspecialidadNombre = (id) => {
+  if (!id) return 'General'
+  const esp = especialidades.value.find(e => e.id == id)
+  return esp ? esp.nombre : 'General'
 }
 
 const formatoMoneda = (valor) => {
@@ -300,53 +299,32 @@ const formatoMoneda = (valor) => {
 const loadServicios = async () => {
   isLoading.value = true
   error.value = null
-
   try {
-    // 1. Cargar especialidades
+    // 1. Especialidades
     const { data: espData, error: espError } = await supabase
       .from('especialidades')
       .select('id, nombre')
       .eq('is_activa', true)
-
-    if (espError) throw new Error('Error al cargar especialidades')
+    if (espError) throw espError
     especialidades.value = espData
 
-    // 2. Cargar servicios con relaciones
+    // 2. Servicios
     const { data: servsData, error: servsError } = await supabase
       .from('servicios')
-      .select(`
-        id,
-        titulo,
-        descripcion,
-        categoria,
-        duracion_minutos,
-        precio,
-        is_activo,
-        especialidad_id,
-        especialidades (nombre)
-      `)
+      .select('id, titulo, descripcion, categoria, duracion_minutos, precio, is_activo, especialidad_id')
       .order('titulo', { ascending: true })
-
-    if (servsError) {
-      console.error('Error al cargar servicios:', servsError)
-      throw new Error('Error al cargar servicios')
-    }
-
-    // 3. Combinar datos
-    rawServicios.value = servsData.map(serv => ({
-      ...serv,
-      especialidad_nombre: serv.especialidades?.[0]?.nombre || null
-    }))
+    if (servsError) throw servsError
+    rawServicios.value = servsData
 
   } catch (err) {
-    console.error('Error crítico:', err)
-    error.value = err.message || 'Error al cargar servicios. Inténtalo más tarde.'
+    console.error(err)
+    error.value = 'Error al cargar servicios. Inténtalo más tarde.'
   } finally {
     isLoading.value = false
   }
 }
 
-// Abrir modal crear
+// Modal
 const openCrearModal = () => {
   editingServicio.value = null
   formServicio.value = {
@@ -361,14 +339,12 @@ const openCrearModal = () => {
   showModal.value = true
 }
 
-// Editar servicio
 const editarServicio = (servicio) => {
   editingServicio.value = servicio
   formServicio.value = { ...servicio }
   showModal.value = true
 }
 
-// Cerrar modal
 const closeModal = () => {
   showModal.value = false
   editingServicio.value = null
@@ -384,49 +360,27 @@ const guardarServicio = async () => {
   isProcessing.value = true
 
   try {
-    let result
     if (editingServicio.value) {
-      // Actualizar
-      const updateData = {
-        titulo: formServicio.value.titulo,
-        descripcion: formServicio.value.descripcion,
-        categoria: formServicio.value.categoria,
-        especialidad_id: formServicio.value.especialidad_id || null,
-        duracion_minutos: formServicio.value.duracion_minutos,
-        precio: formServicio.value.precio,
-        is_activo: formServicio.value.is_activo
-      }
-
       const { error: updateError } = await supabase
         .from('servicios')
-        .update(updateData)
+        .update({ ...formServicio.value, especialidad_id: formServicio.value.especialidad_id || null })
         .eq('id', editingServicio.value.id)
-
       if (updateError) throw updateError
+      alert('Servicio actualizado correctamente')
     } else {
-      // Crear
       const { error: insertError } = await supabase
         .from('servicios')
-        .insert([{
-          titulo: formServicio.value.titulo,
-          descripcion: formServicio.value.descripcion,
-          categoria: formServicio.value.categoria,
-          especialidad_id: formServicio.value.especialidad_id || null,
-          duracion_minutos: formServicio.value.duracion_minutos,
-          precio: formServicio.value.precio,
-          is_activo: formServicio.value.is_activo
-        }])
-
+        .insert([{ ...formServicio.value, especialidad_id: formServicio.value.especialidad_id || null }])
       if (insertError) throw insertError
+      alert('Servicio creado correctamente')
     }
 
     await loadServicios()
     closeModal()
-    alert(editingServicio.value ? 'Servicio actualizado correctamente' : 'Servicio creado correctamente')
 
   } catch (err) {
-    console.error('Error al guardar servicio:', err)
-    alert('Error al guardar el servicio. Verifica los datos.')
+    console.error(err)
+    alert('Error al guardar el servicio')
   } finally {
     isProcessing.value = false
   }
@@ -435,18 +389,16 @@ const guardarServicio = async () => {
 // Toggle estado
 const toggleEstado = async (servicio) => {
   if (!confirm(`¿${servicio.is_activo ? 'Desactivar' : 'Activar'} "${servicio.titulo}"?`)) return
-
   try {
     const { error: updateError } = await supabase
       .from('servicios')
       .update({ is_activo: !servicio.is_activo })
       .eq('id', servicio.id)
-
     if (updateError) throw updateError
     await loadServicios()
   } catch (err) {
-    console.error('Error al cambiar estado:', err)
-    alert('Error al cambiar el estado del servicio')
+    console.error(err)
+    alert('Error al cambiar el estado')
   }
 }
 
@@ -454,7 +406,6 @@ onMounted(() => {
   loadServicios()
 })
 </script>
-
 <style scoped>
 /* Estilos coherentes con el dashboard admin */
 .servicios-admin-container {
@@ -875,4 +826,23 @@ input:checked + .slider:before {
     justify-content: center;
   }
 }
+/* --- Estilos para modal de creación/edición --- */
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+  color: #000 !important;       /* Texto negro */
+  background-color: #fff;       /* Fondo blanco para mejor contraste */
+  border: 1px solid #ccc;
+}
+
+.modal-content input::placeholder,
+.modal-content textarea::placeholder {
+  color: #666;                  /* Placeholder gris oscuro */
+}
+
+/* Ajuste para checkbox switch */
+.modal-content .switch input:checked + .slider {
+  background-color: #22c55e;    /* Verde al activar */
+}
+
 </style>
