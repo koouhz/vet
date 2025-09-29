@@ -1,6 +1,5 @@
 <template>
   <div class="productos-cliente-container">
-    <!-- Header con carrito -->
     <header class="productos-header">
       <div class="header-content">
         <h1>Productos</h1>
@@ -13,7 +12,6 @@
       </div>
     </header>
 
-    <!-- Filtros y búsqueda -->
     <div class="filters-section">
       <div class="search-box">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,7 +45,8 @@
       </div>
     </div>
 
-    <!-- Productos -->
+
+
     <div class="productos-grid">
       <div
         v-for="producto in filteredProductos"
@@ -58,12 +57,12 @@
         <div class="producto-header">
           <h3 class="producto-nombre">{{ producto.nombre }}</h3>
           <span class="stock-indicator" :class="{ 'stock-bajo': producto.stock <= 5, 'stock-agotado': producto.stock === 0 }">
-            {{ producto.stock === 0 ? 'Agotado' : `${producto.stock} ${producto.unidad_medida}` }}
+            {{ producto.stock === 0 ? 'Agotado' : producto.stock + ' ' + producto.unidad_medida }}
           </span>
         </div>
 
         <div class="producto-body">
-          <div class="categoria-badge" :class="`categoria-${producto.categoria}`">
+          <div class="categoria-badge" :class="'categoria-' + producto.categoria">
             {{ getCategoriaLabel(producto.categoria) }}
           </div>
 
@@ -108,7 +107,6 @@
       </div>
     </div>
 
-    <!-- Carrito modal -->
     <div v-if="showCarrito" class="carrito-overlay" @click="toggleCarrito">
       <div class="carrito-content" @click.stop>
         <div class="carrito-header">
@@ -158,7 +156,7 @@
                   @click="eliminarDelCarrito(producto.id)"
                   class="eliminar-btn"
                 >
-                  ×
+                  &times;
                 </button>
               </div>
             </div>
@@ -176,7 +174,82 @@
         </div>
       </div>
     </div>
-  </div>
+    <div v-if="showPaymentModal" class="carrito-overlay" @click="showPaymentModal = false">
+      <div class="carrito-content pago-modal" @click.stop>
+        <div class="carrito-header">
+          <h2>Simulación de Pago</h2>
+          <button @click="showPaymentModal = false" class="close-btn">&times;</button>
+        </div>
+
+        <div class="pago-body">
+          <div class="total-a-pagar">
+            <span>Total a pagar:</span>
+            <span class="total-precio">{{ formatoMoneda(totalPrecio) }}</span>
+          </div>
+
+          <h3 class="metodo-title">Selecciona el método de pago</h3>
+          <div class="metodo-grid">
+            <button 
+              @click="paymentMethod = 'qr'" 
+              :class="['metodo-btn', { 'selected': paymentMethod === 'qr' }]"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h3v3H7zM14 7h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z"/></svg>
+              <span>Pago QR</span>
+            </button>
+            <button 
+              @click="paymentMethod = 'card'" 
+              :class="['metodo-btn', { 'selected': paymentMethod === 'card' }]"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22M7 15h.01M11 15h2"/></svg>
+              <span>Tarjeta de Crédito/Débito</span>
+            </button>
+          </div>
+
+          <div class="metodo-detalle">
+            <div v-if="paymentMethod === 'qr'" class="qr-content">
+              <p class="instruccion">Escanea el siguiente código QR para completar tu pago de **{{ formatoMoneda(totalPrecio) }}**.</p>
+              <div class="qr-code-placeholder">
+                
+              </div>
+              <p class="disclaimer">Simulación: No se realizará un cargo real.</p>
+            </div>
+
+            <form v-if="paymentMethod === 'card'" @submit.prevent="confirmPayment" class="card-form">
+              <p class="instruccion">Ingresa los detalles de tu tarjeta para el pago de **{{ formatoMoneda(totalPrecio) }}**.</p>
+              <div class="form-group">
+                <label for="cardNumber">Número de tarjeta</label>
+                <input type="text" id="cardNumber" placeholder="XXXX XXXX XXXX XXXX" required maxlength="16" />
+              </div>
+              <div class="form-group-row">
+                <div class="form-group">
+                  <label for="expiry">Fecha de expiración</label>
+                  <input type="text" id="expiry" placeholder="MM/YY" required maxlength="5" />
+                </div>
+                <div class="form-group">
+                  <label for="cvc">CVC</label>
+                  <input type="text" id="cvc" placeholder="XXX" required maxlength="3" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="cardName">Nombre en la tarjeta</label>
+                <input type="text" id="cardName" required />
+              </div>
+            </form>
+          </div>
+        </div>
+        
+        <div class="carrito-footer">
+          <button 
+            @click="confirmPayment" 
+            :disabled="!paymentMethod"
+            class="checkout-btn"
+          >
+            Pagar {{ formatoMoneda(totalPrecio) }}
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
 </template>
 
 <script setup>
@@ -190,6 +263,9 @@ const selectedCategoria = ref('')
 const selectedStock = ref('')
 const carrito = ref({})
 const showCarrito = ref(false)
+// 🚀 NUEVO ESTADO PARA EL PAGO
+const showPaymentModal = ref(false)
+const paymentMethod = ref(null) // 'qr' o 'card'
 
 // Cargar productos
 const loadProductos = async () => {
@@ -311,19 +387,34 @@ const toggleCarrito = () => {
   showCarrito.value = !showCarrito.value
 }
 
-// Procesar compra
-const procesarCompra = async () => {
+// Procesar compra (Ahora solo abre el modal de pago)
+const procesarCompra = () => {
   if (Object.keys(carrito.value).length === 0) return
+  showCarrito.value = false // Cerrar el carrito
+  showPaymentModal.value = true // Abrir el modal de pago
+}
 
-  if (!confirm('¿Deseas procesar esta compra?')) return
+// 🚀 NUEVA FUNCIÓN PARA CONFIRMAR EL PAGO
+const confirmPayment = async () => {
+  if (!paymentMethod.value) {
+    alert('Por favor, selecciona un método de pago: QR o Tarjeta.')
+    return
+  }
+  
+  // Aquí se ejecutaría la lógica de pago real (validaciones de formulario, llamada a API)
+  // Por ahora, es solo una simulación:
 
   try {
-    // Aquí iría la lógica para crear una venta en tu tabla `ventas`
-    // y actualizar el stock en `productos`
+    // Simulación: Lógica para crear venta y actualizar stock
+    
+    // Aquí podrías agregar un spinner si fuera una llamada real asíncrona
 
-    alert('¡Compra procesada exitosamente!')
+    alert(`¡Pago de ${formatoMoneda(totalPrecio.value)} procesado exitosamente por ${paymentMethod.value === 'qr' ? 'QR' : 'Tarjeta'}!`)
+    
+    // Limpiar estado y actualizar
     carrito.value = {}
-    showCarrito.value = false
+    paymentMethod.value = null
+    showPaymentModal.value = false
     await loadProductos() // Recargar para actualizar stock
 
   } catch (error) {
@@ -332,12 +423,14 @@ const procesarCompra = async () => {
   }
 }
 
+
 onMounted(() => {
   loadProductos()
 })
 </script>
 
 <style scoped>
+/* Estilos existentes... */
 .productos-cliente-container {
   min-height: 100vh;
   background-color: #f8fafc;
@@ -777,6 +870,143 @@ onMounted(() => {
 
 .checkout-btn:hover {
   background: #0f4c28;
+}
+
+/* 🚀 NUEVOS ESTILOS PARA EL MODAL DE PAGO 🚀 */
+
+.pago-modal {
+    max-width: 450px;
+}
+
+.total-a-pagar {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.total-a-pagar .total-precio {
+    color: #145a32;
+    font-size: 1.5rem;
+}
+
+.metodo-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.metodo-grid {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.metodo-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.metodo-btn:hover {
+    border-color: #94a3b8;
+}
+
+.metodo-btn.selected {
+    border-color: #145a32;
+    background: #dcfce7;
+    color: #145a32;
+    box-shadow: 0 0 0 2px #dcfce7;
+}
+
+.metodo-btn svg {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 0.5rem;
+}
+
+.metodo-detalle {
+    min-height: 150px; /* Para mantener el layout estable */
+    padding: 1rem 0;
+}
+
+.instruccion {
+    text-align: center;
+    color: #475569;
+    margin-bottom: 1rem;
+}
+
+.qr-code-placeholder {
+    width: 150px;
+    height: 150px;
+    margin: 1rem auto;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.disclaimer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #ef4444;
+    margin-top: 1rem;
+}
+
+/* Card Form Styles */
+.card-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.card-form label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.25rem;
+}
+
+.card-form input {
+    width: 100%;
+    padding: 0.65rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.card-form input:focus {
+    border-color: #145a32;
+    outline: none;
+}
+
+.form-group-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-group-row .form-group {
+    flex: 1;
 }
 
 /* Responsive */

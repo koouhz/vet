@@ -1,27 +1,28 @@
 <template>
   <div class="servicios">
-    <!-- Sección principal -->
     <section class="hero">
       <h1>Servicios disponibles</h1>
       <p>
-        Estos son todos los servicios ofrecidos por la veterinaria.
+        Estos son todos los servicios ofrecidos por la veterinaria que cuentan con personal asignado.
         Puedes revisar la lista completa y luego agendar una cita.
       </p>
     </section>
 
-    <!-- Lista de servicios -->
     <section class="services-list">
       <div
         class="service-item"
-        v-for="servicio in servicios"
+        v-for="servicio in serviciosConVeterinario"
         :key="servicio.id"
       >
-        <img :src="servicio.foto_url" :alt="servicio.titulo" />
+        <img :src="servicio.foto_url || '/placeholder-service.jpg'" :alt="servicio.titulo" />
         <div class="service-content">
           <h3>{{ servicio.titulo }}</h3>
-          <p>{{ servicio.descripcion }}</p>
+          <p>
+            {{ servicio.descripcion 
+                ? servicio.descripcion.substring(0, 100) + (servicio.descripcion.length > 100 ? '...' : '') 
+                : 'Sin descripción.' }}
+          </p>
 
-          <!-- Veterinarios disponibles -->
           <div v-if="servicio.servicios_veterinarios?.length">
             <h4>Veterinarios disponibles:</h4>
             <div class="vet-cards">
@@ -37,21 +38,14 @@
               </div>
             </div>
           </div>
-          <div v-else>
-            <div class="no-vet-card">
-              Sin veterinarios asignados por ahora
-            </div>
           </div>
-        </div>
       </div>
 
-      <!-- Mensaje si no hay servicios -->
-      <div v-if="servicios.length === 0" class="no-services">
-        <p>🚫 No hay servicios disponibles en este momento</p>
+      <div v-if="serviciosConVeterinario.length === 0" class="no-services">
+        <p>🚫 No hay servicios disponibles con veterinarios asignados en este momento.</p>
       </div>
     </section>
 
-    <!-- Botón único para agendar -->
     <div class="agendar-btn-container">
       <button class="btn-primary" @click="irAgendarCita">
         Agendar cita
@@ -62,17 +56,31 @@
 
 <script>
 import { supabase } from '@/lib/supabaseClient'
+import { computed } from 'vue'; // Importar 'computed'
 
 export default {
   name: 'ServiciosView',
+  // Usaremos la Options API (como estaba) pero podemos usar 'computed' dentro
   data() {
     return {
       servicios: []
     }
   },
+  
+  // MODIFICACIÓN CLAVE 3: Propiedad computada para filtrar
+  computed: {
+    serviciosConVeterinario() {
+      // Retorna solo los servicios donde la relación 'servicios_veterinarios' existe y tiene elementos.
+      return this.servicios.filter(servicio => 
+        servicio.servicios_veterinarios && servicio.servicios_veterinarios.length > 0
+      )
+    }
+  },
+
   async created() {
     await this.cargarServicios()
   },
+  
   methods: {
     async cargarServicios() {
       try {
