@@ -304,15 +304,16 @@ const loadVeterinarios = async () => {
     if (espError) throw new Error('Error al cargar especialidades')
     especialidades.value = espData || []
 
-    // 2. Cargar usuarios con rol cliente
-    const { data: usuariosData, error: usuariosError } = await supabase
-      .from('usuarios')
-      .select('id, nombre_completo, email')
-      .eq('rol', 'cliente')
-      .eq('is_activo', true)
+    // 2. Cargar usuarios con rol veterinario
+const { data: usuariosData, error: usuariosError } = await supabase
+  .from('usuarios')
+  .select('id, nombre_completo, email')
+  .eq('rol', 'veterinario')
+  .eq('is_activo', true)
 
-    if (usuariosError) throw new Error('Error al cargar usuarios')
-    usuariosClientes.value = usuariosData || []
+if (usuariosError) throw new Error('Error al cargar usuarios')
+usuariosClientes.value = usuariosData || []
+
 
     // 3. Cargar veterinarios
     const { data: vetsData, error: vetsError } = await supabase
@@ -402,7 +403,28 @@ const guardarVeterinario = async () => {
   isProcessing.value = true
 
   try {
+    let vetId = null
+
+    // ===== VALIDAR DUPLICADO =====
+    if (!editingVet.value) {
+      // Verificar si ya existe un veterinario con ese usuario
+      const { data: existingVet, error: checkError } = await supabase
+        .from('veterinarios')
+        .select('id')
+        .eq('usuario_id', formVet.value.usuario_id)
+        .single() // devuelve 1 solo registro o null
+
+      if (checkError && checkError.code !== 'PGRST116') throw checkError
+      if (existingVet) {
+        alert('Este usuario ya tiene un perfil de veterinario')
+        isProcessing.value = false
+        return
+      }
+    }
+    // ===============================
+
     if (editingVet.value) {
+      // Actualizar veterinario existente
       const { error: updateError } = await supabase
         .from('veterinarios')
         .update({
@@ -415,7 +437,10 @@ const guardarVeterinario = async () => {
         .eq('id', editingVet.value.id)
 
       if (updateError) throw updateError
+      vetId = editingVet.value.id
+
     } else {
+      // Crear nuevo veterinario
       const { data: newVet, error: insertError } = await supabase
         .from('veterinarios')
         .insert([{
@@ -429,13 +454,7 @@ const guardarVeterinario = async () => {
         .select()
 
       if (insertError) throw insertError
-
-      const { error: updateRolError } = await supabase
-        .from('usuarios')
-        .update({ rol: 'veterinario' })
-        .eq('id', formVet.value.usuario_id)
-
-      if (updateRolError) throw updateRolError
+      vetId = newVet[0].id
     }
 
     await loadVeterinarios()
@@ -449,6 +468,7 @@ const guardarVeterinario = async () => {
     isProcessing.value = false
   }
 }
+
 
 // Toggle estado
 const toggleEstado = async (vet) => {
@@ -1031,4 +1051,22 @@ input:checked + .slider:before {
     justify-content: center;
   }
 }
+/* Forzar color negro en todo el modal */
+.modal-content,
+.modal-content label,
+.modal-content p,
+.modal-content span,
+.modal-content input,
+.modal-content select,
+.modal-content textarea,
+.modal-content button {
+  color: #000000 !important;
+}
+
+/* Asegurarse que los placeholders también se vean negros */
+.modal-content ::placeholder {
+  color: #000000 !important;
+  opacity: 1;
+}
+
 </style>
