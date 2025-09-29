@@ -18,7 +18,6 @@
             :value="selectedDate"
             @input="handleDateInput"
             class="date-input"
-            :max="today"
           />
         </div>
         <div class="filter-item">
@@ -116,9 +115,56 @@
               >
                 Cancelar
               </button>
-              <button @click="viewCitaDetails(cita.id)" class="btn btn--outline">
+              <!-- Botón dentro de tu cita-card -->
+              <button @click="openModal(cita)" class="btn btn--outline">
                 Ver
               </button>
+
+              <!-- Modal flotante -->
+              <div v-if="modalVisible" class="modal-overlay">
+                <div class="modal-window">
+                  <div class="modal-header">
+                    <h3>Detalle de la Cita</h3>
+                    <button class="modal-close" @click="closeModal">&times;</button>
+                  </div>
+
+                  <div class="modal-body">
+                    <p><strong>Fecha:</strong> {{ formatDate(selectedCita.fecha) }}</p>
+                    <p><strong>Hora:</strong> {{ formatTime(selectedCita.hora) }}</p>
+                    <p><strong>Estado:</strong> {{ getEstadoLabel(selectedCita.estado) }}</p>
+
+                    <hr />
+
+                    <p><strong>Mascota:</strong> {{ selectedCita.mascota_nombre || '—' }}</p>
+                    <p v-if="selectedCita.mascota_raza"><strong>Raza:</strong> {{ selectedCita.mascota_raza }}</p>
+                    <p v-if="selectedCita.mascota_edad"><strong>Edad:</strong> {{ selectedCita.mascota_edad }} años</p>
+
+                    <hr />
+
+                    <p><strong>Dueño:</strong> {{ selectedCita.usuario_nombre || '—' }}</p>
+                    <p v-if="selectedCita.usuario_contacto"><strong>Contacto:</strong> {{ selectedCita.usuario_contacto }}</p>
+
+                    <hr />
+
+                    <p><strong>Servicio:</strong> {{ selectedCita.servicio_titulo || '—' }}</p>
+
+                    <p v-if="selectedCita.observaciones"><strong>Notas:</strong> {{ selectedCita.observaciones }}</p>
+                  </div>
+
+                  <div class="modal-footer">
+                    <button
+                      v-if="selectedCita.estado === 'programada' || selectedCita.estado === 'confirmada'"
+                      @click="updateCita(selectedCita.id, 'completada')"
+                      class="btn btn--success"
+                    >Completar</button>
+                    <button
+                      v-if="selectedCita.estado === 'programada'"
+                      @click="updateCita(selectedCita.id, 'cancelada')"
+                      class="btn btn--danger"
+                    >Cancelar</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -143,6 +189,8 @@ const error = ref(null)
 const rawCitas = ref([])
 const selectedDate = ref('')
 const selectedStatus = ref('')
+const modalVisible = ref(false)
+const selectedCita = ref({})
 
 // Constantes
 const today = new Date().toISOString().split('T')[0]
@@ -152,6 +200,15 @@ const estadoLabels = {
   completada: 'Completada',
   cancelada: 'Cancelada',
   no_asistio: 'No asistió'
+}
+const openModal = (cita) => {
+  selectedCita.value = cita
+  modalVisible.value = true
+}
+
+const closeModal = () => {
+  modalVisible.value = false
+  selectedCita.value = {}
 }
 
 // Handlers
@@ -174,18 +231,33 @@ const filteredCitas = computed(() => {
 
 // Formateo
 const formatDate = (dateStr) => {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short'
-  })
-}
+  if (!dateStr) return "—";
+
+  // 🔹 Separar año, mes y día de la BD
+  const [year, month, day] = dateStr.split("-");
+
+  // 🔹 Crear objeto Date
+  const date = new Date(year, month - 1, day);
+
+  // 🔹 Días y meses en español
+  const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+  const meses = [
+    "enero","febrero","marzo","abril","mayo","junio",
+    "julio","agosto","septiembre","octubre","noviembre","diciembre"
+  ];
+
+  // 🔹 Construir el formato
+  const diaNombre = diasSemana[date.getDay()];
+  const mesNombre = meses[date.getMonth()];
+
+  // 🔹 Ejemplo: "Domingo, 28 de septiembre de 2025"
+  return `${diaNombre.charAt(0).toUpperCase() + diaNombre.slice(1)}, ${day} de ${mesNombre} de ${year}`;
+};
 
 const formatTime = (timeStr) => {
-  if (!timeStr) return '—'
-  const [h, m] = timeStr.split(':')
-  return `${h}:${m}`
-}
+  if (!timeStr) return "—";
+  return timeStr.slice(0, 5); // HH:mm
+};
 
 const getEstadoLabel = (estado) => {
   return estadoLabels[estado] || estado
@@ -636,4 +708,72 @@ onMounted(() => {
     justify-content: center;
   }
 }
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-window {
+  background: #fff;
+  width: 450px;
+  max-width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: popIn 0.3s ease;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #145a32;
+  color: #fff;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #fff;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  color: #1e293b;
+}
+
+.modal-body hr {
+  margin: 1rem 0;
+  border: 0.5px solid #e2e8f0;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: #f9fafb;
+}
+
 </style>
