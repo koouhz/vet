@@ -108,10 +108,13 @@
 // - Filtra por cliente_id, producto_id y rango de fechas
 // - Exporta CSV (rápido) y muestra la tabla.
 // ------------------------------
+// ------------------------------
+// NotasVenta.vue (SIN VISTAS)
+// ------------------------------
 
 import { ref, onMounted } from 'vue'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
-import { supabase } from '@/lib/supabaseClient' // tu cliente supabase
+import { supabase } from '@/lib/supabaseClient'
 
 // Estado reactivo (data)
 const filtros = ref({
@@ -127,7 +130,7 @@ const errores = ref(null)
 const clientes = ref([])
 const productos = ref([])
 
-// Cargar listas para los selects
+// Cargar listas para los selects (esta parte no cambia)
 const cargarListas = async () => {
   // Traer clientes (usuarios con rol 'cliente')
   const { data: cli, error: errCli } = await supabase
@@ -156,60 +159,70 @@ const cargarListas = async () => {
   }
 }
 
-// Construye y ejecuta la consulta a la vista con los filtros
+// Construye y ejecuta la consulta CON UNIONES DIRECTAS (la clave)
 const aplicarFiltros = async () => {
   cargando.value = true
   errores.value = null
   resultados.value = []
 
   try {
-    // Si tu vista no incluye usuario_id / producto_id / estado, revisa la sección SQL que te dejé arriba.
+    // 1. Definir las uniones (JOINs) y seleccionar los campos necesarios.
+    // Usamos '*' en 'detalle_venta' y seleccionamos campos específicos de las tablas relacionadas.
     let query = supabase
-      .from('vista_reporte_ventas') // LA VISTA que devuelve los campos de venta
-      .select('*')                   // seleccionar todas las columnas de la vista
+      .from('detalle_venta')
+      .select(`
+        *,
+        producto:productos (nombre),
+        venta:ventas (fecha, total, estado, usuario:usuarios (nombre_completo))
+      `)
 
-    // Filtrar por cliente (usuario_id) si existe
-    if (filtros.value.cliente_id) {
-      query = query.eq('usuario_id', filtros.value.cliente_id)
-    }
+    // 2. Aplicar filtros.
 
-    // Filtrar por producto si existe
+    // A. Filtrar por ID de Producto (filtro directo en detalle_venta)
     if (filtros.value.producto_id) {
       query = query.eq('producto_id', filtros.value.producto_id)
     }
 
-    // Filtrar por rango de fechas (fecha_venta)
+    // B. Filtrar por ID de Cliente (se aplica indirectamente a través de la relación 'venta.usuario')
+    if (filtros.value.cliente_id) {
+        // En Supabase, para filtrar por una columna dentro de una relación, se usa el formato: relación.columna.eq
+        query = query.eq('venta.usuario_id', filtros.value.cliente_id);
+    }
+
+    // C. Filtrar por rango de fechas (se aplica indirectamente a través de la relación 'venta.fecha')
     if (filtros.value.fecha_inicio) {
-      // >= fecha_inicio 00:00:00
-      query = query.gte('fecha_venta', filtros.value.fecha_inicio)
+        query = query.gte('venta.fecha', filtros.value.fecha_inicio)
     }
     if (filtros.value.fecha_fin) {
-      // <= fecha_fin 23:59:59 (añadimos tiempo final para incluir todo el día)
-      const fechaFin = `${filtros.value.fecha_fin}T23:59:59Z`
-      query = query.lte('fecha_venta', fechaFin)
+        const fechaFin = `${filtros.value.fecha_fin}T23:59:59Z`
+        query = query.lte('venta.fecha', fechaFin)
     }
 
-    // Ordenar por fecha desc
-    query = query.order('fecha_venta', { ascending: false })
+    // D. Ordenar por fecha de la venta
+    query = query.order('fecha', { foreignTable: 'venta', ascending: false })
 
-    // Ejecutar
+    // 3. Ejecutar
     const { data, error } = await query
 
     if (error) throw error
 
-    // Mapear columnas al formato que usa tu template (nombres en la vista)
+    // 4. Mapear los datos al formato del template
     resultados.value = (data || []).map(r => ({
-      venta_id: r.venta_id,
-      usuario_id: r.usuario_id,
-      nombre_cliente: r.nombre_cliente,
+      // Datos del detalle de la venta (fila)
       producto_id: r.producto_id,
-      nombre_item: r.nombre_item,
-      cantidad_vendida: r.cantidad_vendida,
+      nombre_item: r.producto?.nombre, // Usando la relación 'producto'
+      cantidad_vendida: r.cantidad,
       precio_unitario: r.precio_unitario,
-      total_item: r.total_item,
-      total_venta: r.total_venta,
-      fecha_venta: r.fecha_venta,
-      estado_venta: r.estado_venta // este campo depende de la vista; si no existe, quedará undefined
+      total_item: r.subtotal,
+
+      // Datos de la venta (encabezado)
+      venta_id: r.venta_id,
+      total_venta: r.venta?.total, // Usando la relación 'venta'
+      fecha_venta: r.venta?.fecha,
+      estado_venta: r.venta?.estado,
+
+      // Datos del cliente (a través de venta)
+      nombre_cliente: r.venta?.usuario?.nombre_completo, // Usando la doble relación
     }))
 
   } catch (err) {
@@ -220,7 +233,7 @@ const aplicarFiltros = async () => {
   }
 }
 
-// Reset filtros
+// Reset filtros (sin cambios)
 const resetFiltros = () => {
   filtros.value = {
     cliente_id: '',
@@ -232,12 +245,11 @@ const resetFiltros = () => {
   errores.value = null
 }
 
-// Formateo helper
+// Formateo helper (sin cambios)
 const formatearValor = (valor, tipo) => {
   if (valor == null || valor === '') return '—'
   if (tipo === 'fecha') {
     const d = new Date(valor)
-    // Si la fecha no es válida, devolver el raw
     if (isNaN(d.getTime())) return String(valor)
     return d.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
   }
@@ -249,37 +261,39 @@ const formatearValor = (valor, tipo) => {
   return String(valor)
 }
 
-// Exportar CSV (útil y rápido)
+// Exportar CSV (sin cambios)
 const exportarCSV = () => {
-  if (!resultados.value.length) return
+  // ... lógica de exportación ... (la misma que ya tienes)
+    if (!resultados.value.length) return
 
-  const keys = Object.keys(resultados.value[0])
-  const csvRows = []
-  csvRows.push(keys.join(','))
+    const keys = [
+        "nombre_cliente", "nombre_item", "cantidad_vendida", "precio_unitario",
+        "total_item", "total_venta", "fecha_venta", "estado_venta"
+    ]
+    const csvRows = []
+    csvRows.push(keys.join(','))
 
-  resultados.value.forEach(row => {
-    const vals = keys.map(k => {
-      const v = row[k] == null ? '' : String(row[k]).replace(/"/g, '""')
-      return `"${v}"`
+    resultados.value.forEach(row => {
+        const vals = keys.map(k => {
+            const v = row[k] == null ? '' : String(row[k]).replace(/"/g, '""')
+            return `"${v}"`
+        })
+        csvRows.push(vals.join(','))
     })
-    csvRows.push(vals.join(','))
-  })
 
-  const csvString = csvRows.join('\n')
-  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `notas_venta_${new Date().toISOString().slice(0,10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+    const csvString = csvRows.join('\n')
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `notas_venta_${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
 }
 
-// Ejecutar al montar
+// Ejecutar al montar (sin cambios)
 onMounted(() => {
   cargarListas()
-  // opcional: ejecutar la primera carga sin filtros
-  // aplicarFiltros()
 })
 </script>
 
