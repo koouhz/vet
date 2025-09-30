@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 
 // --- Datos Simulado de Base de Datos (Vistas) ---
+// NOTA: Mantuve los datos de ejemplo y la lógica de simulación
 const mockReporteVentas = [
   { id: 101, cliente: "Juan Pérez", fecha: "2025-09-01", total: 450.00, item: "Alimento Premium 15kg", veterinario: "Dr. Ana Gómez" },
   { id: 102, cliente: "María López", fecha: "2025-09-02", total: 120.50, item: "Vacuna Triple Felina", veterinario: "Dr. Luis Torres" },
@@ -97,48 +98,60 @@ const handleExecuteCitas = async () => {
     const data = await executeSearch('Citas Programadas', filterParamsCitas.value, mockReporteCitas);
     citasData.value = data;
 };
+
+// Función para obtener las cabeceras de la tabla
+const getHeaders = (data) => {
+    return data && data.length > 0 ? Object.keys(data[0]) : [];
+};
+
+// Función para formatear el título de las cabeceras (e.g., tipoAtencion -> TIPO ATENCION)
+const formatHeader = (header) => {
+    return header.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+};
 </script>
 
 <template>
-    <div class="max-w-7xl mx-auto min-h-screen bg-gray-50 p-4 sm:p-8 font-sans">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
+    <!-- Contenedor principal ajustado para ser flexible y responsive -->
+    <!-- Quitamos max-w-7xl mx-auto para que se adapte al ancho disponible por el sidebar -->
+    <div class="min-h-screen bg-gray-50 p-4 sm:p-6 font-sans">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4 sm:mb-6 flex items-center">
             <!-- Icono FileText simulado -->
-            <svg class="w-7 h-7 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            <svg class="w-6 h-6 sm:w-7 sm:h-7 mr-2 sm:mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
             Módulo de Reportes de Gestión
         </h1>
-        <p class="text-gray-500 mb-8">Selecciona la vista de reporte que deseas ejecutar y aplica los filtros necesarios.</p>
+        <p class="text-sm sm:text-base text-gray-500 mb-6">Selecciona la vista de reporte que deseas ejecutar y aplica los filtros necesarios.</p>
 
         <!-- --- Control de Pestañas (Tabs) --- -->
-        <div class="border-b border-gray-200">
-            <nav class="-mb-px flex space-x-4 sm:space-x-8" aria-label="Tabs">
+        <div class="border-b border-gray-200 overflow-x-auto">
+            <nav class="-mb-px flex space-x-2 sm:space-x-4 min-w-max" aria-label="Tabs">
                 <button
-                    :class="['flex items-center space-x-2 py-3 px-6 text-sm font-medium transition-colors duration-200 border-b-2 rounded-t-lg',
+                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
                             activeTab === 'ventas'
                             ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
                             : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
                     @click="activeTab = 'ventas'"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.485 0-4.5 2.015-4.5 4.5S9.515 17 12 17s4.5-2.015 4.5-4.5S14.485 8 12 8z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M3 21h18M12 3v18"></path></svg>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.485 0-4.5 2.015-4.5 4.5S9.515 17 12 17s4.5-2.015 4.5-4.5S14.485 8 12 8z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M3 21h18M12 3v18"></path></svg>
                     <span>1. Notas de Venta</span>
                 </button>
                 <button
-                    :class="['flex items-center space-x-2 py-3 px-6 text-sm font-medium transition-colors duration-200 border-b-2 rounded-t-lg',
+                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
                             activeTab === 'historico'
                             ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
                             : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
                     @click="activeTab = 'historico'"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-6.168 0-10 4-10 7h20c0-3-3.832-7-10-7z"></path></svg>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-6.168 0-10 4-10 7h20c0-3-3.832-7-10-7z"></path></svg>
                     <span>2. Historial Veterinario</span>
                 </button>
                 <button
-                    :class="['flex items-center space-x-2 py-3 px-6 text-sm font-medium transition-colors duration-200 border-b-2 rounded-t-lg',
+                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
                             activeTab === 'citas'
                             ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
                             : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
                     @click="activeTab = 'citas'"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     <span>3. Citas Programadas</span>
                 </button>
             </nav>
@@ -163,18 +176,19 @@ const handleExecuteCitas = async () => {
                 <!-- Reporte 1: Notas de Venta -->
                 <div v-if="activeTab === 'ventas'">
                     <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
+                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             Filtros de Búsqueda para Notas de Venta
                         </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Grid responsivo: 1 columna en móvil, 2 en tablet/sm, 4 en desktop/lg -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <!-- Cliente (Búsqueda) -->
                             <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Cliente (Búsqueda)</label>
+                                <label class="text-sm font-medium text-gray-700 mb-1">Cliente</label>
                                 <input
                                     type="text"
                                     v-model="filterParamsVentas.cliente"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
                                     placeholder="Buscar por cliente"
                                 />
                             </div>
@@ -184,7 +198,7 @@ const handleExecuteCitas = async () => {
                                 <input
                                     type="date"
                                     v-model="filterParamsVentas.fechaInicio"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
                                 />
                             </div>
                             <!-- Fecha de Fin -->
@@ -193,7 +207,7 @@ const handleExecuteCitas = async () => {
                                 <input
                                     type="date"
                                     v-model="filterParamsVentas.fechaFin"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
                                 />
                             </div>
                             <!-- Ítem Vendido (Select) -->
@@ -202,7 +216,7 @@ const handleExecuteCitas = async () => {
                                 <div class="relative">
                                     <select
                                     v-model="filterParamsVentas.item"
-                                    class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800"
+                                    class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800"
                                     >
                                     <option value="">Seleccione...</option>
                                     <option v-for="opt in itemOptions" :key="opt" :value="opt">{{ opt }}</option>
@@ -215,27 +229,29 @@ const handleExecuteCitas = async () => {
 
                     <button
                         @click="handleExecuteVentas"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6"
+                        :disabled="loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
                     >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         Ejecutar Búsqueda y Generar Reporte
                     </button>
 
                     <!-- Resultados de la Tabla -->
-                    <div class="bg-white p-6 rounded-xl shadow-lg mt-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Notas de Venta ({{ ventasData.length }} registros)</h3>
+                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Notas de Venta ({{ ventasData.length }} registros)</h3>
+                        <!-- El contenedor overflow-x-auto asegura que la tabla sea desplazable horizontalmente en pantallas pequeñas -->
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th v-for="header in Object.keys(ventasData.length > 0 ? ventasData[0] : {})" :key="header" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ header.replace(/([A-Z])/g, ' $1').trim().toUpperCase() }}
+                                    <th v-for="header in getHeaders(ventasData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {{ formatHeader(header) }}
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(row, index) in ventasData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in Object.keys(ventasData.length > 0 ? ventasData[0] : {})" :key="header" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td v-for="header in getHeaders(ventasData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <span v-if="header === 'total'">\${{ row[header].toFixed(2) }}</span>
                                         <span v-else>{{ row[header] }}</span>
                                     </td>
@@ -249,33 +265,32 @@ const handleExecuteCitas = async () => {
 
                 <!-- Reporte 2: Historial Veterinario -->
                 <div v-if="activeTab === 'historico'">
-                    <!-- El resto del código para Historial Veterinario va aquí... (similar a Ventas) -->
                     <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
+                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             Filtros de Búsqueda para Historial Veterinario
                         </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <!-- Cliente (Dueño) -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Cliente (Dueño)</label>
-                                <input type="text" v-model="filterParamsHistorico.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
+                                <input type="text" v-model="filterParamsHistorico.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
                             </div>
                             <!-- Fecha de Inicio -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
-                                <input type="date" v-model="filterParamsHistorico.fechaInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
+                                <input type="date" v-model="filterParamsHistorico.fechaInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
                             </div>
                             <!-- Fecha de Fin -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
-                                <input type="date" v-model="filterParamsHistorico.fechaFin" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
+                                <input type="date" v-model="filterParamsHistorico.fechaFin" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
                             </div>
                             <!-- Tipo de Atención (Select) -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Tipo de Atención</label>
                                 <div class="relative">
-                                    <select v-model="filterParamsHistorico.tipoAtencion" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
+                                    <select v-model="filterParamsHistorico.tipoAtencion" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
                                         <option value="">Seleccione...</option>
                                         <option v-for="opt in atencionOptions" :key="opt" :value="opt">{{ opt }}</option>
                                     </select>
@@ -284,25 +299,29 @@ const handleExecuteCitas = async () => {
                             </div>
                         </div>
                     </div>
-                    <button @click="handleExecuteHistorico" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <button
+                        @click="handleExecuteHistorico"
+                        :disabled="loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                    >
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         Ejecutar Búsqueda y Generar Reporte
                     </button>
                     <!-- Resultados de la Tabla Historial -->
-                    <div class="bg-white p-6 rounded-xl shadow-lg mt-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Historial Veterinario ({{ historicoData.length }} registros)</h3>
+                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Historial Veterinario ({{ historicoData.length }} registros)</h3>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th v-for="header in Object.keys(historicoData.length > 0 ? historicoData[0] : {})" :key="header" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ header.replace(/([A-Z])/g, ' $1').trim().toUpperCase() }}
+                                    <th v-for="header in getHeaders(historicoData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {{ formatHeader(header) }}
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(row, index) in historicoData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in Object.keys(historicoData.length > 0 ? historicoData[0] : {})" :key="header" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td v-for="header in getHeaders(historicoData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <span>{{ row[header] }}</span>
                                     </td>
                                 </tr>
@@ -315,18 +334,17 @@ const handleExecuteCitas = async () => {
 
                 <!-- Reporte 3: Citas Programadas -->
                 <div v-if="activeTab === 'citas'">
-                    <!-- El resto del código para Citas Programadas va aquí... (similar a Ventas) -->
                     <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
+                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
                             <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             Filtros de Búsqueda para Citas Programadas
                         </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <!-- Veterinario (Select) -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Veterinario</label>
                                 <div class="relative">
-                                    <select v-model="filterParamsCitas.veterinario" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
+                                    <select v-model="filterParamsCitas.veterinario" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
                                         <option value="">Seleccione...</option>
                                         <option v-for="opt in veterinarioOptions" :key="opt" :value="opt">{{ opt }}</option>
                                     </select>
@@ -336,13 +354,13 @@ const handleExecuteCitas = async () => {
                             <!-- Cliente (Dueño) -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Cliente (Dueño)</label>
-                                <input type="text" v-model="filterParamsCitas.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
+                                <input type="text" v-model="filterParamsCitas.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
                             </div>
                             <!-- Estado de la Cita (Select) -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Estado de la Cita</label>
                                 <div class="relative">
-                                    <select v-model="filterParamsCitas.estadoCita" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
+                                    <select v-model="filterParamsCitas.estadoCita" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
                                         <option value="">Seleccione...</option>
                                         <option v-for="opt in estadoOptions" :key="opt" :value="opt">{{ opt }}</option>
                                     </select>
@@ -352,29 +370,33 @@ const handleExecuteCitas = async () => {
                             <!-- Rango de Fecha -->
                             <div class="flex flex-col">
                                 <label class="text-sm font-medium text-gray-700 mb-1">Rango de Fecha</label>
-                                <input type="date" v-model="filterParamsCitas.rangoFecha" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
+                                <input type="date" v-model="filterParamsCitas.rangoFecha" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
                             </div>
                         </div>
                     </div>
-                    <button @click="handleExecuteCitas" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <button
+                        @click="handleExecuteCitas"
+                        :disabled="loading"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                    >
+                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         Ejecutar Búsqueda y Generar Reporte
                     </button>
                     <!-- Resultados de la Tabla Citas -->
-                    <div class="bg-white p-6 rounded-xl shadow-lg mt-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Citas Programadas ({{ citasData.length }} registros)</h3>
+                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Citas Programadas ({{ citasData.length }} registros)</h3>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th v-for="header in Object.keys(citasData.length > 0 ? citasData[0] : {})" :key="header" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ header.replace(/([A-Z])/g, ' $1').trim().toUpperCase() }}
+                                    <th v-for="header in getHeaders(citasData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {{ formatHeader(header) }}
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr v-for="(row, index) in citasData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in Object.keys(citasData.length > 0 ? citasData[0] : {})" :key="header" class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td v-for="header in getHeaders(citasData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <span>{{ row[header] }}</span>
                                     </td>
                                 </tr>
