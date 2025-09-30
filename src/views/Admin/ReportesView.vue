@@ -5,48 +5,45 @@
     <main class="main-content">
       <div class="page-header">
         <h1>Reportes</h1>
-        <p class="subtitle">Visualiza y genera reportes estadísticos del sistema.</p>
+        <p class="subtitle">Visualiza y descarga estadísticas del sistema.</p>
       </div>
 
-      <!-- Contenido -->
       <div class="content-area">
-        <div v-if="reportes.length === 0" class="message empty">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-            <path d="M9 12H21" />
-            <path d="M9 18H21" />
-            <path d="M9 6H21" />
-            <path d="M3 12H6" />
-            <path d="M3 18H6" />
-            <path d="M3 6H6" />
-          </svg>
-          <p>No hay reportes disponibles en este momento.</p>
-        </div>
-
-        <div v-else class="reportes-grid">
+        <div class="reportes-grid">
           <div
             v-for="reporte in reportes"
             :key="reporte.id"
             class="reporte-card"
           >
-            <div class="icon-container">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 12H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 18H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M9 6H21" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 12H6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 18H6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 6H6" stroke="#145A32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
             <h3>{{ reporte.titulo }}</h3>
             <p>{{ reporte.descripcion }}</p>
+
             <div class="card-footer">
-              <button @click="generarReporte(reporte.id)" class="btn btn--success">
-                Generar
+              <button
+                @click="toggleGrafica(reporte.id)"
+                class="btn btn--success"
+                :aria-expanded="!!graficaVisible[reporte.id]"
+              >
+                {{ graficaVisible[reporte.id] ? 'Ocultar Gráfica' : 'Ver Gráfica' }}
               </button>
-              <button @click="verDetalles(reporte.id)" class="btn btn--outline">
-                Ver
+              <button
+                @click="descargarPDF(reporte)"
+                class="btn btn--outline"
+                :disabled="pdfLoading[reporte.id]"
+              >
+                {{ pdfLoading[reporte.id] ? 'Generando...' : 'Descargar PDF' }}
               </button>
+            </div>
+
+            <div
+              v-show="graficaVisible[reporte.id]"
+              class="grafica-container"
+            >
+              <canvas :ref="el => chartRefs[reporte.id] = el"></canvas>
+            </div>
+
+            <div v-if="errores[reporte.id]" class="error-message">
+              {{ errores[reporte.id] }}
             </div>
           </div>
         </div>
@@ -56,58 +53,327 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onBeforeUnmount, nextTick } from 'vue'
 import AppSidebar from '@/components/layouts/AppSidebar.vue'
+import { Chart, registerables } from 'chart.js'
+import { jsPDF } from 'jspdf'
+import 'jspdf-autotable'
+import { supabase } from '@/lib/supabaseClient'
 
-// Datos de ejemplo para reportes
+Chart.register(...registerables)
+
 const reportes = ref([
-  {
-    id: 1,
-    titulo: 'Reporte de Usuarios',
-    descripcion: 'Cantidad de usuarios registrados por mes y rol.'
-  },
-  {
-    id: 2,
-    titulo: 'Reporte de Citas',
-    descripcion: 'Estadísticas de citas por estado, veterinario y servicio.'
-  },
-  {
-    id: 3,
-    titulo: 'Reporte de Ventas',
-    descripcion: 'Ventas mensuales, productos más vendidos y ingresos.'
-  },
-  {
-    id: 4,
-    titulo: 'Reporte de Veterinarios',
-    descripcion: 'Productividad y especialidades por veterinario.'
-  },
-  {
-    id: 5,
-    titulo: 'Reporte de Equipos',
-    descripcion: 'Uso y mantenimiento de equipos médicos.'
-  },
-  {
-    id: 6,
-    titulo: 'Reporte de Testimonios',
-    descripcion: 'Calificaciones y feedback de clientes.'
-  }
+  { id: 1, titulo: 'Reporte de Ventas', descripcion: 'Ventas mensuales y productos más vendidos.' },
+  { id: 2, titulo: 'Reporte Veterinarios', descripcion: 'Citas por veterinario y tipo de atención.' },
+  { id: 3, titulo: 'Reporte Citas', descripcion: 'Cantidad de citas por estado.' }
 ])
 
-// Acciones (placeholder para futura implementación)
-const generarReporte = (reporteId) => {
-  alert(`Generando reporte ${reporteId}... (Funcionalidad pendiente)`)
+const graficaVisible = ref({})
+const chartInstances = ref({})
+const chartRefs = ref({})
+const pdfLoading = ref({})
+const errores = ref({})
+
+const logData = (id, data) => {
+  console.log(`[Reporte ${id}] Datos recibidos:`, data)
 }
 
-const verDetalles = (reporteId) => {
-  alert(`Ver detalles del reporte ${reporteId}... (Funcionalidad pendiente)`)
+const fetchReportData = async (id) => {
+  try {
+    if (id === 1) {
+      const { data, error } = await supabase.rpc('ventas_mensuales_agregadas')
+      if (error) throw error
+      if (!data || data.length === 0) {
+        errores.value[id] = 'No hay ventas registradas.'
+        return null
+      }
+      const result = {
+        labels: data.map(d => d.mes),
+        ingresos: data.map(d => parseFloat(d.total_mes) || 0),
+        productos: data.map(d => parseInt(d.cantidad_total) || 0)
+      }
+      logData(id, result)
+      return result
+    }
+
+    if (id === 2) {
+      const { data, error } = await supabase.rpc('citas_por_veterinario')
+      if (error) throw error
+      if (!data || data.length === 0) {
+        errores.value[id] = 'No hay citas asignadas a veterinarios.'
+        return null
+      }
+      const result = {
+        labels: data.map(d => d.nombre_veterinario),
+        completadas: data.map(d => parseInt(d.completadas) || 0),
+        canceladas: data.map(d => parseInt(d.canceladas) || 0),
+        programadas: data.map(d => parseInt(d.programadas) || 0)
+      }
+      logData(id, result)
+      return result
+    }
+
+    if (id === 3) {
+      const { data, error } = await supabase
+        .from('citasmascotas')
+        .select('estado')
+        .not('estado', 'is', null)
+      if (error) throw error
+      if (!data || data.length === 0) {
+        errores.value[id] = 'No hay citas registradas.'
+        return null
+      }
+
+      const counts = data.reduce((acc, cita) => {
+        const key = String(cita.estado || 'Sin estado')
+        acc[key] = (acc[key] || 0) + 1
+        return acc
+      }, {})
+
+      const labels = Object.keys(counts)
+      const dataValues = Object.values(counts)
+      const colors = ['#145A32', '#0F4C28', '#1E3A2B', '#94A3B8', '#22C55E', '#F59E0B', '#EF4444']
+
+      const result = { labels,  dataValues, colors }
+      logData(id, result)
+      return result
+    }
+
+    return null
+  } catch (error) {
+    const msg = `Error: ${error.message || 'Desconocido'}`
+    console.error(`[Reporte ${id}]`, msg)
+    errores.value[id] = msg
+    return null
+  }
 }
+
+const crearGrafica = async (id) => {
+  errores.value[id] = null
+  const data = await fetchReportData(id)
+  if (!data) return
+
+  const canvas = chartRefs.value[id]
+  if (!canvas) {
+    errores.value[id] = 'Canvas no disponible.'
+    return
+  }
+
+  if (chartInstances.value[id]) {
+    chartInstances.value[id].destroy()
+  }
+
+  try {
+    if (id === 1) {
+      chartInstances.value[id] = new Chart(canvas, {
+        type: 'bar',
+         {
+          labels: data.labels,
+          datasets: [
+            {
+              label: 'Ingresos ($)',
+              data: data.ingresos,
+              backgroundColor: '#145A32'
+            },
+            {
+              label: 'Productos vendidos',
+               data.productos,
+              backgroundColor: '#0F4C28'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true }
+          },
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      })
+    } else if (id === 2) {
+      chartInstances.value[id] = new Chart(canvas, {
+        type: 'bar',
+         {
+          labels: data.labels,
+          datasets: [
+            {
+              label: 'Citas completadas',
+               data.completadas,
+              backgroundColor: '#145A32'
+            },
+            {
+              label: 'Citas canceladas',
+               data.canceladas,
+              backgroundColor: '#EF4444'
+            },
+            {
+              label: 'Citas programadas',
+               data.programadas,
+              backgroundColor: '#1E3A2B'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { beginAtZero: true }
+          },
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      })
+    } else if (id === 3) {
+      chartInstances.value[id] = new Chart(canvas, {
+        type: 'pie',
+         {
+          labels: data.labels,
+          datasets: [
+            {
+               data.data,
+              backgroundColor: data.colors.slice(0, data.labels.length)
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' }
+          }
+        }
+      })
+    }
+  } catch (err) {
+    errores.value[id] = `Error al crear gráfica: ${err.message}`
+    console.error(err)
+  }
+}
+
+const toggleGrafica = async (id) => {
+  graficaVisible.value[id] = !graficaVisible.value[id]
+  if (graficaVisible.value[id]) {
+    await nextTick()
+    await crearGrafica(id)
+  }
+}
+
+const descargarPDF = async (reporte) => {
+  pdfLoading.value[reporte.id] = true
+  errores.value[reporte.id] = null
+
+  try {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.width
+    const now = new Date().toLocaleDateString('es-ES')
+
+    // Encabezado
+    doc.setFontSize(20)
+    doc.setTextColor(20, 90, 50)
+    doc.text('Clínica Veterinaria', 14, 20)
+
+    doc.setFontSize(10)
+    doc.setTextColor(100)
+    doc.text(`Generado el: ${now}`, pageWidth - 14, 20, { align: 'right' })
+
+    // Título del reporte
+    doc.setFontSize(16)
+    doc.setTextColor(0)
+    doc.text(reporte.titulo, 14, 35)
+
+    // Línea
+    doc.setDrawColor(20, 90, 50)
+    doc.setLineWidth(0.5)
+    doc.line(14, 40, pageWidth - 14, 40)
+
+    doc.setFontSize(11)
+    doc.setTextColor(80)
+    doc.text(reporte.descripcion, 14, 48)
+
+    const data = await fetchReportData(reporte.id)
+    let finalY = 58
+
+    if (!data) {
+      doc.setFontSize(12)
+      doc.setTextColor(200)
+      doc.text('No hay datos disponibles para este reporte.', 14, finalY)
+    } else {
+      let tableData = []
+      let head = []
+
+      if (reporte.id === 1) {
+        head = [['Mes', 'Ingresos ($)', 'Productos vendidos']]
+        tableData = data.labels.map((mes, i) => [
+          mes,
+          `$${data.ingresos[i].toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          data.productos[i].toLocaleString()
+        ])
+      } else if (reporte.id === 2) {
+        head = [['Veterinario', 'Completadas', 'Canceladas', 'Programadas']]
+        tableData = data.labels.map((vet, i) => [
+          vet,
+          data.completadas[i].toString(),
+          data.canceladas[i].toString(),
+          data.programadas[i].toString()
+        ])
+      } else if (reporte.id === 3) {
+        head = [['Estado de la Cita', 'Cantidad']]
+        tableData = data.labels.map((estado, i) => [estado, data.data[i].toString()])
+      }
+
+      const table = doc.autoTable({
+        head,
+        body: tableData,
+        startY: finalY,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [20, 90, 50],
+          fontSize: 11,
+          textColor: 255
+        },
+        styles: {
+          fontSize: 10,
+          cellPadding: 6
+        },
+        alternateRowStyles: {
+          fillColor: [245, 247, 249]
+        }
+      })
+
+      finalY = table.finalY
+    }
+
+    // Pie de página
+    doc.setFontSize(9)
+    doc.setTextColor(150)
+    doc.text('© Clínica Veterinaria - Sistema de Gestión', pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' })
+
+    doc.save(`${reporte.titulo.replace(/\s+/g, '_')}_${now.replace(/\//g, '-')}.pdf`)
+  } catch (error) {
+    console.error('Error al generar PDF:', error)
+    errores.value[reporte.id] = `Error PDF: ${error.message}`
+    alert('Error al generar el PDF. Revisa la consola.')
+  } finally {
+    pdfLoading.value[reporte.id] = false
+  }
+}
+
+onBeforeUnmount(() => {
+  Object.values(chartInstances.value).forEach(chart => {
+    if (chart?.destroy) chart.destroy()
+  })
+})
 </script>
 
 <style scoped>
 .reportes-admin-container {
   display: flex;
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: #f8fafc;
 }
 
 .main-content {
@@ -120,140 +386,147 @@ const verDetalles = (reporteId) => {
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
-    padding: 1.5rem;
+    padding: 1.25rem;
   }
-}
-
-.page-header {
-  margin-bottom: 2rem;
 }
 
 .page-header h1 {
   font-size: 1.875rem;
-  font-weight: 700;
-  color: #1e293b;
+  font-weight: 800;
+  color: #0f172a;
   margin: 0;
 }
 
 .subtitle {
   color: #64748b;
-  font-size: 1rem;
-}
-
-.content-area {
-  min-height: 400px;
-}
-
-.message {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1rem;
-  color: #64748b;
-  text-align: center;
+  font-size: 1.05rem;
+  margin-top: 0.35rem;
+  font-weight: 500;
 }
 
 .reportes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
 }
 
 .reporte-card {
   background: white;
-  border-radius: 12px;
-  padding: 1.75rem;
+  border-radius: 16px;
+  padding: 2rem;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 .reporte-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #145a32;
-}
-
-.icon-container {
-  width: 64px;
-  height: 64px;
-  background: #ecfdf5;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1.25rem;
-  transition: background-color 0.3s ease;
-}
-
-.reporte-card:hover .icon-container {
-  background: #d1fae5;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e1;
 }
 
 .reporte-card h3 {
-  margin: 1rem 0 0.75rem;
+  font-size: 1.35rem;
   color: #1e293b;
-  font-size: 1.25rem;
-  font-weight: 600;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
 }
 
 .reporte-card p {
   color: #64748b;
-  font-size: 0.95rem;
-  margin: 0 0 1.5rem 0;
-  line-height: 1.5;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.grafica-container {
+  height: 320px;
+  width: 100%;
+  margin-top: 1.5rem;
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.03);
+}
+
+@media (min-width: 768px) {
+  .grafica-container {
+    height: 420px;
+  }
 }
 
 .card-footer {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   justify-content: center;
+  margin-top: 1.25rem;
 }
 
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.925rem;
   cursor: pointer;
   border: none;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 130px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.65;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn--success {
-  background: #145a32;
+  background: linear-gradient(135deg, #145a32, #0f4c28);
   color: white;
+  box-shadow: 0 4px 6px rgba(20, 90, 50, 0.3);
 }
 
 .btn--success:hover:not(:disabled) {
-  background: #0f4c28;
+  background: linear-gradient(135deg, #0f4c28, #0a3a1e);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(20, 90, 50, 0.4);
 }
 
 .btn--outline {
-  background: #f1f5f9;
+  background: white;
   color: #1e293b;
+  border: 2px solid #cbd5e1;
+  font-weight: 600;
 }
 
 .btn--outline:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-2px);
 }
 
-/* Responsive extra */
+.error-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  border-left: 4px solid #ef4444;
+}
+
 @media (max-width: 768px) {
   .reportes-grid {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1.5rem;
   }
 
   .reporte-card {
-    padding: 1.25rem;
+    padding: 1.5rem;
   }
 
   .card-footer {
