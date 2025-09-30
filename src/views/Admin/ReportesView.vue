@@ -1,423 +1,124 @@
-<script setup>
-import { ref, computed } from 'vue';
-
-// --- Datos Simulado de Base de Datos (Vistas) ---
-// NOTA: Mantuve los datos de ejemplo y la lógica de simulación
-const mockReporteVentas = [
-  { id: 101, cliente: "Juan Pérez", fecha: "2025-09-01", total: 450.00, item: "Alimento Premium 15kg", veterinario: "Dr. Ana Gómez" },
-  { id: 102, cliente: "María López", fecha: "2025-09-02", total: 120.50, item: "Vacuna Triple Felina", veterinario: "Dr. Luis Torres" },
-  { id: 103, cliente: "Carlos Ruiz", fecha: "2025-09-03", total: 890.00, item: "Medicina Especializada", veterinario: "Dr. Ana Gómez" },
-  { id: 104, cliente: "Laura Díaz", fecha: "2025-09-04", total: 65.00, item: "Juguete para Perro", veterinario: "Dr. Ana Gómez" },
-];
-const mockReporteHistorico = [
-  { id: 501, cliente: "Juan Pérez", mascota: "Max", tipoAtencion: "Consulta General", fecha: "2025-09-01", diagnostico: "Revisión anual" },
-  { id: 502, cliente: "María López", mascota: "Mona", tipoAtencion: "Vacunación", fecha: "2025-09-02", diagnostico: "Vacuna de refuerzo" },
-  { id: 503, cliente: "Carlos Ruiz", mascota: "Toby", tipoAtencion: "Cirugía Menor", fecha: "2025-09-03", diagnostico: "Extracción de quiste" },
-  { id: 504, cliente: "Laura Díaz", mascota: "Sasha", tipoAtencion: "Peluquería", fecha: "2025-09-04", diagnostico: "Baño y corte" },
-];
-const mockReporteCitas = [
-  { id: 801, veterinario: "Dr. Ana Gómez", cliente: "Felipe Soto", fecha: "2025-09-05", hora: "10:00", estado: "Confirmada", servicio: "Esterilización" },
-  { id: 802, veterinario: "Dr. Luis Torres", cliente: "Elena Vidal", fecha: "2025-09-05", hora: "14:30", estado: "Pendiente", servicio: "Consulta general" },
-  { id: 803, veterinario: "Dr. Ana Gómez", cliente: "Pedro Días", fecha: "2025-09-06", hora: "11:00", estado: "Completada", servicio: "Control post-cirugía" },
-];
-
-// --- Estados Reactivos ---
-const activeTab = ref('ventas');
-const loading = ref(false);
-
-// --- Estados de Filtros para cada Reporte ---
-const filterParamsVentas = ref({
-    cliente: '',
-    fechaInicio: '',
-    fechaFin: '',
-    item: '',
-});
-
-const filterParamsHistorico = ref({
-    cliente: '',
-    fechaInicio: '',
-    fechaFin: '',
-    tipoAtencion: '',
-});
-
-const filterParamsCitas = ref({
-    veterinario: '',
-    cliente: '',
-    rangoFecha: '',
-    estadoCita: '',
-});
-
-// Estado para guardar los datos filtrados/ejecutados
-const ventasData = ref(mockReporteVentas);
-const historicoData = ref(mockReporteHistorico);
-const citasData = ref(mockReporteCitas);
-
-
-// --- Opciones para SELECTs de ejemplo ---
-const itemOptions = computed(() => [...new Set(mockReporteVentas.map(i => i.item))]);
-const atencionOptions = computed(() => [...new Set(mockReporteHistorico.map(i => i.tipoAtencion))]);
-const veterinarioOptions = computed(() => [...new Set(mockReporteCitas.map(i => i.veterinario))]);
-const estadoOptions = ['Confirmada', 'Pendiente', 'Completada', 'Cancelada'];
-
-
-// Función genérica para simular el proceso de búsqueda (API Call)
-const executeSearch = (reportName, filters, mockData) => {
-    loading.value = true;
-    console.log(`Ejecutando búsqueda para ${reportName} con filtros:`, filters);
-
-    return new Promise(resolve => {
-        setTimeout(() => {
-            // Simulación de filtrado básico en la UI por 'cliente'
-            const filteredData = mockData.filter(item => {
-                let matches = true;
-                // Solo implementamos un filtro de ejemplo por 'cliente'
-                if (filters.cliente && item.cliente && !item.cliente.toLowerCase().includes(filters.cliente.toLowerCase())) {
-                    matches = false;
-                }
-                return matches;
-            });
-
-            resolve(filteredData);
-            loading.value = false;
-        }, 1000);
-    });
-};
-
-// --- Funciones de Manejo de Reportes ---
-const handleExecuteVentas = async () => {
-    const data = await executeSearch('Notas de Venta', filterParamsVentas.value, mockReporteVentas);
-    ventasData.value = data;
-};
-
-const handleExecuteHistorico = async () => {
-    const data = await executeSearch('Historial Veterinario', filterParamsHistorico.value, mockReporteHistorico);
-    historicoData.value = data;
-};
-
-const handleExecuteCitas = async () => {
-    const data = await executeSearch('Citas Programadas', filterParamsCitas.value, mockReporteCitas);
-    citasData.value = data;
-};
-
-// Función para obtener las cabeceras de la tabla
-const getHeaders = (data) => {
-    return data && data.length > 0 ? Object.keys(data[0]) : [];
-};
-
-// Función para formatear el título de las cabeceras (e.g., tipoAtencion -> TIPO ATENCION)
-const formatHeader = (header) => {
-    return header.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
-};
-</script>
-
 <template>
-    <!-- Contenedor principal ajustado para ser flexible y responsive -->
-    <!-- Quitamos max-w-7xl mx-auto para que se adapte al ancho disponible por el sidebar -->
-    <div class="min-h-screen bg-gray-50 p-4 sm:p-6 font-sans">
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-4 sm:mb-6 flex items-center">
-            <!-- Icono FileText simulado -->
-            <svg class="w-6 h-6 sm:w-7 sm:h-7 mr-2 sm:mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-            Módulo de Reportes de Gestión
-        </h1>
-        <p class="text-sm sm:text-base text-gray-500 mb-6">Selecciona la vista de reporte que deseas ejecutar y aplica los filtros necesarios.</p>
+  <!--
+    Contenedor Principal:
+    1. Padding: Usa p-4 en móviles y p-8 en pantallas medianas+.
+    2. Margen Izquierdo (md:ml-[260px]): Aplica un margen izquierdo de 260px SOLO a partir del breakpoint 'md'.
+       Esto asegura que el contenido no se oculte detrás del sidebar fijo en escritorio,
+       pero en móvil (donde el sidebar probablemente se oculta o se superpone) ocupa todo el ancho.
+    3. Transición: Mantiene la animación si el sidebar se colapsa/expande.
+  -->
+  <div class="p-4 sm:p-8 md:ml-[260px] transition-all duration-300 min-h-screen bg-gray-50">
 
-        <!-- --- Control de Pestañas (Tabs) --- -->
-        <div class="border-b border-gray-200 overflow-x-auto">
-            <nav class="-mb-px flex space-x-2 sm:space-x-4 min-w-max" aria-label="Tabs">
-                <button
-                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
-                            activeTab === 'ventas'
-                            ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
-                            : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
-                    @click="activeTab = 'ventas'"
-                >
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-2.485 0-4.5 2.015-4.5 4.5S9.515 17 12 17s4.5-2.015 4.5-4.5S14.485 8 12 8z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h18M3 21h18M12 3v18"></path></svg>
-                    <span>1. Notas de Venta</span>
-                </button>
-                <button
-                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
-                            activeTab === 'historico'
-                            ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
-                            : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
-                    @click="activeTab = 'historico'"
-                >
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-6.168 0-10 4-10 7h20c0-3-3.832-7-10-7z"></path></svg>
-                    <span>2. Historial Veterinario</span>
-                </button>
-                <button
-                    :class="['flex items-center space-x-1 sm:space-x-2 py-2 px-3 sm:py-3 sm:px-4 text-xs sm:text-sm font-medium transition-colors duration-200 border-b-2 whitespace-nowrap rounded-t-lg',
-                            activeTab === 'citas'
-                            ? 'text-indigo-600 border-indigo-600 bg-indigo-50'
-                            : 'text-gray-500 border-transparent hover:text-indigo-500 hover:border-gray-300']"
-                    @click="activeTab = 'citas'"
-                >
-                    <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>3. Citas Programadas</span>
-                </button>
-            </nav>
+    <div class="max-w-7xl mx-auto">
+
+      <!-- Encabezado de la página -->
+      <header class="mb-8 md:mb-12">
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-indigo-800 tracking-tight">
+          Reportes de Gestión
+        </h2>
+        <p class="mt-2 text-base sm:text-lg text-gray-500">
+          Selecciona el reporte que deseas ejecutar y aplica los filtros necesarios.
+        </p>
+      </header>
+
+      <!-- Grid de Tarjetas de Reporte: Totalmente responsivo (1, 2 o 3 columnas) -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+
+        <ReportCard
+          title="Notas de Venta"
+          description="Filtra y exporta el detalle de ventas por período y cliente."
+          iconClass="ph-currency-circle-dollar"
+          @click="selectReport('ventas')"
+        />
+
+        <ReportCard
+          title="Historial Clínico"
+          description="Consulta el historial médico de pacientes por veterinario o fecha."
+          iconClass="ph-stethoscope"
+          @click="selectReport('clinico')"
+        />
+
+        <ReportCard
+          title="Citas Programadas"
+          titleColor="text-green-700"
+          description="Visualiza las citas pendientes y completadas por rango de fecha."
+          iconClass="ph-calendar-check"
+          @click="selectReport('citas')"
+        />
+
+        <ReportCard
+          title="Inventario de Productos"
+          titleColor="text-amber-700"
+          description="Stock actual, movimientos y alertas de productos."
+          iconClass="ph-package"
+          @click="selectReport('inventario')"
+        />
+
+      </section>
+
+      <!-- Vista de Detalle del Reporte Seleccionado -->
+      <div v-if="selectedReport" class="mt-10 sm:mt-12 p-6 bg-white rounded-xl shadow-lg border border-gray-200">
+        <h3 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-4 border-b pb-2">
+          Detalle del Reporte: {{ reportTitle }}
+        </h3>
+
+        <!-- Bloque de Filtros: Se ajusta a 1 columna en móvil y 3 en desktop -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+             <input type="text" placeholder="Buscar por Cliente" class="p-3 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+             <input type="date" class="p-3 border rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+             <button class="bg-indigo-600 text-white font-medium p-3 rounded-lg hover:bg-indigo-700 transition">
+                <i class="ph ph-sliders mr-2"></i>Aplicar Filtros
+             </button>
         </div>
 
-        <!-- --- Contenido de la Pestaña Activa (Filtros y Resultados) --- -->
-        <div class="py-6">
-            <!-- Manejo de estado de carga -->
-            <div v-if="loading" class="flex justify-center items-center h-64 bg-white rounded-xl shadow-lg mt-6">
-                <div class="flex flex-col items-center">
-                    <!-- SVG Spinner -->
-                    <svg class="animate-spin h-8 w-8 text-indigo-500 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <p class="text-indigo-600 font-semibold">Cargando y aplicando filtros...</p>
-                </div>
-            </div>
+        <p class="text-gray-600">
+            Mostrando resultados del reporte <span class="font-bold text-indigo-600">{{ reportTitle }}</span>.
+        </p>
 
-            <!-- Contenido de Reportes -->
-            <div v-else>
-                <!-- Reporte 1: Notas de Venta -->
-                <div v-if="activeTab === 'ventas'">
-                    <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            Filtros de Búsqueda para Notas de Venta
-                        </h3>
-                        <!-- Grid responsivo: 1 columna en móvil, 2 en tablet/sm, 4 en desktop/lg -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                            <!-- Cliente (Búsqueda) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                                <input
-                                    type="text"
-                                    v-model="filterParamsVentas.cliente"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
-                                    placeholder="Buscar por cliente"
-                                />
-                            </div>
-                            <!-- Fecha de Inicio -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
-                                <input
-                                    type="date"
-                                    v-model="filterParamsVentas.fechaInicio"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
-                                />
-                            </div>
-                            <!-- Fecha de Fin -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
-                                <input
-                                    type="date"
-                                    v-model="filterParamsVentas.fechaFin"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800"
-                                />
-                            </div>
-                            <!-- Ítem Vendido (Select) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Ítem Vendido</label>
-                                <div class="relative">
-                                    <select
-                                    v-model="filterParamsVentas.item"
-                                    class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800"
-                                    >
-                                    <option value="">Seleccione...</option>
-                                    <option v-for="opt in itemOptions" :key="opt" :value="opt">{{ opt }}</option>
-                                    </select>
-                                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        @click="handleExecuteVentas"
-                        :disabled="loading"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        Ejecutar Búsqueda y Generar Reporte
-                    </button>
-
-                    <!-- Resultados de la Tabla -->
-                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
-                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Notas de Venta ({{ ventasData.length }} registros)</h3>
-                        <!-- El contenedor overflow-x-auto asegura que la tabla sea desplazable horizontalmente en pantallas pequeñas -->
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th v-for="header in getHeaders(ventasData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ formatHeader(header) }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="(row, index) in ventasData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in getHeaders(ventasData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <span v-if="header === 'total'">\${{ row[header].toFixed(2) }}</span>
-                                        <span v-else>{{ row[header] }}</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                            </table>
-                        </div>
-                        <p v-if="ventasData.length === 0" class="text-center py-8 text-gray-500">No hay datos que coincidan con los filtros aplicados.</p>
-                    </div>
-                </div>
-
-                <!-- Reporte 2: Historial Veterinario -->
-                <div v-if="activeTab === 'historico'">
-                    <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            Filtros de Búsqueda para Historial Veterinario
-                        </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                            <!-- Cliente (Dueño) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Cliente (Dueño)</label>
-                                <input type="text" v-model="filterParamsHistorico.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
-                            </div>
-                            <!-- Fecha de Inicio -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Inicio</label>
-                                <input type="date" v-model="filterParamsHistorico.fechaInicio" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
-                            </div>
-                            <!-- Fecha de Fin -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Fecha de Fin</label>
-                                <input type="date" v-model="filterParamsHistorico.fechaFin" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
-                            </div>
-                            <!-- Tipo de Atención (Select) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Tipo de Atención</label>
-                                <div class="relative">
-                                    <select v-model="filterParamsHistorico.tipoAtencion" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
-                                        <option value="">Seleccione...</option>
-                                        <option v-for="opt in atencionOptions" :key="opt" :value="opt">{{ opt }}</option>
-                                    </select>
-                                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <button
-                        @click="handleExecuteHistorico"
-                        :disabled="loading"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        Ejecutar Búsqueda y Generar Reporte
-                    </button>
-                    <!-- Resultados de la Tabla Historial -->
-                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
-                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Historial Veterinario ({{ historicoData.length }} registros)</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th v-for="header in getHeaders(historicoData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ formatHeader(header) }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="(row, index) in historicoData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in getHeaders(historicoData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <span>{{ row[header] }}</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                            </table>
-                        </div>
-                        <p v-if="historicoData.length === 0" class="text-center py-8 text-gray-500">No hay datos que coincidan con los filtros aplicados.</p>
-                    </div>
-                </div>
-
-                <!-- Reporte 3: Citas Programadas -->
-                <div v-if="activeTab === 'citas'">
-                    <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-100 mb-6">
-                        <h3 class="text-base sm:text-lg font-semibold text-gray-700 border-b pb-2 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            Filtros de Búsqueda para Citas Programadas
-                        </h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                            <!-- Veterinario (Select) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Veterinario</label>
-                                <div class="relative">
-                                    <select v-model="filterParamsCitas.veterinario" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
-                                        <option value="">Seleccione...</option>
-                                        <option v-for="opt in veterinarioOptions" :key="opt" :value="opt">{{ opt }}</option>
-                                    </select>
-                                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                            <!-- Cliente (Dueño) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Cliente (Dueño)</label>
-                                <input type="text" v-model="filterParamsCitas.cliente" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" placeholder="Buscar por cliente" />
-                            </div>
-                            <!-- Estado de la Cita (Select) -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Estado de la Cita</label>
-                                <div class="relative">
-                                    <select v-model="filterParamsCitas.estadoCita" class="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none bg-white text-gray-800">
-                                        <option value="">Seleccione...</option>
-                                        <option v-for="opt in estadoOptions" :key="opt" :value="opt">{{ opt }}</option>
-                                    </select>
-                                    <svg class="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </div>
-                            </div>
-                            <!-- Rango de Fecha -->
-                            <div class="flex flex-col">
-                                <label class="text-sm font-medium text-gray-700 mb-1">Rango de Fecha</label>
-                                <input type="date" v-model="filterParamsCitas.rangoFecha" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800" />
-                            </div>
-                        </div>
-                    </div>
-                    <button
-                        @click="handleExecuteCitas"
-                        :disabled="loading"
-                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-xl text-sm sm:text-base shadow-md transition-all duration-300 transform hover:scale-[1.01] flex items-center mb-6 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                        <svg class="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                        Ejecutar Búsqueda y Generar Reporte
-                    </button>
-                    <!-- Resultados de la Tabla Citas -->
-                    <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mt-4 sm:mt-6">
-                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resultados: Citas Programadas ({{ citasData.length }} registros)</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th v-for="header in getHeaders(citasData)" :key="header" class="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        {{ formatHeader(header) }}
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="(row, index) in citasData" :key="index" class="hover:bg-gray-50 transition-colors duration-150">
-                                    <td v-for="header in getHeaders(citasData)" :key="header" class="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <span>{{ row[header] }}</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                            </table>
-                        </div>
-                        <p v-if="citasData.length === 0" class="text-center py-8 text-gray-500">No hay datos que coincidan con los filtros aplicados.</p>
-                    </div>
-                </div>
-            </div>
+        <!-- Mockup de tabla/resultados: Asegura desplazamiento horizontal si es necesario -->
+        <div class="mt-6 overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg">
+                <thead class="bg-indigo-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-indigo-600 uppercase tracking-wider">Fecha</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-indigo-600 uppercase tracking-wider">Descripción</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-indigo-600 uppercase tracking-wider">Monto</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    <tr><td class="px-6 py-4 whitespace-nowrap">2023-01-15</td><td class="px-6 py-4 whitespace-nowrap">Consulta de rutina</td><td class="px-6 py-4 whitespace-nowrap">$45.00</td></tr>
+                    <tr><td class="px-6 py-4 whitespace-nowrap">2023-01-16</td><td class="px-6 py-4 whitespace-nowrap">Venta de alimento</td><td class="px-6 py-4 whitespace-nowrap">$75.50</td></tr>
+                </tbody>
+            </table>
         </div>
+
+      </div>
+
     </div>
+  </div>
 </template>
 
+<script setup>
+import { ref, computed } from 'vue';
+import ReportCard from '@/components/ReportCard.vue'; // Debe existir este componente.
+
+const selectedReport = ref('ventas'); // Iniciar con uno seleccionado
+
+const reportTitles = {
+  ventas: 'Notas de Venta',
+  clinico: 'Historial Clínico',
+  citas: 'Citas Programadas',
+  inventario: 'Inventario de Productos',
+};
+
+const selectReport = (key) => {
+  selectedReport.value = key;
+};
+
+const reportTitle = computed(() => reportTitles[selectedReport.value] || 'Seleccione un Reporte');
+
+</script>
+
 <style scoped>
-/* Estilos para el spinner (animación de carga) */
-.animate-spin {
-    animation: spin 1s linear infinite;
-}
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
+/* No se requiere CSS adicional, Tailwind CSS maneja el responsive y diseño. */
 </style>
