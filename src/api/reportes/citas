@@ -1,0 +1,35 @@
+app.get('/api/reportes/citas', async (req, res) => {
+  const { cliente, veterinario, fechaInicio, fechaFin, estado } = req.query;
+  let query = 'SELECT * FROM vista_citas_programadas WHERE 1=1';
+  const values = [];
+  let index = 1;
+
+  if (cliente) {
+    query += ` AND nombre_cliente ILIKE $${index++}`;
+    values.push(`%${cliente}%`);
+  }
+  if (veterinario) {
+    query += ` AND nombre_veterinario ILIKE $${index++}`;
+    values.push(`%${veterinario}%`);
+  }
+  if (fechaInicio) {
+    query += ` AND fecha >= $${index++}`;
+    values.push(fechaInicio);
+  }
+  if (fechaFin) {
+    query += ` AND fecha <= $${index++}`;
+    values.push(fechaFin);
+  }
+  if (estado) {
+    query += ` AND estado_cita = $${index++}`;
+    values.push(estado);
+  }
+
+  try {
+    const result = await pool.query(query, values);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener reporte de citas' });
+  }
+});

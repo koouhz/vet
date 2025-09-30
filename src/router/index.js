@@ -36,6 +36,42 @@ const routes = [
       { path: '', name: 'DashboardAdmin', component: () => import('@/views/DashboardAdmin.vue') }
     ]
   },
+  {
+  path: '/admin/reportes/notas-venta',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'ReporteNotasVenta',
+      component: () => import('@/views/Admin/NotasVenta.vue')
+    }
+  ]
+},
+{
+  path: '/admin/reportes/historial-veterinario',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'ReporteHistorialVeterinario',
+      component: () => import('@/views/Admin/HistorialVeterinario.vue')
+    }
+  ]
+},
+{
+  path: '/admin/reportes/citas',
+  component: DashboardLayout,
+  meta: { requiresAuth: true, role: 'admin' },
+  children: [
+    {
+      path: '',
+      name: 'ReporteCitas',
+      component: () => import('@/views/Admin/HistorialCitas.vue')
+    }
+  ]
+},
 
   // Dashboard Veterinario
   {
